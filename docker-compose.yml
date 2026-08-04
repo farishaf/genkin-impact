@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: genkin_dev_password
       POSTGRES_DB: genkin_impact
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - genkin_pg_data:/var/lib/postgresql/data
 
