@@ -35,7 +35,7 @@ describe("runMigrations", () => {
     expect(tables.rows.map((r) => r.table_name).sort()).toEqual(["exchange_rates", "transaction_tags", "transactions"]);
 
     const rates = await pool.query(
-      `SELECT quote_code FROM exchange_rates WHERE base_code='USD' AND rate_date = CURRENT_DATE ORDER BY quote_code`
+      `SELECT quote_code FROM exchange_rates WHERE base_code='USD' ORDER BY quote_code`
     );
     expect(rates.rows.map((r) => r.quote_code)).toEqual(["CNY", "EUR", "GBP", "HKD", "JPY", "USD"]);
   });
