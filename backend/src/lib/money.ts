@@ -18,7 +18,10 @@ export function parseToMinor(input: string, decimalDigits: number): bigint {
   }
 
   const [wholePart, fracPart = ""] = trimmed.split(".");
-  const fracPadded = (fracPart + "0".repeat(decimalDigits)).slice(0, decimalDigits);
+  if (fracPart.length > decimalDigits) {
+    throw new Error(`invalid amount: ${input} has more decimal places than this currency supports (${decimalDigits})`);
+  }
+  const fracPadded = fracPart.padEnd(decimalDigits, "0");
 
   return BigInt(wholePart) * 10n ** BigInt(decimalDigits) + (fracPadded ? BigInt(fracPadded) : 0n);
 }

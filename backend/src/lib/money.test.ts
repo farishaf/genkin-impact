@@ -34,4 +34,9 @@ describe("parseToMinor", () => {
     expect(() => parseToMinor("abc", 2)).toThrow();
     expect(() => parseToMinor("-5", 2)).toThrow();
   });
+
+  it("rejects over-precision fractional input", () => {
+    expect(() => parseToMinor("68.567", 2)).toThrow();
+    expect(() => parseToMinor("15000.99", 0)).toThrow();
+  });
 });
