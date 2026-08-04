@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import jwt from "jsonwebtoken";
 import { signAccessToken, verifyAccessToken, generateRefreshToken, hashRefreshToken } from "./tokens.js";
 
 const SECRET = "test-secret";
@@ -16,6 +17,11 @@ describe("access tokens", () => {
 
   it("throws on garbage input", () => {
     expect(() => verifyAccessToken("not-a-jwt", SECRET)).toThrow();
+  });
+
+  it("throws on an expired token", () => {
+    const expiredToken = jwt.sign({ sub: "user-123" }, SECRET, { expiresIn: "-10s" });
+    expect(() => verifyAccessToken(expiredToken, SECRET)).toThrow();
   });
 });
 
