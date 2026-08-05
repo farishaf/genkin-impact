@@ -186,7 +186,9 @@ authRouter.post("/refresh", async (req, res, next) => {
 
     const hash = hashRefreshToken(rawToken);
     const sessionRes = await pool.query(
-      `SELECT * FROM sessions WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > now()`,
+      `SELECT s.* FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.refresh_token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.deleted_at IS NULL`,
       [hash]
     );
     const session = sessionRes.rows[0];

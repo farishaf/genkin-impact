@@ -30,8 +30,10 @@ describe("POST /auth/register", () => {
     expect(res.status).toBe(201);
     expect(res.body.user.email).toBe("test@example.com");
     expect(res.body.user.password_hash).toBeUndefined();
-    expect(res.headers["set-cookie"].some((c: string) => c.startsWith("access_token="))).toBe(true);
-    expect(res.headers["set-cookie"].some((c: string) => c.startsWith("refresh_token="))).toBe(true);
+    const setCookie = res.headers["set-cookie"];
+    const cookies = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+    expect(cookies.some((c: string) => c.startsWith("access_token="))).toBe(true);
+    expect(cookies.some((c: string) => c.startsWith("refresh_token="))).toBe(true);
 
     const categories = await pool.query("SELECT kind, count(*) FROM categories GROUP BY kind ORDER BY kind");
     expect(categories.rows).toEqual([
@@ -137,6 +139,21 @@ describe("POST /auth/refresh", () => {
     expect(sessionsAfter.rows).toHaveLength(2);
     expect(sessionsAfter.rows[0].revoked_at).not.toBeNull();
     expect(sessionsAfter.rows[1].revoked_at).toBeNull();
+  });
+
+  it("rejects refresh for a soft-deleted user, even with a still-valid, unrevoked refresh token", async () => {
+    // Regression test for I3: the refresh handler used to check only the sessions table
+    // (revoked_at/expires_at), never joining users to check deleted_at. A soft-deleted
+    // user could keep refreshing forever. The session lookup now joins users and
+    // requires deleted_at IS NULL.
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "deleted-refresh@example.com", password: "password12345", display_name: "D" });
+
+    const userRes = await pool.query("SELECT id FROM users WHERE email = $1", ["deleted-refresh@example.com"]);
+    await pool.query("UPDATE users SET deleted_at = now() WHERE id = $1", [userRes.rows[0].id]);
+
+    const refreshRes = await agent.post("/auth/refresh");
+    expect(refreshRes.status).toBe(401);
   });
 });
 
