@@ -8,6 +8,7 @@ import { currenciesRouter } from "./routes/currencies.js";
 import { usersRouter } from "./routes/users.js";
 import { accountsRouter } from "./routes/accounts.js";
 import { transactionsRouter } from "./routes/transactions.js";
+import { categoriesRouter } from "./routes/categories.js";
 
 export const app = express();
 
@@ -23,5 +24,6 @@ app.use("/currencies", currenciesRouter);
 
 app.use("/accounts", accountsRouter);
 app.use("/transactions", transactionsRouter);
+app.use("/categories", categoriesRouter);
 
 app.use(errorHandler);
