@@ -7,6 +7,7 @@ import { authRouter } from "./routes/auth.js";
 import { currenciesRouter } from "./routes/currencies.js";
 import { usersRouter } from "./routes/users.js";
 import { accountsRouter } from "./routes/accounts.js";
+import { transactionsRouter } from "./routes/transactions.js";
 
 export const app = express();
 
@@ -21,8 +22,6 @@ app.use("/users", usersRouter);
 app.use("/currencies", currenciesRouter);
 
 app.use("/accounts", accountsRouter);
-
-// Route mounts are added in later tasks:
-// app.use("/transactions", transactionsRouter);
+app.use("/transactions", transactionsRouter);
 
 app.use(errorHandler);
