@@ -9,6 +9,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await pool.query("DELETE FROM transactions");
+  await pool.query("DELETE FROM accounts");
   await pool.query("DELETE FROM sessions");
   await pool.query("DELETE FROM members");
   await pool.query("DELETE FROM categories");
