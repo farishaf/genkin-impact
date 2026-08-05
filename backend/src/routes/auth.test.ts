@@ -46,6 +46,28 @@ describe("POST /auth/register", () => {
     const res = await request(app).post("/auth/register").send({ email: "dup@example.com", password: "password12345", display_name: "B" });
     expect(res.status).toBe(409);
   });
+
+  it("returns 409 (not a raw 500) when two registrations for the same email race past the pre-check", async () => {
+    // The duplicate-email pre-check (SELECT before the transaction) is a
+    // fast-path only; it can't fully prevent two concurrent registrations for
+    // the same email both passing it and racing to INSERT. Firing both
+    // requests together exercises that race directly: each pre-check SELECT
+    // resolves (finding no row) well before either request's slower
+    // hashPassword + INSERT sequence completes, so both proceed to INSERT and
+    // the second hits the users.email UNIQUE constraint. The fix must
+    // translate that into a 409, not let it fall through as an unhandled 500.
+    const payload = { email: "race@example.com", password: "password12345", display_name: "Racer" };
+    const [resA, resB] = await Promise.all([
+      request(app).post("/auth/register").send(payload),
+      request(app).post("/auth/register").send(payload),
+    ]);
+
+    const statuses = [resA.status, resB.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([201, 409]);
+
+    const users = await pool.query("SELECT id FROM users WHERE email = $1", ["race@example.com"]);
+    expect(users.rows).toHaveLength(1);
+  });
 });
 
 describe("POST /auth/login and GET /auth/me", () => {
@@ -72,6 +94,29 @@ describe("POST /auth/login and GET /auth/me", () => {
     const res = await request(app).post("/auth/login").send({ email: "nobody@example.com", password: "password12345" });
     expect(res.status).toBe(401);
     expect(res.body.error.message).toBe("Email or password is incorrect.");
+  });
+
+  it("still performs a real Argon2id verify for a nonexistent email (closes the timing side-channel)", async () => {
+    // Regression test for a user-enumeration timing side-channel: a
+    // nonexistent-email login used to fail fast right after the SELECT,
+    // while a wrong-password login additionally paid for a real Argon2id
+    // verify (tens of ms). An attacker measuring response latency could tell
+    // the two cases apart even though the status/message were identical.
+    // The fix always runs one real verifyPassword call (against a cached
+    // dummy hash when there's no user row) before responding. We can't assert
+    // on an exact duration without risking flakiness, but a bare "no such
+    // row" DB round trip resolves in a few ms, whereas a real Argon2id verify
+    // takes tens of ms on this machine (~35ms measured directly against this
+    // repo's argon2 config) — so a floor well below that, comfortably above
+    // a trivial DB round trip, confirms the verify path is actually being
+    // exercised rather than short-circuited.
+    const start = Date.now();
+    const res = await request(app).post("/auth/login").send({ email: "nobody-timing@example.com", password: "password12345" });
+    const elapsedMs = Date.now() - start;
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.message).toBe("Email or password is incorrect.");
+    expect(elapsedMs).toBeGreaterThanOrEqual(10);
   });
 });
 

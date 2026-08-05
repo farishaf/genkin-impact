@@ -61,6 +61,17 @@ function toPublicUser(row: any) {
   return rest;
 }
 
+// Computed lazily, once, and cached — used to pay the same Argon2id verify
+// cost on a nonexistent-email login attempt as a real wrong-password attempt,
+// so response timing can't be used to enumerate accounts.
+let dummyPasswordHashPromise: Promise<string> | null = null;
+function getDummyPasswordHash(): Promise<string> {
+  if (!dummyPasswordHashPromise) {
+    dummyPasswordHashPromise = hashPassword("dummy-password-for-constant-time-comparison");
+  }
+  return dummyPasswordHashPromise;
+}
+
 async function issueSession(userId: string, req: Request, res: Response) {
   const accessToken = signAccessToken(userId, env.JWT_SECRET);
   const refresh = generateRefreshToken();
@@ -128,6 +139,13 @@ authRouter.post("/register", validateBody(registerSchema), async (req, res, next
       res.status(201).json({ user: toPublicUser(user) });
     } catch (err) {
       await client.query("ROLLBACK");
+      // The pre-check above is a fast-path only; two concurrent registrations
+      // for the same email can both pass it and race to INSERT. Translate the
+      // resulting unique-violation into the same 409 the pre-check produces,
+      // instead of letting a raw Postgres error fall through to a 500.
+      if ((err as { code?: string }).code === "23505") {
+        throw new AppError(409, "email_taken", "An account with this email already exists.");
+      }
       throw err;
     } finally {
       client.release();
@@ -147,9 +165,12 @@ authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
 
     const genericError = () => new AppError(401, "invalid_credentials", "Email or password is incorrect.");
 
-    if (!user) throw genericError();
-    const valid = await verifyPassword(user.password_hash, password);
-    if (!valid) throw genericError();
+    // Always run one real verifyPassword call before responding, whether or
+    // not the user exists, so the two failure paths are timing-indistinguishable.
+    const valid = user
+      ? await verifyPassword(user.password_hash, password)
+      : await verifyPassword(await getDummyPasswordHash(), password);
+    if (!user || !valid) throw genericError();
 
     await issueSession(user.id, req, res);
     res.json({ user: toPublicUser(user) });
