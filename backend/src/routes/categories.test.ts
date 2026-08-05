@@ -44,4 +44,12 @@ describe("GET /categories", () => {
     const res = await agentA.get("/categories");
     expect(res.body.categories).toHaveLength(9); // only their own 9, not 18
   });
+
+  it("returns 400 (not 500) for an invalid kind value", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "badkind@example.com", password: "password12345", display_name: "Bad Kind" });
+
+    const res = await agent.get("/categories").query({ kind: "bogus" });
+    expect(res.status).toBe(400);
+  });
 });

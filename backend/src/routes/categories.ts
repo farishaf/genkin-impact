@@ -2,14 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
+import { validateQuery } from "../middleware/validateQuery.js";
 
 export const categoriesRouter = Router();
 
 const listQuerySchema = z.object({ kind: z.enum(["expense", "income"]).optional() });
 
-categoriesRouter.get("/", requireAuth, async (req, res, next) => {
+categoriesRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (req, res, next) => {
   try {
-    const query = listQuerySchema.parse(req.query);
+    const query = req.validatedQuery as z.infer<typeof listQuerySchema>;
     const conditions = ["user_id = $1", "deleted_at IS NULL"];
     const params: unknown[] = [req.userId];
 
