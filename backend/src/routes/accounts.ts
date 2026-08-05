@@ -46,7 +46,12 @@ accountsRouter.post("/", requireAuth, validateBody(createAccountSchema), async (
     if (currencyRes.rows.length === 0) throw new AppError(400, "invalid_currency", "Unknown currency code.");
     const { decimal_digits, symbol } = currencyRes.rows[0];
 
-    const openingMinor = parseToMinor(opening_balance, decimal_digits);
+    let openingMinor: bigint;
+    try {
+      openingMinor = parseToMinor(opening_balance, decimal_digits);
+    } catch {
+      throw new AppError(400, "invalid_amount", `Opening balance has more decimal places than ${currency_code} supports.`);
+    }
     const accountId = newId();
 
     const client = await pool.connect();

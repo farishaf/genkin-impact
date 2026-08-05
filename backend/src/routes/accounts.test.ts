@@ -65,6 +65,19 @@ describe("onboarding via PATCH /users/me + POST /accounts", () => {
   });
 });
 
+describe("POST /accounts validation", () => {
+  it("rejects an opening_balance with more decimal places than the currency supports", async () => {
+    const agent = await registerAndLogin();
+    const res = await agent.post("/accounts").send({
+      name: "Checking",
+      type: "bank",
+      currency_code: "USD",
+      opening_balance: "100.999",
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("GET /accounts", () => {
   it("lists only the current user's accounts", async () => {
     const agent = await registerAndLogin();
