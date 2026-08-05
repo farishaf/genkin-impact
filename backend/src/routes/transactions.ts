@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { pool } from "../db/pool.js";
+import { pool, withTransaction } from "../db/pool.js";
 import { newId } from "../lib/ids.js";
 import { parseToMinor } from "../lib/money.js";
 import { recomputeAccountBalance } from "../lib/balances.js";
 import { convert } from "../lib/fx.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
+import { validateQuery } from "../middleware/validateQuery.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 export const transactionsRouter = Router();
@@ -48,12 +49,15 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
   try {
     const body = req.body as z.infer<typeof createTransactionSchema>;
     const account = await loadOwnedAccount(req.userId!, body.account_id);
-    const amountMinor = parseToMinor(body.amount, account.decimal_digits);
+    let amountMinor: bigint;
+    try {
+      amountMinor = parseToMinor(body.amount, account.decimal_digits);
+    } catch {
+      throw new AppError(400, "invalid_amount", `Amount has more decimal places than ${account.currency_code} supports.`);
+    }
     if (amountMinor <= 0n) throw new AppError(400, "invalid_amount", "Amount must be positive.");
 
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
+    const transaction = await withTransaction(async (client) => {
       const id = newId();
 
       if (body.type === "transfer") {
@@ -65,7 +69,11 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
           toAmountMinor = amountMinor;
         } else {
           if (!body.to_amount) throw new AppError(400, "to_amount_required", "to_amount is required for cross-currency transfers.");
-          toAmountMinor = parseToMinor(body.to_amount, toAccount.decimal_digits);
+          try {
+            toAmountMinor = parseToMinor(body.to_amount, toAccount.decimal_digits);
+          } catch {
+            throw new AppError(400, "invalid_amount", `to_amount has more decimal places than ${toAccount.currency_code} supports.`);
+          }
           if (toAmountMinor <= 0n) throw new AppError(400, "invalid_amount", "to_amount must be positive.");
         }
 
@@ -75,8 +83,12 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
           [id, req.userId, body.account_id, body.to_account_id, amountMinor, account.currency_code, toAmountMinor, body.occurred_at, body.note ?? null]
         );
 
-        await recomputeAccountBalance(client, body.account_id);
-        await recomputeAccountBalance(client, body.to_account_id);
+        // Lock/recompute both accounts in a fixed order (sorted id), not request order,
+        // so an opposing concurrent transfer between the same two accounts acquires the
+        // two advisory locks in the same order and can't deadlock against this transaction.
+        for (const accountId of [body.account_id, body.to_account_id].sort()) {
+          await recomputeAccountBalance(client, accountId);
+        }
       } else {
         const category = await client.query(
           "SELECT kind FROM categories WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
@@ -97,30 +109,30 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
       }
 
       const created = await client.query("SELECT * FROM transactions WHERE id = $1", [id]);
-      await client.query("COMMIT");
-      res.status(201).json({ transaction: created.rows[0] });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      throw err;
-    } finally {
-      client.release();
-    }
+      return created.rows[0];
+    });
+
+    res.status(201).json({ transaction });
   } catch (err) {
     next(err);
   }
 });
 
+// YYYY-MM-DD only: rejects garbage like "not-a-date" up front instead of letting
+// it reach Postgres, which would fail the query and surface as a raw 500.
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date in YYYY-MM-DD format");
+
 const listQuerySchema = z.object({
   type: z.enum(["expense", "income", "transfer"]).optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  from: dateOnlySchema.optional(),
+  to: dateOnlySchema.optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-transactionsRouter.get("/", requireAuth, async (req, res, next) => {
+transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (req, res, next) => {
   try {
-    const query = listQuerySchema.parse(req.query);
+    const query = req.validatedQuery as z.infer<typeof listQuerySchema>;
     const conditions = ["t.user_id = $1", "t.deleted_at IS NULL"];
     const params: unknown[] = [req.userId];
 
@@ -157,13 +169,13 @@ transactionsRouter.get("/", requireAuth, async (req, res, next) => {
 
 const summaryQuerySchema = z.object({
   type: z.enum(["expense", "income", "transfer"]).optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
+  from: dateOnlySchema.optional(),
+  to: dateOnlySchema.optional(),
 });
 
-transactionsRouter.get("/summary", requireAuth, async (req, res, next) => {
+transactionsRouter.get("/summary", requireAuth, validateQuery(summaryQuerySchema), async (req, res, next) => {
   try {
-    const query = summaryQuerySchema.parse(req.query);
+    const query = req.validatedQuery as z.infer<typeof summaryQuerySchema>;
     const conditions = ["user_id = $1", "deleted_at IS NULL"];
     const params: unknown[] = [req.userId];
 
@@ -202,11 +214,19 @@ transactionsRouter.get("/summary", requireAuth, async (req, res, next) => {
     let expenditureMinor = 0n;
     let count = 0;
 
-    for (const row of grouped.rows) {
-      const converted = await convert(pool, BigInt(row.total), row.currency_code, mainCurrency, onDate, decimalsByCode);
-      if (row.type === "income") incomeMinor += converted.amountMinor;
-      else expenditureMinor += converted.amountMinor;
-      count += Number(row.count);
+    try {
+      for (const row of grouped.rows) {
+        const converted = await convert(pool, BigInt(row.total), row.currency_code, mainCurrency, onDate, decimalsByCode);
+        if (row.type === "income") incomeMinor += converted.amountMinor;
+        else expenditureMinor += converted.amountMinor;
+        count += Number(row.count);
+      }
+    } catch {
+      // convert()/getRateToUSD() throw a plain Error when no exchange rate exists at all
+      // (not even a prior one) for a currency on or before the requested date — e.g. a
+      // date range older than the seeded rate history. That's a client-fixable "pick a
+      // different range" situation, not a server fault, so surface it as a 400.
+      throw new AppError(400, "fx_rate_unavailable", "No exchange rate available for this date range yet.");
     }
 
     res.json({

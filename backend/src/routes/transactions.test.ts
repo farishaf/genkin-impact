@@ -97,6 +97,62 @@ describe("POST /transactions", () => {
     expect(res.status).toBe(400);
   });
 
+  it("rejects an amount with more decimal places than the account's currency supports", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const res = await agent.post("/transactions").send({
+      type: "expense",
+      account_id: accountId,
+      category_id: categoryId,
+      amount: "10.999",
+      occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a decimal amount against a 0-decimal (JPY) account", async () => {
+    const { agent, categoryId } = await setUp();
+    const jpyAccountRes = await agent.post("/accounts").send({ name: "Japan Cash", type: "cash", currency_code: "JPY", opening_balance: "1000" });
+    const res = await agent.post("/transactions").send({
+      type: "expense",
+      account_id: jpyAccountRes.body.account.id,
+      category_id: categoryId,
+      amount: "10.5",
+      occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("keeps cached_balance correct under concurrent expense creation against the same account (no lost updates)", async () => {
+    // Regression test for C1: recomputeAccountBalance used to blind-write cached_balance
+    // with no lock, so N concurrent expense creations against one account could each read
+    // the same stale sum and race to overwrite each other's result, permanently corrupting
+    // cached_balance (nothing ever recomputes on read). With the advisory lock in place,
+    // each transaction serializes on the account and the final balance must exactly equal
+    // opening_balance - N * amount.
+    const { agent, accountId, categoryId } = await setUp();
+    const N = 15;
+    const amountMinor = 100n; // "1.00"
+
+    await Promise.all(
+      Array.from({ length: N }, () =>
+        agent.post("/transactions").send({
+          type: "expense",
+          account_id: accountId,
+          category_id: categoryId,
+          amount: "1.00",
+          occurred_at: "2026-08-04T09:41:00.000Z",
+        })
+      )
+    );
+
+    const accountRes = await agent.get("/accounts");
+    const account = accountRes.body.accounts.find((a: { id: string }) => a.id === accountId);
+    expect(BigInt(account.cached_balance)).toBe(100000n - BigInt(N) * amountMinor); // opening_balance 1000.00 minus N * 1.00
+
+    const txCount = await pool.query("SELECT count(*) FROM transactions WHERE account_id = $1 AND deleted_at IS NULL", [accountId]);
+    expect(Number(txCount.rows[0].count)).toBe(N);
+  });
+
   it("rejects a cross-currency transfer with a non-positive to_amount", async () => {
     const { agent, accountId } = await setUp();
     const eurAccountRes = await agent.post("/accounts").send({ name: "EUR Savings", type: "bank", currency_code: "EUR", opening_balance: "0.00" });
@@ -127,6 +183,12 @@ describe("GET /transactions", () => {
     expect(res.body.items).toHaveLength(1);
     expect(res.body.items[0].amount).toBe("2000");
   });
+
+  it("returns 400 (not 500) for a malformed from date", async () => {
+    const { agent } = await setUp();
+    const res = await agent.get("/transactions").query({ from: "not-a-date" });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /transactions/summary", () => {
@@ -141,5 +203,24 @@ describe("GET /transactions/summary", () => {
     expect(res.body.summary.income_minor).toBe("50000");
     expect(res.body.summary.expenditure_minor).toBe("6800");
     expect(res.body.summary.count).toBe(2);
+  });
+
+  it("returns 400 (not 500) when no exchange rate is available for the requested date range", async () => {
+    // The exchange_rates seed only has rows for the single date migrations ran, so a
+    // summary request for a currency-converted range before that date has no rate at
+    // all (not even a prior one) and getRateToUSD/convert throw. That must surface as a
+    // clean 400, not an unhandled 500.
+    const { agent, categoryId } = await setUp(); // main currency USD
+    const jpyAccountRes = await agent.post("/accounts").send({ name: "Japan Cash", type: "cash", currency_code: "JPY", opening_balance: "0" });
+    await agent.post("/transactions").send({
+      type: "expense",
+      account_id: jpyAccountRes.body.account.id,
+      category_id: categoryId,
+      amount: "1000",
+      occurred_at: "2020-01-15T00:00:00.000Z",
+    });
+
+    const res = await agent.get("/transactions/summary").query({ from: "2020-01-01", to: "2020-01-31" });
+    expect(res.status).toBe(400);
   });
 });
