@@ -66,6 +66,7 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
         } else {
           if (!body.to_amount) throw new AppError(400, "to_amount_required", "to_amount is required for cross-currency transfers.");
           toAmountMinor = parseToMinor(body.to_amount, toAccount.decimal_digits);
+          if (toAmountMinor <= 0n) throw new AppError(400, "invalid_amount", "to_amount must be positive.");
         }
 
         await client.query(

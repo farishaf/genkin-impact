@@ -96,6 +96,22 @@ describe("POST /transactions", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("rejects a cross-currency transfer with a non-positive to_amount", async () => {
+    const { agent, accountId } = await setUp();
+    const eurAccountRes = await agent.post("/accounts").send({ name: "EUR Savings", type: "bank", currency_code: "EUR", opening_balance: "0.00" });
+    const toAccountId = eurAccountRes.body.account.id;
+
+    const res = await agent.post("/transactions").send({
+      type: "transfer",
+      account_id: accountId,
+      to_account_id: toAccountId,
+      amount: "100.00",
+      to_amount: "0.00",
+      occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /transactions", () => {
