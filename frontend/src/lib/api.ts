@@ -10,6 +10,8 @@ export class ApiError extends Error {
   }
 }
 
+const NEVER_RETRY_PATHS = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"];
+
 async function request<T>(path: string, init?: RequestInit, isRetry = false): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -17,7 +19,7 @@ async function request<T>(path: string, init?: RequestInit, isRetry = false): Pr
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
 
-  if (res.status === 401 && !isRetry && !path.startsWith("/auth/")) {
+  if (res.status === 401 && !isRetry && !NEVER_RETRY_PATHS.includes(path)) {
     const refreshRes = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null);
     if (refreshRes?.ok) {
       return request<T>(path, init, true);
