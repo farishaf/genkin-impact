@@ -16,8 +16,14 @@ const ACCOUNT_TYPES = [
   { value: "liability", label: "Liability" },
 ];
 
-export function AddAccountForm({ onCreated }: { onCreated: () => void }) {
-  const { data: currencies } = useQuery({
+export function AddAccountForm({
+  onCreated,
+  defaultCurrency,
+}: {
+  onCreated: () => void;
+  defaultCurrency?: string;
+}) {
+  const { data: currencies, isError: isCurrenciesError } = useQuery({
     queryKey: ["currencies"],
     queryFn: () => api.get<{ currencies: Currency[] }>("/currencies").then((r) => r.currencies),
   });
@@ -25,15 +31,15 @@ export function AddAccountForm({ onCreated }: { onCreated: () => void }) {
 
   const [name, setName] = useState("");
   const [type, setType] = useState("bank");
-  const [currencyCode, setCurrencyCode] = useState("USD");
+  const [currencyCode, setCurrencyCode] = useState(defaultCurrency ?? "USD");
   const [openingBalance, setOpeningBalance] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const createAccount = useMutation({
     mutationFn: () => api.post("/accounts", { name, type, currency_code: currencyCode, opening_balance: openingBalance || "0" }),
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
-      qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: ["me"] });
       onCreated();
     },
   });
@@ -74,6 +80,7 @@ export function AddAccountForm({ onCreated }: { onCreated: () => void }) {
           ))}
         </select>
       </label>
+      {isCurrenciesError && <p className="field-error">Failed to load currencies. Try refreshing.</p>}
       <label className="field">
         <span>Current balance</span>
         <input required inputMode="decimal" value={openingBalance} onChange={(e) => setOpeningBalance(e.target.value)} placeholder="0.00" />

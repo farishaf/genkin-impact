@@ -6,7 +6,7 @@ import { OnboardingPage } from "./routes/OnboardingPage";
 import { AppShell } from "./layout/AppShell";
 import { AssetsPage } from "./routes/AssetsPage";
 import { TransactionsPage } from "./routes/TransactionsPage";
-import { RequireAuth, RequireOnboarded } from "./routes/RequireAuth";
+import { RequireAuth, RequireOnboarded, RequireNotOnboarded } from "./routes/RequireAuth";
 
 export function App() {
   return (
@@ -18,7 +18,9 @@ export function App() {
         path="/onboarding"
         element={
           <RequireAuth>
-            <OnboardingPage />
+            <RequireNotOnboarded>
+              <OnboardingPage />
+            </RequireNotOnboarded>
           </RequireAuth>
         }
       />
