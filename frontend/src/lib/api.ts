@@ -19,7 +19,7 @@ async function request<T>(path: string, init?: RequestInit, isRetry = false): Pr
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
 
-  if (res.status === 401 && !isRetry && !NEVER_RETRY_PATHS.includes(path)) {
+  if (res.status === 401 && !isRetry && !NEVER_RETRY_PATHS.some((p) => path.startsWith(p))) {
     const refreshRes = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null);
     if (refreshRes?.ok) {
       return request<T>(path, init, true);
