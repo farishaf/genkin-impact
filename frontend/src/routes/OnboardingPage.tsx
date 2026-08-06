@@ -15,7 +15,7 @@ export function OnboardingPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data: currencies } = useQuery({
+  const { data: currencies, isError: isCurrenciesError } = useQuery({
     queryKey: ["currencies"],
     queryFn: () => api.get<{ currencies: Currency[] }>("/currencies").then((r) => r.currencies),
   });
@@ -55,6 +55,7 @@ export function OnboardingPage() {
                 ))}
               </select>
             </label>
+            {isCurrenciesError && <p className="field-error">Failed to load currencies. Try refreshing.</p>}
             {error && <p className="field-error">{error}</p>}
             <button className="btn-primary" onClick={onPickCurrency} disabled={setCurrency.isPending}>
               {setCurrency.isPending ? "Saving…" : "Continue"}
@@ -64,7 +65,7 @@ export function OnboardingPage() {
         {step === 2 && (
           <>
             <p className="auth-sub">Step 2 of 2 — add your first account.</p>
-            <AddAccountForm onCreated={() => navigate("/app/transactions")} />
+            <AddAccountForm onCreated={() => navigate("/app/transactions")} defaultCurrency={mainCurrency} />
           </>
         )}
       </div>

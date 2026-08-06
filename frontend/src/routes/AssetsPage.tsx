@@ -13,7 +13,7 @@ interface Account {
 
 export function AssetsPage() {
   const [showForm, setShowForm] = useState(false);
-  const { data: accounts, isLoading } = useQuery({
+  const { data: accounts, isLoading, isError } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => api.get<{ accounts: Account[] }>("/accounts").then((r) => r.accounts),
   });
@@ -33,6 +33,7 @@ export function AssetsPage() {
         </div>
       )}
       <div className="account-list">
+        {isError && <p className="field-error">Failed to load accounts. Try refreshing.</p>}
         {isLoading && <p className="muted">Loading…</p>}
         {accounts?.map((a) => (
           <div className="card account-card" key={a.id}>

@@ -13,14 +13,14 @@ interface Category {
 }
 
 export function AddTransactionForm({ onCreated }: { onCreated: () => void }) {
-  const { data: accounts } = useQuery({
+  const { data: accounts, isError: isAccountsError } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => api.get<{ accounts: Account[] }>("/accounts").then((r) => r.accounts),
   });
 
   const [type, setType] = useState<"expense" | "income" | "transfer">("expense");
 
-  const { data: categories } = useQuery({
+  const { data: categories, isError: isCategoriesError } = useQuery({
     queryKey: ["categories", type],
     queryFn: () => api.get<{ categories: Category[] }>(`/categories?kind=${type}`).then((r) => r.categories),
     enabled: type !== "transfer",
@@ -88,6 +88,7 @@ export function AddTransactionForm({ onCreated }: { onCreated: () => void }) {
           ))}
         </select>
       </label>
+      {isAccountsError && <p className="field-error">Failed to load accounts. Try refreshing.</p>}
       {type === "transfer" ? (
         <label className="field">
           <span>To account</span>
@@ -115,6 +116,7 @@ export function AddTransactionForm({ onCreated }: { onCreated: () => void }) {
               </option>
             ))}
           </select>
+          {isCategoriesError && <p className="field-error">Failed to load categories. Try refreshing.</p>}
         </label>
       )}
       <label className="field">

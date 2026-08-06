@@ -27,12 +27,12 @@ export function TransactionsPage() {
   const [showForm, setShowForm] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>("");
 
-  const { data: summary } = useQuery({
+  const { data: summary, isError: isSummaryError } = useQuery({
     queryKey: ["transactions", "summary"],
     queryFn: () => api.get<{ summary: Summary }>("/transactions/summary").then((r) => r.summary),
   });
 
-  const { data: items, isLoading } = useQuery({
+  const { data: items, isLoading, isError: isItemsError } = useQuery({
     queryKey: ["transactions", "list", typeFilter],
     queryFn: () => api.get<{ items: TxnItem[] }>(`/transactions${typeFilter ? `?type=${typeFilter}` : ""}`).then((r) => r.items),
   });
@@ -59,6 +59,8 @@ export function TransactionsPage() {
           <AddTransactionForm onCreated={() => setShowForm(false)} />
         </div>
       )}
+
+      {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load summary. Try refreshing.</p>}
 
       {summary && (
         <div className="summary-grid">
@@ -88,6 +90,7 @@ export function TransactionsPage() {
       )}
 
       <div className="card txn-card" style={{ margin: "0 var(--space-xl) var(--space-2xl)" }}>
+        {isItemsError && <p className="field-error">Failed to load transactions. Try refreshing.</p>}
         {isLoading && <p className="muted">Loading…</p>}
         {items?.map((t) => (
           <div className="txn-row" key={t.id}>
