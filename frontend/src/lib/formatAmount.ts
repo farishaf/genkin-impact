@@ -1,0 +1,9 @@
+// Mirrors backend/migrations/0001_currencies_users_sessions.sql's seeded decimal_digits.
+// A later slice can fetch this from GET /currencies instead of hardcoding it here.
+const DECIMAL_DIGITS: Record<string, number> = { CNY: 2, USD: 2, EUR: 2, JPY: 0, GBP: 2, HKD: 2 };
+
+export function formatAmount(minorUnits: string, currencyCode: string): string {
+  const digits = DECIMAL_DIGITS[currencyCode] ?? 2;
+  const value = Number(minorUnits) / 10 ** digits;
+  return value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
