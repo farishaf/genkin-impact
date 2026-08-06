@@ -5,6 +5,8 @@ import { useGSAP } from "@gsap/react";
 import { api, ApiError } from "../lib/api";
 import { formatAmount, minorToInputValue } from "../lib/formatAmount";
 import { AddTransactionForm, type EditingTxn } from "../components/AddTransactionForm";
+import { TransactionsReportPanel } from "../components/TransactionsReportPanel";
+import { ChevronIcon } from "../components/TxnIcons";
 
 gsap.registerPlugin(useGSAP);
 
@@ -60,6 +62,17 @@ interface SavedFilter {
   name: string;
   criteria: FilterCriteria;
 }
+interface TxnGroup {
+  key: string;
+  label: string;
+  txns: TxnItem[];
+  // null when the day mixes currencies — summing raw minor units across currencies would be
+  // meaningless, and converting live per group here would just duplicate the summary card's
+  // job. Groups with a mixed day simply render without pills.
+  expenseMinor: bigint | null;
+  incomeMinor: bigint | null;
+  currencyCode: string | null;
+}
 
 function toDateOnly(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -92,41 +105,39 @@ function quickRange(preset: "today" | "yesterday" | "this_week" | "last_week"): 
   return { from: toDateOnly(lastMonday), to: toDateOnly(lastSunday) };
 }
 
-function EditIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  );
+function dateGroupLabel(dateKey: string): string {
+  const day = new Date(`${dateKey}T00:00:00`);
+  const today = new Date();
+  const todayKey = toDateOnly(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (dateKey === todayKey) return "Today";
+  if (dateKey === toDateOnly(yesterday)) return "Yesterday";
+  return day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-function DeleteIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 6h18" />
-      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-    </svg>
-  );
-}
-
-function RefundIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 7h13l-3-3M20 17H7l3 3" />
-    </svg>
-  );
-}
-
-function InstallmentsIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 18L18 6M8 6a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM16 14a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z" />
-    </svg>
-  );
+// items arrive sorted occurred_at DESC from the backend, so Map insertion order already
+// keeps groups newest-first — no extra sort needed.
+function groupByDate(items: TxnItem[]): TxnGroup[] {
+  const map = new Map<string, TxnItem[]>();
+  for (const t of items) {
+    const key = t.occurred_at.slice(0, 10);
+    const existing = map.get(key);
+    if (existing) existing.push(t);
+    else map.set(key, [t]);
+  }
+  return [...map.entries()].map(([key, txns]) => {
+    const currencies = new Set(txns.map((t) => t.currency_code));
+    const uniform = currencies.size === 1;
+    return {
+      key,
+      label: dateGroupLabel(key),
+      txns,
+      expenseMinor: uniform ? txns.filter((t) => t.type === "expense").reduce((sum, t) => sum + BigInt(t.amount), 0n) : null,
+      incomeMinor: uniform ? txns.filter((t) => t.type === "income").reduce((sum, t) => sum + BigInt(t.amount), 0n) : null,
+      currencyCode: uniform ? txns[0].currency_code : null,
+    };
+  });
 }
 
 export function TransactionsPage() {
@@ -139,9 +150,11 @@ export function TransactionsPage() {
   const [fromFilter, setFromFilter] = useState<string>("");
   const [toFilter, setToFilter] = useState<string>("");
   const [activeRangePreset, setActiveRangePreset] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"list" | "table">("list");
+  const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
-  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const qc = useQueryClient();
 
   function applyRangePreset(preset: "today" | "yesterday" | "this_week" | "last_week" | "") {
@@ -239,6 +252,7 @@ export function TransactionsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["accounts"] });
+      setSelectedTxnId(null);
     },
   });
 
@@ -309,8 +323,115 @@ export function TransactionsPage() {
     setEditingTxn(null);
   }
 
+  const selectedTxn = items?.find((t) => t.id === selectedTxnId) ?? null;
+  const groups = groupByDate(items ?? []);
+
+  function renderRow(t: TxnItem) {
+    return (
+      <Fragment key={t.id}>
+        <button
+          type="button"
+          className="txn-row"
+          data-selected={selectedTxnId === t.id}
+          ref={(el) => {
+            rowRefs.current[t.id] = el;
+          }}
+          onClick={() => setSelectedTxnId((cur) => (cur === t.id ? null : t.id))}
+        >
+          <span className="cat-badge">{(t.category_name ?? t.account_name).charAt(0).toUpperCase()}</span>
+          <div className="txn-row__body">
+            <div className="txn-row__top">
+              <span className="txn-row__cat">{t.type === "transfer" ? "Transfer" : (t.category_name ?? "Refund")}</span>
+              <span className="txn-row__time">{new Date(t.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+            {t.note && <div className="txn-row__note">{t.note}</div>}
+            <div className="chip-row">
+              <span className="chip-acct">{t.account_name}</span>
+              {t.member_name && <span className="chip-tag">{t.member_name}</span>}
+              {t.tags.map((tag) => (
+                <span key={tag.id} className="chip-tag">
+                  {tag.name}
+                </span>
+              ))}
+              {t.refund_of_id && <span className="chip-tag">Refund</span>}
+              {t.installment_plan_id && t.installment_seq === null && <span className="chip-tag">Installment plan</span>}
+              {t.installment_seq !== null && <span className="chip-tag">Installment #{t.installment_seq}</span>}
+            </div>
+          </div>
+          <div className="txn-row__end">
+            <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
+              {t.type === "expense" ? "-" : "+"}
+              {formatAmount(t.amount, t.currency_code)}
+            </span>
+            <ChevronIcon />
+          </div>
+        </button>
+
+        {openAction?.id === t.id && openAction.kind === "refund" && (
+          <div className="inline-action">
+            <form
+              className="contribute-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                refundTxn.mutate({ id: t.id, amount: String(fd.get("amount") ?? ""), note: String(fd.get("note") ?? "") });
+              }}
+            >
+              <input name="amount" inputMode="decimal" required defaultValue={minorToInputValue(t.amount, t.currency_code)} />
+              <input name="note" placeholder="Note (optional)" />
+              <button className="btn-primary btn-outline--sm" type="submit" disabled={refundTxn.isPending}>
+                {refundTxn.isPending ? "Refunding…" : "Refund"}
+              </button>
+              <button className="btn-outline btn-outline--sm" type="button" onClick={() => setOpenAction(null)}>
+                Cancel
+              </button>
+            </form>
+            {refundTxn.isError && <p className="field-error">{refundTxn.error instanceof ApiError ? refundTxn.error.message : "Something went wrong."}</p>}
+          </div>
+        )}
+
+        {openAction?.id === t.id && openAction.kind === "installments" && (
+          <div className="inline-action">
+            <form
+              className="contribute-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                installmentsTxn.mutate({
+                  id: t.id,
+                  installment_count: Number(fd.get("installment_count")),
+                  interval_unit: fd.get("interval_unit") === "week" ? "week" : "month",
+                  fee_amount: String(fd.get("fee_amount") ?? ""),
+                  first_due_date: String(fd.get("first_due_date")),
+                });
+              }}
+            >
+              <input name="installment_count" type="number" min={2} max={60} defaultValue={3} required />
+              <select name="interval_unit" defaultValue="month">
+                <option value="month">Monthly</option>
+                <option value="week">Weekly</option>
+              </select>
+              <input name="fee_amount" inputMode="decimal" placeholder="Fee (optional)" />
+              <input name="first_due_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
+              <button className="btn-primary btn-outline--sm" type="submit" disabled={installmentsTxn.isPending}>
+                {installmentsTxn.isPending ? "Splitting…" : "Split"}
+              </button>
+              <button className="btn-outline btn-outline--sm" type="button" onClick={() => setOpenAction(null)}>
+                Cancel
+              </button>
+            </form>
+            {installmentsTxn.isError && (
+              <p className="field-error">{installmentsTxn.error instanceof ApiError ? installmentsTxn.error.message : "Something went wrong."}</p>
+            )}
+          </div>
+        )}
+      </Fragment>
+    );
+  }
+
   return (
-    <div className="page">
+    <div className="txn-page">
+    <div className="txn-page__content">
       <div className="page-head">
         <h1>Transactions</h1>
         <span className="count-badge">{summary?.count ?? 0}</span>
@@ -345,6 +466,14 @@ export function TransactionsPage() {
             </option>
           ))}
         </select>
+        <div className="seg-toggle" role="group" aria-label="View mode">
+          <button type="button" data-active={viewMode === "list"} onClick={() => setViewMode("list")}>
+            List
+          </button>
+          <button type="button" data-active={viewMode === "table"} onClick={() => setViewMode("table")}>
+            Table
+          </button>
+        </div>
         <button className="btn-primary" type="button" onClick={() => (showForm ? closeForm() : openCreate())}>
           {showForm ? "Cancel" : "+ New"}
         </button>
@@ -396,154 +525,133 @@ export function TransactionsPage() {
       {summary && (
         <div className="summary-grid">
           <div className="card stat-card">
-            <div className="stat-card__label">Income</div>
+            <div className="stat-card__head">
+              <span className="dot" style={{ background: "var(--color-positive)" }} />
+              <span className="stat-card__label">Income</span>
+            </div>
             <div className="stat-card__figure stat-card__figure--positive">
               {summary.main_currency_code} {formatAmount(summary.income_minor, summary.main_currency_code)}
             </div>
           </div>
           <div className="card stat-card">
-            <div className="stat-card__label">Expenditure</div>
+            <div className="stat-card__head">
+              <span className="dot" style={{ background: "var(--color-negative)" }} />
+              <span className="stat-card__label">Expenditure</span>
+            </div>
             <div className="stat-card__figure stat-card__figure--negative">
               {summary.main_currency_code} {formatAmount(summary.expenditure_minor, summary.main_currency_code)}
             </div>
           </div>
           <div className="card stat-card">
-            <div className="stat-card__label">Balance</div>
+            <div className="stat-card__head">
+              <span className="dot" style={{ background: "var(--color-info)" }} />
+              <span className="stat-card__label">Balance</span>
+            </div>
             <div className="stat-card__figure">
               {summary.main_currency_code} {formatAmount(summary.balance_minor, summary.main_currency_code)}
             </div>
           </div>
           <div className="card stat-card">
-            <div className="stat-card__label">Transactions</div>
+            <div className="stat-card__head">
+              <span className="dot" style={{ background: "var(--color-muted)" }} />
+              <span className="stat-card__label">Transactions</span>
+            </div>
             <div className="stat-card__figure">{summary.count}</div>
           </div>
         </div>
       )}
 
-      <div className="card txn-card" style={{ margin: "0 var(--space-xl) var(--space-2xl)" }} ref={listRef}>
-        {isItemsError && <p className="field-error">Failed to load transactions. Try refreshing.</p>}
-        {isLoading && <p className="muted">Loading…</p>}
-        {items?.map((t) => (
-          <Fragment key={t.id}>
-            <div
-              className="txn-row"
-              ref={(el) => {
-                rowRefs.current[t.id] = el;
-              }}
-            >
-              <span className="cat-badge">{(t.category_name ?? t.account_name).charAt(0).toUpperCase()}</span>
-              <div className="txn-row__body">
-                <div className="txn-row__top">
-                  <span className="txn-row__cat">{t.type === "transfer" ? "Transfer" : (t.category_name ?? "Refund")}</span>
-                  <span className="txn-row__time">{new Date(t.occurred_at).toLocaleString()}</span>
-                </div>
-                {t.note && <div className="txn-row__note">{t.note}</div>}
-                {(t.member_name || t.tags.length > 0 || t.refund_of_id || t.installment_plan_id) && (
-                  <div className="txn-row__meta">
-                    {t.member_name && <span className="tag-chip tag-chip--static">{t.member_name}</span>}
-                    {t.tags.map((tag) => (
-                      <span key={tag.id} className="tag-chip tag-chip--static">
-                        {tag.name}
-                      </span>
-                    ))}
-                    {t.refund_of_id && <span className="tag-chip tag-chip--static">Refund</span>}
-                    {t.installment_plan_id && t.installment_seq === null && <span className="tag-chip tag-chip--static">Installment plan</span>}
-                    {t.installment_seq !== null && <span className="tag-chip tag-chip--static">Installment #{t.installment_seq}</span>}
-                  </div>
-                )}
-              </div>
-              <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
-                {t.type === "expense" ? "-" : "+"}
-                {formatAmount(t.amount, t.currency_code)}
-              </span>
-              <div className="txn-row__actions">
-                {t.type !== "transfer" && (
-                  <button type="button" className="icon-btn" aria-label="Refund transaction" onClick={() => toggleAction(t.id, "refund")}>
-                    <RefundIcon />
-                  </button>
-                )}
-                {t.type !== "transfer" && t.installment_plan_id === null && (
-                  <button type="button" className="icon-btn" aria-label="Split into installments" onClick={() => toggleAction(t.id, "installments")}>
-                    <InstallmentsIcon />
-                  </button>
-                )}
-                <button type="button" className="icon-btn" aria-label="Edit transaction" onClick={() => openEdit(t)}>
-                  <EditIcon />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--danger"
-                  aria-label="Delete transaction"
-                  disabled={deleteTxn.isPending && deleteTxn.variables === t.id}
-                  onClick={() => handleDelete(t)}
-                >
-                  <DeleteIcon />
-                </button>
-              </div>
+      <div style={{ padding: "0 var(--space-xl)" }}>
+          {isItemsError && <p className="field-error">Failed to load transactions. Try refreshing.</p>}
+          {isLoading && <p className="muted">Loading…</p>}
+
+          {viewMode === "table" && (
+            <div className="card txn-card" style={{ marginBottom: "var(--space-2xl)", overflowX: "auto" }}>
+              <table className="txn-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Member</th>
+                    <th>Account</th>
+                    <th>Note</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items?.map((t) => (
+                    <tr key={t.id}>
+                      <td>{new Date(t.occurred_at).toLocaleDateString()}</td>
+                      <td>
+                        {t.type === "transfer" ? "Transfer" : (t.category_name ?? "Refund")}
+                        {t.refund_of_id && <sup title="Refund">R</sup>}
+                        {t.installment_seq !== null && <sup title={`Installment #${t.installment_seq}`}>#{t.installment_seq}</sup>}
+                      </td>
+                      <td>{t.member_name ?? "—"}</td>
+                      <td>{t.account_name}</td>
+                      <td className="txn-table__note">{t.note ?? ""}</td>
+                      <td className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
+                        {t.type === "expense" ? "-" : "+"}
+                        {formatAmount(t.amount, t.currency_code)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          )}
 
-            {openAction?.id === t.id && openAction.kind === "refund" && (
-              <div className="inline-action">
-                <form
-                  className="contribute-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    refundTxn.mutate({ id: t.id, amount: String(fd.get("amount") ?? ""), note: String(fd.get("note") ?? "") });
-                  }}
-                >
-                  <input name="amount" inputMode="decimal" required defaultValue={minorToInputValue(t.amount, t.currency_code)} />
-                  <input name="note" placeholder="Note (optional)" />
-                  <button className="btn-primary btn-outline--sm" type="submit" disabled={refundTxn.isPending}>
-                    {refundTxn.isPending ? "Refunding…" : "Refund"}
-                  </button>
-                  <button className="btn-outline btn-outline--sm" type="button" onClick={() => setOpenAction(null)}>
-                    Cancel
-                  </button>
-                </form>
-                {refundTxn.isError && <p className="field-error">{refundTxn.error instanceof ApiError ? refundTxn.error.message : "Something went wrong."}</p>}
-              </div>
-            )}
-
-            {openAction?.id === t.id && openAction.kind === "installments" && (
-              <div className="inline-action">
-                <form
-                  className="contribute-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    installmentsTxn.mutate({
-                      id: t.id,
-                      installment_count: Number(fd.get("installment_count")),
-                      interval_unit: fd.get("interval_unit") === "week" ? "week" : "month",
-                      fee_amount: String(fd.get("fee_amount") ?? ""),
-                      first_due_date: String(fd.get("first_due_date")),
-                    });
-                  }}
-                >
-                  <input name="installment_count" type="number" min={2} max={60} defaultValue={3} required />
-                  <select name="interval_unit" defaultValue="month">
-                    <option value="month">Monthly</option>
-                    <option value="week">Weekly</option>
-                  </select>
-                  <input name="fee_amount" inputMode="decimal" placeholder="Fee (optional)" />
-                  <input name="first_due_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
-                  <button className="btn-primary btn-outline--sm" type="submit" disabled={installmentsTxn.isPending}>
-                    {installmentsTxn.isPending ? "Splitting…" : "Split"}
-                  </button>
-                  <button className="btn-outline btn-outline--sm" type="button" onClick={() => setOpenAction(null)}>
-                    Cancel
-                  </button>
-                </form>
-                {installmentsTxn.isError && (
-                  <p className="field-error">{installmentsTxn.error instanceof ApiError ? installmentsTxn.error.message : "Something went wrong."}</p>
-                )}
-              </div>
-            )}
-          </Fragment>
-        ))}
-        {items?.length === 0 && <p className="muted">No transactions yet.</p>}
+          {viewMode === "list" && (
+            <div className="txn-section" ref={listRef}>
+              {groups.map((g) => (
+                <div className="txn-group" key={g.key}>
+                  <div className="txn-group__head">
+                    <span className="txn-group__date">{g.label}</span>
+                    {g.expenseMinor !== null && g.expenseMinor > 0n && (
+                      <span className="txn-group__pill" data-tone="negative">
+                        -{formatAmount(g.expenseMinor.toString(), g.currencyCode!)}
+                      </span>
+                    )}
+                    {g.incomeMinor !== null && g.incomeMinor > 0n && (
+                      <span className="txn-group__pill" data-tone="positive">
+                        +{formatAmount(g.incomeMinor.toString(), g.currencyCode!)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="card txn-card">{g.txns.map(renderRow)}</div>
+                </div>
+              ))}
+              {items?.length === 0 && <p className="muted">No transactions yet.</p>}
+            </div>
+          )}
       </div>
+    </div>
+
+      <aside className="right">
+          <div className="right-inner">
+            <TransactionsReportPanel
+              filters={{
+                type: typeFilter || undefined,
+                member_id: memberFilter || undefined,
+                tag_id: tagFilter || undefined,
+                category_id: categoryFilter || undefined,
+                from: fromFilter || undefined,
+                to: toFilter || undefined,
+              }}
+              mainCurrencyCode={summary?.main_currency_code ?? "USD"}
+              onSelectGroup={(dimension, id) => {
+                if (dimension === "category") setCategoryFilter(id);
+                else if (dimension === "tag") setTagFilter(id);
+                else setMemberFilter(id);
+              }}
+              selectedTxn={selectedTxn}
+              onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
+              onRefundSelected={() => selectedTxn && toggleAction(selectedTxn.id, "refund")}
+              onInstallmentsSelected={() => selectedTxn && toggleAction(selectedTxn.id, "installments")}
+              onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
+            />
+          </div>
+        </aside>
     </div>
   );
 }

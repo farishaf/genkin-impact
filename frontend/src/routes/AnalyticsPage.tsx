@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { formatAmount } from "../lib/formatAmount";
 import { HeatmapCalendar, type AnalyticsDay } from "../components/HeatmapCalendar";
 import { TrendChart } from "../components/TrendChart";
+import { ChevronIcon } from "../components/TxnIcons";
 
 interface AnalyticsSummary {
   month: string;
@@ -40,6 +41,10 @@ function dayLabel(date: string): string {
   return new Date(`${date}T00:00:00.000Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
+function isToday(date: string): boolean {
+  return date === new Date().toISOString().slice(0, 10);
+}
+
 // eastern convention hardcoded (gain=red, loss=green) per explicit product ask; users.color_convention
 // exists in the schema for a future toggle but has no settings UI yet, so it isn't wired up here.
 export function AnalyticsPage() {
@@ -62,66 +67,77 @@ export function AnalyticsPage() {
     ? [0, Math.floor(summary.days.length / 3), Math.floor((2 * summary.days.length) / 3), summary.days.length - 1].map((i) => summary.days[i])
     : summary?.days ?? [];
 
+  function changeMonth(delta: number) {
+    setMonth((m) => shiftMonth(m, delta));
+    setSelectedDate(null);
+  }
+
   return (
-    <div className="page">
-      <div className="page-head">
-        <h1>Analytics</h1>
-        <div className="head-spacer" />
-        <button className="btn-outline btn-outline--sm" type="button" aria-label="Previous month" onClick={() => { setMonth((m) => shiftMonth(m, -1)); setSelectedDate(null); }}>
-          ‹
-        </button>
-        <span className="seg">{monthLabel(month)}</span>
-        <button className="btn-outline btn-outline--sm" type="button" aria-label="Next month" onClick={() => { setMonth((m) => shiftMonth(m, 1)); setSelectedDate(null); }}>
-          ›
-        </button>
+    <div className="txn-page">
+      <div className="txn-page__content">
+        <div className="page-head">
+          <h1>Analytics</h1>
+          <div className="head-spacer" />
+          <button className="icon-btn" type="button" aria-label="Previous month" style={{ width: 32, height: 32 }} onClick={() => changeMonth(-1)}>
+            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}>
+              <ChevronIcon />
+            </span>
+          </button>
+          <span className="filter-chip filter-chip--emph">{monthLabel(month)}</span>
+          <button className="icon-btn" type="button" aria-label="Next month" style={{ width: 32, height: 32 }} onClick={() => changeMonth(1)}>
+            <ChevronIcon />
+          </button>
+        </div>
+
+        {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load analytics. Try refreshing.</p>}
+
+        {summary && (
+          <div style={{ padding: "0 var(--space-xl) var(--space-2xl)" }}>
+            <div className="card kv-card">
+              <div className="kv-row"><span className="kv-row__k">Begin</span><span className="kv-row__v">{dayLabel(summary.days[0]?.date ?? month)}</span></div>
+              <div className="kv-row"><span className="kv-row__k">End</span><span className="kv-row__v">{dayLabel(summary.days[summary.days.length - 1]?.date ?? month)}</span></div>
+              <div className="kv-row">
+                <span className="kv-row__k">Net this month</span>
+                <span className={`kv-row__v${Number(summary.month_net_minor) > 0 ? " kv-row__v--gain" : Number(summary.month_net_minor) < 0 ? " kv-row__v--loss" : ""}`}>
+                  {Number(summary.month_net_minor) > 0 ? "+" : ""}
+                  {formatAmount(summary.month_net_minor, summary.main_currency_code)} {summary.main_currency_code}
+                </span>
+              </div>
+            </div>
+
+            <div className="card panel">
+              <div className="panel__head">
+                <span className="panel__title">Daily Breakdown</span>
+              </div>
+              <HeatmapCalendar days={summary.days} selectedDate={selectedDate} onSelectDay={setSelectedDate} currencyCode={summary.main_currency_code} />
+              <div className="legend-row">
+                <span className="legend-item"><span className="legend-swatch" data-tone="loss" /> Loss (spend &gt; income)</span>
+                <span className="legend-item"><span className="legend-swatch" data-tone="neutral" /> No activity</span>
+                <span className="legend-item"><span className="legend-swatch" data-tone="gain" /> Gain (income &gt; spend)</span>
+              </div>
+            </div>
+
+            <div className="card panel">
+              <span className="panel__label">Daily Net Trend</span>
+              <TrendChart days={summary.days} />
+              <div className="chart-months">
+                {tickDays.map((d) => (
+                  <span key={d.date}>{new Date(`${d.date}T00:00:00.000Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load analytics. Try refreshing.</p>}
+      <aside className="right">
+        <div className="right-inner">
+          <div className="right-title">Day Detail</div>
 
-      {summary && (
-        <div style={{ padding: "0 var(--space-xl) var(--space-2xl)" }}>
-          <div className="card kv-card">
-            <div className="kv-row"><span className="kv-row__k">Begin</span><span className="kv-row__v">{dayLabel(summary.days[0]?.date ?? month)}</span></div>
-            <div className="kv-row"><span className="kv-row__k">End</span><span className="kv-row__v">{dayLabel(summary.days[summary.days.length - 1]?.date ?? month)}</span></div>
-            <div className="kv-row">
-              <span className="kv-row__k">Net this month</span>
-              <span className={`kv-row__v${Number(summary.month_net_minor) > 0 ? " kv-row__v--gain" : Number(summary.month_net_minor) < 0 ? " kv-row__v--loss" : ""}`}>
-                {Number(summary.month_net_minor) > 0 ? "+" : ""}
-                {formatAmount(summary.month_net_minor, summary.main_currency_code)} {summary.main_currency_code}
-              </span>
-            </div>
-          </div>
+          {!selectedDay && <p className="muted">Select a day in the calendar to see its transactions.</p>}
 
-          <div className="card panel">
-            <div className="panel__head">
-              <span className="panel__title">{selectedDay ? dayLabel(selectedDay.date) : "Select a day"}</span>
-              {selectedDay && (
-                <span className={`day-pill${selectedDay.sign === "gain" ? " day-pill--gain" : selectedDay.sign === "loss" ? " day-pill--loss" : ""}`}>
-                  {selectedDay.sign === "gain" ? "+" : ""}
-                  {formatAmount(selectedDay.net_minor, summary.main_currency_code)}
-                </span>
-              )}
-            </div>
-            <HeatmapCalendar days={summary.days} selectedDate={selectedDate} onSelectDay={setSelectedDate} currencyCode={summary.main_currency_code} />
-            <div className="legend-row">
-              <span className="legend-item"><span className="legend-swatch" data-tone="loss" /> Loss (spend &gt; income)</span>
-              <span className="legend-item"><span className="legend-swatch" data-tone="neutral" /> No activity</span>
-              <span className="legend-item"><span className="legend-swatch" data-tone="gain" /> Gain (income &gt; spend)</span>
-            </div>
-          </div>
-
-          <div className="card panel">
-            <span className="panel__label">Daily Net Trend</span>
-            <TrendChart days={summary.days} />
-            <div className="chart-months">
-              {tickDays.map((d) => (
-                <span key={d.date}>{new Date(`${d.date}T00:00:00.000Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</span>
-              ))}
-            </div>
-          </div>
-
-          {selectedDay && (
-            <div className="card panel">
+          {selectedDay && summary && (
+            <>
               <div className="tile-grid">
                 <div className="card stat-card">
                   <div className="stat-card__label">Expenditure</div>
@@ -136,7 +152,18 @@ export function AnalyticsPage() {
                   </div>
                 </div>
               </div>
-              <div className="card txn-card" style={{ marginTop: "var(--space-sm)" }}>
+
+              <div className="txn-group__head" style={{ padding: "0 2px 10px" }}>
+                <span className="txn-group__date">{isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)}</span>
+                {selectedDay.sign !== "neutral" && (
+                  <span className="txn-group__pill" data-tone={selectedDay.sign === "gain" ? "positive" : "negative"}>
+                    {selectedDay.sign === "gain" ? "+" : ""}
+                    {formatAmount(selectedDay.net_minor, summary.main_currency_code)}
+                  </span>
+                )}
+              </div>
+
+              <div className="card txn-card">
                 {isDayLoading && <p className="muted">Loading…</p>}
                 {dayTxns?.map((t) => (
                   <div className="txn-row" key={t.id}>
@@ -144,22 +171,27 @@ export function AnalyticsPage() {
                     <div className="txn-row__body">
                       <div className="txn-row__top">
                         <span className="txn-row__cat">{t.category_name ?? "Transfer"}</span>
-                        <span className="txn-row__time">{new Date(t.occurred_at).toLocaleTimeString()}</span>
+                        <span className="txn-row__time">{new Date(t.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                       </div>
                       {t.note && <div className="txn-row__note">{t.note}</div>}
+                      <div className="chip-row">
+                        <span className="chip-acct">{t.account_name}</span>
+                      </div>
                     </div>
-                    <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
-                      {t.type === "expense" ? "-" : "+"}
-                      {formatAmount(t.amount, t.currency_code)}
-                    </span>
+                    <div className="txn-row__end">
+                      <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
+                        {t.type === "expense" ? "-" : "+"}
+                        {formatAmount(t.amount, t.currency_code)}
+                      </span>
+                    </div>
                   </div>
                 ))}
                 {dayTxns?.length === 0 && <p className="muted">No transactions this day.</p>}
               </div>
-            </div>
+            </>
           )}
         </div>
-      )}
+      </aside>
     </div>
   );
 }

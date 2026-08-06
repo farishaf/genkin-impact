@@ -244,6 +244,73 @@ describe("GET /transactions/summary", () => {
   });
 });
 
+describe("GET /transactions/report", () => {
+  it("groups by category and converts multi-currency totals into main currency", async () => {
+    const { agent, accountId, categoryId } = await setUp(); // main currency USD
+    const eurAccountRes = await agent.post("/accounts").send({ name: "Euro Cash", type: "cash", currency_code: "EUR", opening_balance: "0" });
+    await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "68.00", occurred_at: new Date().toISOString() });
+    // seeded rate: 1 USD = 0.92 EUR, so 9.20 EUR == 10.00 USD exactly
+    await agent.post("/transactions").send({ type: "expense", account_id: eurAccountRes.body.account.id, category_id: categoryId, amount: "9.20", occurred_at: new Date().toISOString() });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category" });
+    expect(res.status).toBe(200);
+    const delivery = res.body.groups.find((g: { label: string }) => g.label === "Delivery");
+    expect(delivery.total_minor).toBe("7800"); // 68.00 + 10.00 converted
+    expect(delivery.count).toBe(2);
+  });
+
+  it("excludes an installment origin from its category total, counting only the children", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "60.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 2, interval_unit: "month", first_due_date: "2026-09-01",
+    });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category" });
+    expect(res.status).toBe(200);
+    const delivery = res.body.groups.find((g: { label: string }) => g.label === "Delivery");
+    expect(delivery.total_minor).toBe("6000"); // children only, not origin + children
+    expect(delivery.count).toBe(2); // 2 children, origin excluded
+  });
+
+  it("excludes transfers from every dimension", async () => {
+    const { agent, accountId } = await setUp();
+    const secondAccountRes = await agent.post("/accounts").send({ name: "Savings", type: "bank", currency_code: "USD", opening_balance: "0.00" });
+    await agent.post("/transactions").send({
+      type: "transfer", account_id: accountId, to_account_id: secondAccountRes.body.account.id, amount: "100.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "account" });
+    expect(res.status).toBe(200);
+    expect(res.body.groups).toEqual([]);
+  });
+
+  it("picks the largest transaction after currency conversion, not the largest raw minor-unit amount", async () => {
+    const { agent, accountId, categoryId } = await setUp(); // main currency USD
+    const cnyAccountRes = await agent.post("/accounts").send({ name: "China Cash", type: "cash", currency_code: "CNY", opening_balance: "0" });
+    const usd = await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "100.00", occurred_at: new Date().toISOString() });
+    // seeded rate: 1 USD = 7.15 CNY, so 700.00 CNY (raw minor 70000, far bigger than USD's 10000) converts to ~97.90 USD — less than the USD transaction
+    await agent.post("/transactions").send({ type: "expense", account_id: cnyAccountRes.body.account.id, category_id: categoryId, amount: "700.00", occurred_at: new Date().toISOString() });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category" });
+    expect(res.status).toBe(200);
+    expect(res.body.outlier.id).toBe(usd.body.transaction.id);
+    expect(res.body.outlier.currency_code).toBe("USD");
+  });
+
+  it("returns empty groups and a null outlier for a range with no transactions", async () => {
+    const { agent, categoryId, accountId } = await setUp();
+    await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "20.00", occurred_at: new Date().toISOString() });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category", from: "2000-01-01", to: "2000-01-31" });
+    expect(res.status).toBe(200);
+    expect(res.body.groups).toEqual([]);
+    expect(res.body.outlier).toBeNull();
+  });
+});
+
 describe("PATCH /transactions/:id", () => {
   it("edits amount and recomputes the account balance", async () => {
     const { agent, accountId, categoryId } = await setUp();

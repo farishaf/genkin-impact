@@ -543,3 +543,126 @@ transactionsRouter.get("/summary", requireAuth, validateQuery(summaryQuerySchema
     next(err);
   }
 });
+
+const reportQuerySchema = z.object({
+  type: z.enum(["expense", "income"]).optional(),
+  from: dateOnlySchema.optional(),
+  to: dateOnlySchema.optional(),
+  member_id: z.string().uuid().optional(),
+  tag_id: z.string().uuid().optional(),
+  category_id: z.string().uuid().optional(),
+  group_by: z.enum(["category", "tag", "member", "account"]),
+});
+
+// dim.id/dim.name come from a different joined table per group_by; the join itself
+// is the only per-dimension SQL, so filter conditions stay identical across all four.
+const REPORT_GROUP_BY_JOIN: Record<string, string> = {
+  category: "JOIN categories dim ON dim.id = t.category_id",
+  tag: "JOIN transaction_tags tt ON tt.transaction_id = t.id JOIN tags dim ON dim.id = tt.tag_id",
+  member: "JOIN members dim ON dim.id = t.member_id",
+  account: "JOIN accounts dim ON dim.id = t.account_id",
+};
+
+transactionsRouter.get("/report", requireAuth, validateQuery(reportQuerySchema), async (req, res, next) => {
+  try {
+    const query = req.validatedQuery as z.infer<typeof reportQuerySchema>;
+    const conditions = ["t.user_id = $1", "t.deleted_at IS NULL", "t.type IN ('income', 'expense')", EXCLUDE_INSTALLMENT_ORIGIN_SQL];
+    const params: unknown[] = [req.userId];
+
+    if (query.type) {
+      params.push(query.type);
+      conditions.push(`t.type = $${params.length}`);
+    }
+    if (query.from) {
+      params.push(query.from);
+      conditions.push(`t.occurred_at >= $${params.length}`);
+    }
+    if (query.to) {
+      params.push(query.to);
+      conditions.push(`t.occurred_at < ($${params.length}::date + interval '1 day')`);
+    }
+    if (query.member_id) {
+      params.push(query.member_id);
+      conditions.push(`t.member_id = $${params.length}`);
+    }
+    if (query.category_id) {
+      params.push(query.category_id);
+      conditions.push(`t.category_id = $${params.length}`);
+    }
+    if (query.tag_id) {
+      params.push(query.tag_id);
+      conditions.push(`EXISTS (SELECT 1 FROM transaction_tags tt2 WHERE tt2.transaction_id = t.id AND tt2.tag_id = $${params.length})`);
+    }
+
+    const where = conditions.join(" AND ");
+
+    const userRes = await pool.query("SELECT main_currency_code FROM users WHERE id = $1", [req.userId]);
+    const mainCurrency = userRes.rows[0].main_currency_code as string | null;
+    if (!mainCurrency) throw new AppError(400, "no_main_currency", "User has not set a main currency yet.");
+
+    const currenciesRes = await pool.query("SELECT code, decimal_digits FROM currencies");
+    const decimalsByCode: Record<string, number> = {};
+    for (const row of currenciesRes.rows) decimalsByCode[row.code] = row.decimal_digits;
+
+    const onDate = (query.to ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
+
+    try {
+      const grouped = await pool.query(
+        `SELECT dim.id AS dim_id, dim.name AS label, t.currency_code, SUM(t.amount) AS total, COUNT(*) AS count
+         FROM transactions t
+         ${REPORT_GROUP_BY_JOIN[query.group_by]}
+         WHERE ${where}
+         GROUP BY dim.id, dim.name, t.currency_code`,
+        params
+      );
+
+      const byDim = new Map<string, { id: string; label: string; totalMinor: bigint; count: number }>();
+      for (const row of grouped.rows) {
+        const converted = await convert(pool, BigInt(row.total), row.currency_code, mainCurrency, onDate, decimalsByCode);
+        const existing = byDim.get(row.dim_id);
+        if (existing) {
+          existing.totalMinor += converted.amountMinor;
+          existing.count += Number(row.count);
+        } else {
+          byDim.set(row.dim_id, { id: row.dim_id, label: row.label, totalMinor: converted.amountMinor, count: Number(row.count) });
+        }
+      }
+      const groups = [...byDim.values()]
+        .sort((a, b) => (b.totalMinor > a.totalMinor ? 1 : b.totalMinor < a.totalMinor ? -1 : 0))
+        .map((g) => ({ id: g.id, label: g.label, total_minor: g.totalMinor.toString(), count: g.count }));
+
+      const outlierRes = await pool.query(
+        `SELECT DISTINCT ON (t.currency_code) t.id, t.note, t.amount, t.currency_code, t.occurred_at, c.name AS category_name
+         FROM transactions t
+         LEFT JOIN categories c ON c.id = t.category_id
+         WHERE ${where}
+         ORDER BY t.currency_code, t.amount DESC`,
+        params
+      );
+      let outlier: { id: string; label: string; amount_minor: string; currency_code: string; occurred_at: string } | null = null;
+      let outlierMainMinor = -1n;
+      for (const row of outlierRes.rows) {
+        const converted = await convert(pool, BigInt(row.amount), row.currency_code, mainCurrency, onDate, decimalsByCode);
+        if (converted.amountMinor > outlierMainMinor) {
+          outlierMainMinor = converted.amountMinor;
+          outlier = {
+            id: row.id,
+            label: row.category_name ?? row.note ?? "Transaction",
+            amount_minor: row.amount,
+            currency_code: row.currency_code,
+            occurred_at: row.occurred_at,
+          };
+        }
+      }
+
+      res.json({ groups, outlier, main_currency_code: mainCurrency });
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // convert()/getRateToUSD() throw a plain Error when no exchange rate exists at all
+      // for a currency in the filtered range — same fallback as GET /summary.
+      throw new AppError(400, "fx_rate_unavailable", "No exchange rate available for this date range yet.");
+    }
+  } catch (err) {
+    next(err);
+  }
+});
