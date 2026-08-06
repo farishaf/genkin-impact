@@ -10,12 +10,19 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, isRetry = false): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
+
+  if (res.status === 401 && !isRetry && !path.startsWith("/auth/")) {
+    const refreshRes = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null);
+    if (refreshRes?.ok) {
+      return request<T>(path, init, true);
+    }
+  }
 
   if (res.status === 204) return undefined as T;
 
