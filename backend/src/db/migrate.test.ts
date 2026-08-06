@@ -39,4 +39,12 @@ describe("runMigrations", () => {
     );
     expect(rates.rows.map((r) => r.quote_code)).toEqual(["CNY", "EUR", "GBP", "HKD", "JPY", "USD"]);
   });
+
+  it("creates budgets, savings_goals, recurring_rules tables", async () => {
+    await runMigrations();
+    const tables = await pool.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('budgets','savings_goals','recurring_rules')`
+    );
+    expect(tables.rows.map((r) => r.table_name).sort()).toEqual(["budgets", "recurring_rules", "savings_goals"]);
+  });
 });

@@ -16,6 +16,8 @@ const baseFields = {
   amount: z.string().regex(/^\d+(\.\d+)?$/, "amount must be a plain decimal string"),
   occurred_at: z.string().datetime(),
   note: z.string().max(500).optional(),
+  member_id: z.string().uuid().optional(),
+  tag_ids: z.string().uuid().array().optional(),
 };
 
 const expenseOrIncomeSchema = z.object({
@@ -34,6 +36,16 @@ const transferSchema = z.object({
 });
 
 const createTransactionSchema = z.union([expenseOrIncomeSchema, transferSchema]);
+
+// tag_ids key present (even []) = replace the tag set; key absent = leave tags untouched.
+const updateTransactionSchema = z.object({
+  amount: z.string().regex(/^\d+(\.\d+)?$/, "amount must be a plain decimal string").optional(),
+  category_id: z.string().uuid().optional(),
+  member_id: z.string().uuid().optional(),
+  tag_ids: z.string().uuid().array().optional(),
+  note: z.string().max(500).optional(),
+  occurred_at: z.string().datetime().optional(),
+});
 
 async function loadOwnedAccount(userId: string, accountId: string) {
   const res = await pool.query(
@@ -57,6 +69,21 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
     }
     if (amountMinor <= 0n) throw new AppError(400, "invalid_amount", "Amount must be positive.");
 
+    if (body.member_id) {
+      const memberRes = await pool.query(
+        "SELECT id FROM members WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        [body.member_id, req.userId]
+      );
+      if (memberRes.rows.length === 0) throw new AppError(400, "invalid_member", "Member not found.");
+    }
+    if (body.tag_ids && body.tag_ids.length > 0) {
+      const tagRes = await pool.query(
+        "SELECT id FROM tags WHERE id = ANY($1) AND user_id = $2 AND deleted_at IS NULL",
+        [body.tag_ids, req.userId]
+      );
+      if (tagRes.rows.length !== new Set(body.tag_ids).size) throw new AppError(400, "invalid_tag", "One or more tags not found.");
+    }
+
     const transaction = await withTransaction(async (client) => {
       const id = newId();
 
@@ -78,9 +105,9 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
         }
 
         await client.query(
-          `INSERT INTO transactions (id, user_id, type, account_id, to_account_id, amount, currency_code, to_amount, occurred_at, note)
-           VALUES ($1, $2, 'transfer', $3, $4, $5, $6, $7, $8, $9)`,
-          [id, req.userId, body.account_id, body.to_account_id, amountMinor, account.currency_code, toAmountMinor, body.occurred_at, body.note ?? null]
+          `INSERT INTO transactions (id, user_id, type, account_id, to_account_id, member_id, amount, currency_code, to_amount, occurred_at, note)
+           VALUES ($1, $2, 'transfer', $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [id, req.userId, body.account_id, body.to_account_id, body.member_id ?? null, amountMinor, account.currency_code, toAmountMinor, body.occurred_at, body.note ?? null]
         );
 
         // Lock/recompute both accounts in a fixed order (sorted id), not request order,
@@ -100,12 +127,18 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
         }
 
         await client.query(
-          `INSERT INTO transactions (id, user_id, type, account_id, category_id, amount, currency_code, occurred_at, note)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [id, req.userId, body.type, body.account_id, body.category_id, amountMinor, account.currency_code, body.occurred_at, body.note ?? null]
+          `INSERT INTO transactions (id, user_id, type, account_id, category_id, member_id, amount, currency_code, occurred_at, note)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [id, req.userId, body.type, body.account_id, body.category_id, body.member_id ?? null, amountMinor, account.currency_code, body.occurred_at, body.note ?? null]
         );
 
         await recomputeAccountBalance(client, body.account_id);
+      }
+
+      if (body.tag_ids && body.tag_ids.length > 0) {
+        for (const tagId of new Set(body.tag_ids)) {
+          await client.query("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES ($1, $2)", [id, tagId]);
+        }
       }
 
       const created = await client.query("SELECT * FROM transactions WHERE id = $1", [id]);
@@ -113,6 +146,115 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
     });
 
     res.status(201).json({ transaction });
+  } catch (err) {
+    next(err);
+  }
+});
+
+transactionsRouter.patch("/:id", requireAuth, validateBody(updateTransactionSchema), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof updateTransactionSchema>;
+    const existingRes = await pool.query(
+      "SELECT * FROM transactions WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+      [req.params.id, req.userId]
+    );
+    if (existingRes.rows.length === 0) throw new AppError(404, "not_found", "Transaction not found.");
+    const existing = existingRes.rows[0];
+
+    if (existing.type === "transfer" && (body.amount !== undefined || body.category_id !== undefined)) {
+      throw new AppError(400, "not_editable_field", "amount and category_id cannot be edited on a transfer.");
+    }
+
+    let amountMinor: bigint | undefined;
+    if (body.amount !== undefined) {
+      const account = await loadOwnedAccount(req.userId!, existing.account_id);
+      try {
+        amountMinor = parseToMinor(body.amount, account.decimal_digits);
+      } catch {
+        throw new AppError(400, "invalid_amount", `Amount has more decimal places than ${account.currency_code} supports.`);
+      }
+      if (amountMinor <= 0n) throw new AppError(400, "invalid_amount", "Amount must be positive.");
+    }
+
+    if (body.category_id !== undefined) {
+      const category = await pool.query(
+        "SELECT kind FROM categories WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        [body.category_id, req.userId]
+      );
+      if (category.rows.length === 0) throw new AppError(400, "invalid_category", "Category not found.");
+      if (category.rows[0].kind !== existing.type) {
+        throw new AppError(400, "category_kind_mismatch", "Category kind must match transaction type.");
+      }
+    }
+
+    if (body.member_id !== undefined) {
+      const memberRes = await pool.query(
+        "SELECT id FROM members WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        [body.member_id, req.userId]
+      );
+      if (memberRes.rows.length === 0) throw new AppError(400, "invalid_member", "Member not found.");
+    }
+    if (body.tag_ids && body.tag_ids.length > 0) {
+      const tagRes = await pool.query(
+        "SELECT id FROM tags WHERE id = ANY($1) AND user_id = $2 AND deleted_at IS NULL",
+        [body.tag_ids, req.userId]
+      );
+      if (tagRes.rows.length !== new Set(body.tag_ids).size) throw new AppError(400, "invalid_tag", "One or more tags not found.");
+    }
+
+    const transaction = await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE transactions SET
+           amount = COALESCE($1, amount),
+           category_id = COALESCE($2, category_id),
+           member_id = COALESCE($3, member_id),
+           note = COALESCE($4, note),
+           occurred_at = COALESCE($5, occurred_at),
+           updated_at = now()
+         WHERE id = $6`,
+        [amountMinor ?? null, body.category_id ?? null, body.member_id ?? null, body.note ?? null, body.occurred_at ?? null, req.params.id]
+      );
+
+      if (body.tag_ids !== undefined) {
+        await client.query("DELETE FROM transaction_tags WHERE transaction_id = $1", [req.params.id]);
+        for (const tagId of new Set(body.tag_ids)) {
+          await client.query("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES ($1, $2)", [req.params.id, tagId]);
+        }
+      }
+
+      if (amountMinor !== undefined) {
+        await recomputeAccountBalance(client, existing.account_id);
+      }
+
+      const updated = await client.query("SELECT * FROM transactions WHERE id = $1", [req.params.id]);
+      return updated.rows[0];
+    });
+
+    res.json({ transaction });
+  } catch (err) {
+    next(err);
+  }
+});
+
+transactionsRouter.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    await withTransaction(async (client) => {
+      const result = await client.query(
+        `UPDATE transactions SET deleted_at = now(), updated_at = now()
+         WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+         RETURNING account_id, to_account_id, type`,
+        [req.params.id, req.userId]
+      );
+      if (result.rows.length === 0) throw new AppError(404, "not_found", "Transaction not found.");
+      const row = result.rows[0];
+
+      const accountIds = row.type === "transfer" ? [row.account_id, row.to_account_id] : [row.account_id];
+      for (const accountId of accountIds.sort()) {
+        await recomputeAccountBalance(client, accountId);
+      }
+    });
+
+    res.status(204).send();
   } catch (err) {
     next(err);
   }
@@ -126,6 +268,9 @@ const listQuerySchema = z.object({
   type: z.enum(["expense", "income", "transfer"]).optional(),
   from: dateOnlySchema.optional(),
   to: dateOnlySchema.optional(),
+  member_id: z.string().uuid().optional(),
+  tag_id: z.string().uuid().optional(),
+  category_id: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -146,15 +291,34 @@ transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (
     }
     if (query.to) {
       params.push(query.to);
-      conditions.push(`t.occurred_at <= $${params.length}`);
+      conditions.push(`t.occurred_at < ($${params.length}::date + interval '1 day')`);
+    }
+    if (query.member_id) {
+      params.push(query.member_id);
+      conditions.push(`t.member_id = $${params.length}`);
+    }
+    if (query.category_id) {
+      params.push(query.category_id);
+      conditions.push(`t.category_id = $${params.length}`);
+    }
+    if (query.tag_id) {
+      params.push(query.tag_id);
+      conditions.push(`EXISTS (SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = $${params.length})`);
     }
 
     params.push(query.limit, query.offset);
     const result = await pool.query(
-      `SELECT t.*, c.name AS category_name, c.emoji AS category_emoji, a.name AS account_name
+      `SELECT t.*, c.name AS category_name, c.emoji AS category_emoji, a.name AS account_name, m.name AS member_name,
+              COALESCE(tags.tags, '[]') AS tags
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
        JOIN accounts a ON a.id = t.account_id
+       LEFT JOIN members m ON m.id = t.member_id
+       LEFT JOIN LATERAL (
+         SELECT json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color)) AS tags
+         FROM transaction_tags tt2 JOIN tags tg ON tg.id = tt2.tag_id
+         WHERE tt2.transaction_id = t.id
+       ) tags ON true
        WHERE ${conditions.join(" AND ")}
        ORDER BY t.occurred_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,

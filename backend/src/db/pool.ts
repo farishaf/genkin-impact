@@ -1,6 +1,14 @@
 import pg from "pg";
 import { env } from "../env.js";
 
+// node-postgres parses the DATE type (OID 1082) into a JS Date at LOCAL midnight, which then
+// serializes to a different calendar day in any timezone ahead of UTC (Date#toJSON always
+// renders in UTC). Since date-only columns (budgets.start_date, recurring_rules.starts_on/
+// ends_on, savings_goals.target_date) are compared and rendered as plain YYYY-MM-DD strings
+// throughout this codebase, disable that parsing globally so DATE columns come back as the
+// raw string Postgres sent, sidestepping the whole class of off-by-one-day bugs.
+pg.types.setTypeParser(1082, (value) => value);
+
 export const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 
 const RETRYABLE_PG_ERROR_CODES = new Set([

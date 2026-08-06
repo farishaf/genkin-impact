@@ -9,6 +9,12 @@ import { usersRouter } from "./routes/users.js";
 import { accountsRouter } from "./routes/accounts.js";
 import { transactionsRouter } from "./routes/transactions.js";
 import { categoriesRouter } from "./routes/categories.js";
+import { membersRouter } from "./routes/members.js";
+import { tagsRouter } from "./routes/tags.js";
+import { budgetsRouter } from "./routes/budgets.js";
+import { savingsGoalsRouter } from "./routes/savingsGoals.js";
+import { recurringRulesRouter } from "./routes/recurringRules.js";
+import { analyticsRouter } from "./routes/analytics.js";
 
 export const app = express();
 
@@ -25,5 +31,12 @@ app.use("/currencies", currenciesRouter);
 app.use("/accounts", accountsRouter);
 app.use("/transactions", transactionsRouter);
 app.use("/categories", categoriesRouter);
+app.use("/members", membersRouter);
+app.use("/tags", tagsRouter);
+
+app.use("/budgets", budgetsRouter);
+app.use("/savings-goals", savingsGoalsRouter);
+app.use("/recurring-rules", recurringRulesRouter);
+app.use("/analytics", analyticsRouter);
 
 app.use(errorHandler);
