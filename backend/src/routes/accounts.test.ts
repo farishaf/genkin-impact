@@ -9,11 +9,16 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await pool.query("DELETE FROM transaction_tags");
   await pool.query("DELETE FROM transactions");
+  await pool.query("DELETE FROM budgets");
+  await pool.query("DELETE FROM savings_goals");
+  await pool.query("DELETE FROM recurring_rules");
   await pool.query("DELETE FROM accounts");
   await pool.query("DELETE FROM sessions");
   await pool.query("DELETE FROM members");
   await pool.query("DELETE FROM categories");
+  await pool.query("DELETE FROM tags");
   await pool.query("DELETE FROM users");
 });
 

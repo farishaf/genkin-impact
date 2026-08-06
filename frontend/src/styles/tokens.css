@@ -17,6 +17,10 @@
   --color-info: oklch(48% 0.1 258);
   --color-focus: var(--color-accent);
 
+  /* Analytics-only, eastern convention: net income > expenditure = gain (red), net expenditure > income = loss (green). */
+  --color-gain: oklch(45% 0.145 25);
+  --color-loss: oklch(47% 0.095 152);
+
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
 
   --space-2xs: 0.25rem;

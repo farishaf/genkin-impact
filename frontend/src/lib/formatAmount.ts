@@ -7,3 +7,9 @@ export function formatAmount(minorUnits: string, currencyCode: string): string {
   const value = Number(minorUnits) / 10 ** digits;
   return value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
+
+// Plain decimal string (no thousands separators) for prefilling an editable amount input.
+export function minorToInputValue(minorUnits: string, currencyCode: string): string {
+  const digits = DECIMAL_DIGITS[currencyCode] ?? 2;
+  return (Number(minorUnits) / 10 ** digits).toFixed(digits);
+}

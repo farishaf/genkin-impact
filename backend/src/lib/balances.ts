@@ -55,6 +55,7 @@ export async function recomputeAccountBalance(client: pg.PoolClient, accountId: 
      FROM transactions
      WHERE (account_id = $1 OR to_account_id = $1)
        AND deleted_at IS NULL
+       AND status = 'cleared'
        AND (installment_plan_id IS NULL OR installment_seq IS NOT NULL)`,
     [accountId]
   );
