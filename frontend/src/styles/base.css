@@ -151,6 +151,8 @@ button, input, select { font-family: inherit; font-size: inherit; }
 .tag-chip:hover { background: var(--color-paper-3); }
 .tag-chip--active { background: color-mix(in oklch, var(--color-accent) 15%, var(--color-paper-3) 85%); color: var(--color-accent); border-color: var(--color-accent); font-weight: 600; }
 .tag-chip--static { cursor: default; }
+.tag-chip__remove { margin-left: 6px; opacity: 0.6; }
+.tag-chip__remove:hover { opacity: 1; }
 .amount { margin-left: auto; font-weight: 600; }
 .amount--neg { color: var(--color-negative); }
 .amount--pos { color: var(--color-positive); }
@@ -166,6 +168,13 @@ button, input, select { font-family: inherit; font-size: inherit; }
 .icon-btn:active { transform: scale(0.92); }
 .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .icon-btn--danger:hover { background: color-mix(in oklch, var(--color-negative) 12%, var(--color-paper-3)); color: var(--color-negative); }
+
+.inline-action { padding: 0 var(--space-md) var(--space-sm) 64px; }
+.inline-action .contribute-form input,
+.inline-action .contribute-form select { flex-shrink: 0; }
+.inline-action .contribute-form input[name="amount"],
+.inline-action .contribute-form input[name="note"],
+.inline-action .contribute-form input[name="fee_amount"] { flex: 1; min-width: 90px; }
 
 .muted { color: var(--color-muted); padding: var(--space-md); }
 

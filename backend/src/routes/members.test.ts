@@ -10,12 +10,15 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await pool.query("DELETE FROM transaction_tags");
+  await pool.query("UPDATE transactions SET installment_plan_id = NULL WHERE installment_plan_id IS NOT NULL");
+  await pool.query("DELETE FROM installment_plans");
   await pool.query("DELETE FROM transactions");
   await pool.query("DELETE FROM accounts");
   await pool.query("DELETE FROM sessions");
   await pool.query("DELETE FROM members");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM tags");
+  await pool.query("DELETE FROM saved_filters");
   await pool.query("DELETE FROM users");
 });
 
