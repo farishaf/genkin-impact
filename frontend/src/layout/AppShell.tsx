@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../hooks/useAuth";
+import { useConvention, useTheme } from "../hooks/useDisplayPrefs";
 
 export function AppShell() {
   const { data: user } = useCurrentUser();
   const logout = useLogout();
+  const { theme, setTheme } = useTheme();
+  const { convention, setConvention } = useConvention();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const nextTheme = theme === "dark" ? "light" : "dark";
 
   return (
     <div className="app" style={{ ["--color-accent" as string]: user?.accent_color || undefined }}>
@@ -19,6 +23,22 @@ export function AppShell() {
         </div>
         <div className="topbar-spacer" />
         {user?.main_currency_code && <span className="cur-btn">{user.main_currency_code}</span>}
+        <button
+          className="btn-outline btn-outline--sm"
+          type="button"
+          onClick={() => setConvention(convention === "western" ? "eastern" : "western")}
+          title="Which colour means a gain. Eastern: red. Western: green."
+        >
+          Gain: {convention === "western" ? "green" : "red"}
+        </button>
+        <button
+          className="btn-outline btn-outline--sm"
+          type="button"
+          onClick={() => setTheme(nextTheme)}
+          aria-label={`Switch to ${nextTheme} theme`}
+        >
+          <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+        </button>
         <button className="btn-outline" type="button" onClick={() => logout.mutate()}>
           Log out
         </button>

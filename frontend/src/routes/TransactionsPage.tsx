@@ -1,12 +1,15 @@
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, API_URL } from "../lib/api";
 import { formatAmount, minorToInputValue } from "../lib/formatAmount";
 import { AddTransactionForm, type EditingTxn } from "../components/AddTransactionForm";
 import { TransactionsReportPanel } from "../components/TransactionsReportPanel";
-import { ChevronIcon } from "../components/TxnIcons";
+import { ChevronIcon, PaperclipIcon } from "../components/TxnIcons";
+import { Modal } from "../components/Modal";
+import { CategoryManager } from "../components/CategoryManager";
+import { Button } from "../components/Button";
 
 gsap.registerPlugin(useGSAP);
 
@@ -36,6 +39,7 @@ interface TxnItem {
   refund_of_id: string | null;
   installment_plan_id: string | null;
   installment_seq: number | null;
+  attachment_id: string | null;
 }
 interface Member {
   id: string;
@@ -152,10 +156,29 @@ export function TransactionsPage() {
   const [activeRangePreset, setActiveRangePreset] = useState<string>("");
   const [viewMode, setViewMode] = useState<"list" | "table">("list");
   const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const filterPopoverRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (filterPopoverRef.current && !filterPopoverRef.current.contains(e.target as Node)) setFilterOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setFilterOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [filterOpen]);
 
   function applyRangePreset(preset: "today" | "yesterday" | "this_week" | "last_week" | "") {
     setActiveRangePreset(preset);
@@ -178,6 +201,18 @@ export function TransactionsPage() {
     setToFilter(criteria.to ?? "");
     setActiveRangePreset("");
   }
+
+  function clearAllFilters() {
+    setTypeFilter("");
+    setMemberFilter("");
+    setTagFilter("");
+    setCategoryFilter("");
+    setFromFilter("");
+    setToFilter("");
+    setActiveRangePreset("");
+  }
+
+  const activeFilterCount = [typeFilter, memberFilter, tagFilter, categoryFilter, fromFilter || toFilter].filter(Boolean).length;
 
   const { data: savedFilters } = useQuery({
     queryKey: ["savedFilters"],
@@ -288,6 +323,22 @@ export function TransactionsPage() {
 
   const { contextSafe } = useGSAP({ scope: listRef });
 
+  useGSAP(
+    () => {
+      gsap.from(".chip-attachment", { opacity: 0, scale: 0.85, duration: 0.2, ease: "power2.out", stagger: 0.03 });
+    },
+    { scope: listRef, dependencies: [items] }
+  );
+
+  useGSAP(
+    () => {
+      if (!filterOpen) return;
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      gsap.from(".filter-popover", { autoAlpha: 0, y: reduced ? 0 : -6, duration: reduced ? 0.15 : 0.18, ease: "power2.out" });
+    },
+    { scope: filterPopoverRef, dependencies: [filterOpen] }
+  );
+
   const handleDelete = contextSafe((t: TxnItem) => {
     if (!confirm(`Delete this ${t.type === "expense" ? "-" : "+"}${formatAmount(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}?`)) return;
     const el = rowRefs.current[t.id];
@@ -356,6 +407,17 @@ export function TransactionsPage() {
               {t.refund_of_id && <span className="chip-tag">Refund</span>}
               {t.installment_plan_id && t.installment_seq === null && <span className="chip-tag">Installment plan</span>}
               {t.installment_seq !== null && <span className="chip-tag">Installment #{t.installment_seq}</span>}
+              {t.attachment_id && (
+                <a
+                  className="chip-tag chip-attachment"
+                  href={`${API_URL}/attachments/${t.attachment_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <PaperclipIcon /> Receipt
+                </a>
+              )}
             </div>
           </div>
           <div className="txn-row__end">
@@ -436,36 +498,122 @@ export function TransactionsPage() {
         <h1>Transactions</h1>
         <span className="count-badge">{summary?.count ?? 0}</span>
         <div className="head-spacer" />
-        <select className="seg" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="">All types</option>
-          <option value="expense">Expenses</option>
-          <option value="income">Income</option>
-          <option value="transfer">Transfers</option>
-        </select>
-        <select className="seg" value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}>
-          <option value="">All members</option>
-          {(members ?? []).map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-        <select className="seg" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-          <option value="">All tags</option>
-          {(tags ?? []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-        <select className="seg" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-          <option value="">All categories</option>
-          {(categories ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+        <div className="filter-popover-wrap" ref={filterPopoverRef}>
+          <button
+            type="button"
+            className="filter-chip filter-trigger"
+            data-open={filterOpen}
+            aria-expanded={filterOpen}
+            aria-haspopup="true"
+            onClick={() => setFilterOpen((v) => !v)}
+          >
+            Filters
+            <ChevronIcon />
+          </button>
+          {activeFilterCount > 0 && (
+            <span className="filter-chip filter-chip--emph" style={{ marginLeft: 6 }}>
+              {activeFilterCount} active
+            </span>
+          )}
+
+          {filterOpen && (
+            <div className="filter-popover" role="dialog" aria-label="Filters">
+              <div className="filter-popover__section">
+                <span className="filter-popover__label">Type</span>
+                <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                  <option value="">All types</option>
+                  <option value="expense">Expenses</option>
+                  <option value="income">Income</option>
+                  <option value="transfer">Transfers</option>
+                </select>
+              </div>
+              <div className="filter-popover__section">
+                <span className="filter-popover__label">Member</span>
+                <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}>
+                  <option value="">All members</option>
+                  {(members ?? []).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-popover__section">
+                <span className="filter-popover__label">Tag</span>
+                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+                  <option value="">All tags</option>
+                  {(tags ?? []).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-popover__section">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span className="filter-popover__label">Category</span>
+                  <Button variant="ghost" size="sm" onClick={() => setCategoryManagerOpen(true)}>
+                    Manage
+                  </Button>
+                </div>
+                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                  <option value="">All categories</option>
+                  {(categories ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-popover__section">
+                <span className="filter-popover__label">Date range</span>
+                <div className="filter-popover__row">
+                  {(["", "today", "yesterday", "this_week", "last_week"] as const).map((preset) => (
+                    <button
+                      key={preset || "all"}
+                      type="button"
+                      className={`tag-chip${activeRangePreset === preset ? " tag-chip--active" : ""}`}
+                      onClick={() => applyRangePreset(preset)}
+                    >
+                      {preset === "" ? "All time" : preset === "today" ? "Today" : preset === "yesterday" ? "Yesterday" : preset === "this_week" ? "This week" : "Last week"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {activeFilterCount > 0 && (
+                <Button variant="ghost-danger" size="sm" onClick={clearAllFilters}>
+                  Clear filters
+                </Button>
+              )}
+
+              <div className="filter-popover__foot">
+                <span className="filter-popover__label">Saved filters</span>
+                <div className="filter-popover__row">
+                  {(savedFilters ?? []).map((f) => (
+                    <button key={f.id} type="button" className="tag-chip" onClick={() => applySavedFilter(f.criteria)}>
+                      {f.name}
+                      <span
+                        className="tag-chip__remove"
+                        role="button"
+                        aria-label={`Delete saved filter ${f.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete saved filter "${f.name}"?`)) deleteSavedFilter.mutate(f.id);
+                        }}
+                      >
+                        ×
+                      </span>
+                    </button>
+                  ))}
+                  <button type="button" className="tag-chip" onClick={handleSaveCurrentFilter} disabled={saveFilter.isPending}>
+                    + Save current filter
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="seg-toggle" role="group" aria-label="View mode">
           <button type="button" data-active={viewMode === "list"} onClick={() => setViewMode("list")}>
             List
@@ -479,46 +627,13 @@ export function TransactionsPage() {
         </button>
       </div>
 
-      <div className="tag-chips" style={{ margin: "0 var(--space-xl) var(--space-sm)" }}>
-        {(["", "today", "yesterday", "this_week", "last_week"] as const).map((preset) => (
-          <button
-            key={preset || "all"}
-            type="button"
-            className={`tag-chip${activeRangePreset === preset ? " tag-chip--active" : ""}`}
-            onClick={() => applyRangePreset(preset)}
-          >
-            {preset === "" ? "All time" : preset === "today" ? "Today" : preset === "yesterday" ? "Yesterday" : preset === "this_week" ? "This week" : "Last week"}
-          </button>
-        ))}
-      </div>
+      <Modal open={showForm} onClose={closeForm} title={editingTxn ? "Edit Transaction" : "New Transaction"}>
+        <AddTransactionForm key={editingTxn?.id ?? "new"} editing={editingTxn} onDone={closeForm} />
+      </Modal>
 
-      <div className="tag-chips" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>
-        {(savedFilters ?? []).map((f) => (
-          <button key={f.id} type="button" className="tag-chip" onClick={() => applySavedFilter(f.criteria)}>
-            {f.name}
-            <span
-              className="tag-chip__remove"
-              role="button"
-              aria-label={`Delete saved filter ${f.name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (confirm(`Delete saved filter "${f.name}"?`)) deleteSavedFilter.mutate(f.id);
-              }}
-            >
-              ×
-            </span>
-          </button>
-        ))}
-        <button type="button" className="tag-chip" onClick={handleSaveCurrentFilter} disabled={saveFilter.isPending}>
-          + Save current filter
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="card" style={{ margin: "0 var(--space-xl) var(--space-lg)", padding: "var(--space-lg)" }}>
-          <AddTransactionForm key={editingTxn?.id ?? "new"} editing={editingTxn} onDone={closeForm} />
-        </div>
-      )}
+      <Modal open={categoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} title="Manage Categories">
+        <CategoryManager />
+      </Modal>
 
       {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load summary. Try refreshing.</p>}
 

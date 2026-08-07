@@ -1,4 +1,12 @@
 [
-  { "date": "2026-08-04", "macrostructure": "n/a (app dashboard shell)", "theme": "custom monochrome (white/black)", "enrichment": "none", "brief": "Genkin-Impact · personal finance dashboard, simplified to white paper + black-as-accent, genre pivoted editorial -> modern-minimal, single-family Geist type, per user reference screenshot" },
-  { "date": "2026-08-04", "macrostructure": "n/a (app dashboard shell)", "theme": "Almanac (custom luxury palette)", "enrichment": "none", "brief": "Genkin-Impact · personal finance dashboard redesign, luxury/private-banking mood (superseded)" }
+  {
+    "date": "2026-08-07",
+    "macrostructure": "Marquee Hero",
+    "theme": "studied-DNA (Luminous Ledger)",
+    "theme_axes": "light + dark / grotesk-sans (Inter) / chromatic-green (emerald 162)",
+    "nav": "N1b SaaS three-section",
+    "footer": "Ft2 Inline single line",
+    "enrichment": "real product DOM panel, static IDR demo data",
+    "brief": "Genkin-Impact landing page at / — personal finance ledger, light+dark, glassmorphism"
+  }
 ]

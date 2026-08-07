@@ -153,7 +153,7 @@ export function AnalyticsPage() {
                 </div>
               </div>
 
-              <div className="txn-group__head" style={{ padding: "0 2px 10px" }}>
+              <div className="txn-group__head" style={{ padding: "16px 2px 10px" }}>
                 <span className="txn-group__date">{isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)}</span>
                 {selectedDay.sign !== "neutral" && (
                   <span className="txn-group__pill" data-tone={selectedDay.sign === "gain" ? "positive" : "negative"}>

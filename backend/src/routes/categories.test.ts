@@ -61,3 +61,65 @@ describe("GET /categories", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("POST /categories", () => {
+  it("creates a custom category owned by the user", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "create@example.com", password: "password12345", display_name: "Create" });
+
+    const res = await agent.post("/categories").send({ name: "Pet Supplies", emoji: "🐾", kind: "expense" });
+    expect(res.status).toBe(201);
+    expect(res.body.category.name).toBe("Pet Supplies");
+    expect(res.body.category.is_system).toBe(false);
+
+    const list = await agent.get("/categories");
+    expect(list.body.categories).toHaveLength(10);
+  });
+});
+
+describe("PATCH /categories/:id", () => {
+  it("renames a category", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "rename@example.com", password: "password12345", display_name: "Rename" });
+    const created = await agent.post("/categories").send({ name: "Old Name", kind: "expense" });
+
+    const res = await agent.patch(`/categories/${created.body.category.id}`).send({ name: "New Name" });
+    expect(res.status).toBe(200);
+    expect(res.body.category.name).toBe("New Name");
+  });
+
+  it("404s for another user's category", async () => {
+    const agentA = request.agent(app);
+    await agentA.post("/auth/register").send({ email: "owner@example.com", password: "password12345", display_name: "Owner" });
+    const created = await agentA.post("/categories").send({ name: "Mine", kind: "expense" });
+
+    const agentB = request.agent(app);
+    await agentB.post("/auth/register").send({ email: "intruder@example.com", password: "password12345", display_name: "Intruder" });
+    const res = await agentB.patch(`/categories/${created.body.category.id}`).send({ name: "Hijacked" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /categories/:id", () => {
+  it("soft-deletes a custom category", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "delete@example.com", password: "password12345", display_name: "Delete" });
+    const created = await agent.post("/categories").send({ name: "Temp", kind: "expense" });
+
+    const res = await agent.delete(`/categories/${created.body.category.id}`);
+    expect(res.status).toBe(204);
+
+    const list = await agent.get("/categories");
+    expect(list.body.categories.find((c: { id: string }) => c.id === created.body.category.id)).toBeUndefined();
+  });
+
+  it("refuses to delete a built-in (is_system) category", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "system@example.com", password: "password12345", display_name: "System" });
+    const seeded = await agent.get("/categories");
+    const systemCat = seeded.body.categories[0];
+
+    const res = await agent.delete(`/categories/${systemCat.id}`);
+    expect(res.status).toBe(400);
+  });
+});

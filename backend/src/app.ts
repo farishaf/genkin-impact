@@ -16,6 +16,7 @@ import { savingsGoalsRouter } from "./routes/savingsGoals.js";
 import { recurringRulesRouter } from "./routes/recurringRules.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { savedFiltersRouter } from "./routes/savedFilters.js";
+import { attachmentsRouter } from "./routes/attachments.js";
 
 export const app = express();
 
@@ -40,5 +41,6 @@ app.use("/savings-goals", savingsGoalsRouter);
 app.use("/recurring-rules", recurringRulesRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/saved-filters", savedFiltersRouter);
+app.use("/", attachmentsRouter);
 
 app.use(errorHandler);

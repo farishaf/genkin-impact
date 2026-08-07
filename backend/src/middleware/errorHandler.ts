@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { MulterError } from "multer";
 
 export class AppError extends Error {
   status: number;
@@ -14,6 +15,10 @@ export class AppError extends Error {
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
     res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    return;
+  }
+  if (err instanceof MulterError) {
+    res.status(400).json({ error: { code: "invalid_file", message: err.message } });
     return;
   }
   console.error(err);

@@ -446,7 +446,8 @@ transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (
     params.push(query.limit, query.offset);
     const result = await pool.query(
       `SELECT t.*, c.name AS category_name, c.emoji AS category_emoji, a.name AS account_name, m.name AS member_name,
-              COALESCE(tags.tags, '[]') AS tags
+              COALESCE(tags.tags, '[]') AS tags,
+              first_att.id AS attachment_id
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
        JOIN accounts a ON a.id = t.account_id
@@ -456,6 +457,9 @@ transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (
          FROM transaction_tags tt2 JOIN tags tg ON tg.id = tt2.tag_id
          WHERE tt2.transaction_id = t.id
        ) tags ON true
+       LEFT JOIN LATERAL (
+         SELECT att.id FROM attachments att WHERE att.transaction_id = t.id ORDER BY att.created_at LIMIT 1
+       ) first_att ON true
        WHERE ${conditions.join(" AND ")}
        ORDER BY t.occurred_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
