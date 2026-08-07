@@ -1,13 +1,9 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import { api } from "../lib/api";
 import { formatAmount } from "../lib/formatAmount";
-import { ProgressBar } from "./ProgressBar";
+import { ReportBarChart } from "./ReportBarChart";
 import { EditIcon, RefundIcon, InstallmentsIcon, DeleteIcon } from "./TxnIcons";
-
-gsap.registerPlugin(useGSAP);
 
 type GroupBy = "category" | "tag" | "member" | "account";
 const GROUP_BY_OPTIONS: { value: GroupBy; label: string }[] = [
@@ -64,7 +60,6 @@ export function TransactionsReportPanel({
   onDeleteSelected: () => void;
 }) {
   const [groupBy, setGroupBy] = useState<GroupBy>("category");
-  const listRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["transactions", "report", groupBy, filters],
@@ -83,21 +78,6 @@ export function TransactionsReportPanel({
   const groups = data?.groups ?? [];
   const maxMinor = Math.max(1, ...groups.map((g) => Number(g.total_minor)));
   const clickable = groupBy !== "account";
-
-  useGSAP(
-    () => {
-      if (groups.length === 0) return;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      gsap.from(".report-bar", {
-        opacity: 0,
-        x: -8,
-        duration: reduced ? 0 : 0.3,
-        stagger: reduced ? 0 : 0.04,
-        ease: "power2.out",
-      });
-    },
-    { dependencies: [groups.length, groupBy], scope: listRef }
-  );
 
   return (
     <>
@@ -118,33 +98,13 @@ export function TransactionsReportPanel({
       {isLoading && <p className="muted">Loading…</p>}
       {!isLoading && !isError && groups.length === 0 && <p className="muted">No transactions in range.</p>}
 
-      <div className="report-bars" ref={listRef}>
-        {groups.map((g) => {
-          const body = (
-            <>
-              <div className="report-bar__head">
-                <span className="report-bar__label">{g.label}</span>
-                <span className="report-bar__amount">{formatAmount(g.total_minor, mainCurrencyCode)}</span>
-              </div>
-              <ProgressBar pct={(Number(g.total_minor) / maxMinor) * 100} />
-            </>
-          );
-          return clickable ? (
-            <button
-              key={g.id}
-              type="button"
-              className="report-bar"
-              onClick={() => onSelectGroup(groupBy as "category" | "tag" | "member", g.id)}
-            >
-              {body}
-            </button>
-          ) : (
-            <div key={g.id} className="report-bar report-bar--static">
-              {body}
-            </div>
-          );
-        })}
-      </div>
+      <ReportBarChart
+        groups={groups}
+        maxMinor={maxMinor}
+        currencyCode={mainCurrencyCode}
+        clickable={clickable}
+        onSelect={(id) => onSelectGroup(groupBy as "category" | "tag" | "member", id)}
+      />
 
       {data?.outlier && (
         <div className="outlier-card">

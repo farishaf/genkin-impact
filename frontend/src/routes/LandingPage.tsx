@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useCurrentUser } from "../hooks/useAuth";
@@ -60,6 +60,8 @@ export function LandingPage() {
   const { theme, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const authState = { background: location };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -124,10 +126,10 @@ export function LandingPage() {
             >
               <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
             </button>
-            <Link className="lp-nav__signin" to="/login">
+            <Link className="lp-nav__signin" to="/login" state={authState}>
               Sign in
             </Link>
-            <Link className="lp-btn lp-btn--ink lp-btn--sm" to="/register">
+            <Link className="lp-btn lp-btn--ink lp-btn--sm" to="/register" state={authState}>
               Sign up
             </Link>
           </div>
@@ -305,7 +307,7 @@ export function LandingPage() {
 
         <section className="lp-shell lp-close">
           <h2 className="lp-close__title">Start with today's coffee.</h2>
-          <Link className="lp-btn lp-btn--ink" to="/register">
+          <Link className="lp-btn lp-btn--ink" to="/register" state={authState}>
             Create your ledger
           </Link>
           <p className="lp-close__note">
@@ -320,8 +322,8 @@ export function LandingPage() {
           <span aria-hidden="true">·</span>
           <span>Built for people who read their own ledger.</span>
           <div className="lp-foot__links">
-            <Link to="/login">Sign in</Link>
-            <Link to="/register">Sign up</Link>
+            <Link to="/login" state={authState}>Sign in</Link>
+            <Link to="/register" state={authState}>Sign up</Link>
           </div>
         </div>
       </footer>

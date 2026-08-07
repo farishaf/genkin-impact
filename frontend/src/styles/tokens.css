@@ -41,25 +41,27 @@
   --color-expense: oklch(58% 0.19 15);
   --color-balance: oklch(55% 0.19 258);
 
-  /* ---- glass ---- */
-  --glass-bg: oklch(100% 0 0 / 0.7);
-  --glass-blur: 12px;
-  --glass-border: oklch(89% 0.015 258 / 0.9);
-  --glass-highlight: oklch(100% 0 0 / 0.85);
-  --glass-shadow: 0 4px 20px oklch(21% 0.03 258 / 0.06);
+  /* ---- glass (recipe: opaque tinted pill, inset top-highlight + outer drop) ---- */
+  --glass-bg: oklch(97% 0.004 258 / 0.82);
+  --glass-blur: 16px;
+  --glass-border: oklch(0% 0 0 / 0.07);
+  --glass-highlight: oklch(100% 0 0 / 1);
+  --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.06), inset 0 1px 1px oklch(100% 0 0 / 1);
 
   /* ---- type ---- */
-  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
 
   --text-2xs: 0.75rem;
   --text-xs: 0.8125rem;
   --text-sm: 0.875rem;
   --text-base: 0.9375rem;
   --text-md: 1.0625rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.5rem;
-  --text-figure: clamp(1.375rem, 1vw + 1.1rem, 1.625rem);
-  --text-headline: 1.5rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-figure: clamp(1.25rem, 1vw + 1rem, 1.5rem);
+  --text-headline: 1.375rem;
   --text-display-s: clamp(1.75rem, 3vw + 1rem, 2.75rem);
   --text-display: clamp(2.25rem, 6vw + 0.5rem, 4.5rem);
 
@@ -67,11 +69,11 @@
   --space-2xs: 0.25rem;
   --space-xs: 0.5rem;
   --space-sm: 0.75rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2.5rem;
-  --space-2xl: 4rem;
-  --space-3xl: 6rem;
+  --space-md: 0.875rem;
+  --space-lg: 1.25rem;
+  --space-xl: 2rem;
+  --space-2xl: 3.25rem;
+  --space-3xl: 4.5rem;
   --container-max: 1280px;
 
   /* ---- shape ---- */
@@ -150,10 +152,10 @@
     --color-expense: oklch(70% 0.17 15);
     --color-balance: oklch(72% 0.15 258);
 
-    --glass-bg: oklch(100% 0 0 / 0.06);
+    --glass-bg: oklch(10% 0.035 258 / 0.82);
     --glass-border: oklch(100% 0 0 / 0.1);
-    --glass-highlight: oklch(100% 0 0 / 0.14);
-    --glass-shadow: 0 4px 24px oklch(0% 0 0 / 0.5);
+    --glass-highlight: oklch(100% 0 0 / 0.07);
+    --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.4), inset 0 1px 1px oklch(100% 0 0 / 0.07);
 
     --color-paper: oklch(15.5% 0.004 258);
     --color-paper-2: oklch(19.5% 0.006 258);
@@ -201,10 +203,10 @@
   --color-expense: oklch(70% 0.17 15);
   --color-balance: oklch(72% 0.15 258);
 
-  --glass-bg: oklch(100% 0 0 / 0.06);
+  --glass-bg: oklch(10% 0.035 258 / 0.82);
   --glass-border: oklch(100% 0 0 / 0.1);
-  --glass-highlight: oklch(100% 0 0 / 0.14);
-  --glass-shadow: 0 4px 24px oklch(0% 0 0 / 0.5);
+  --glass-highlight: oklch(100% 0 0 / 0.07);
+  --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.4), inset 0 1px 1px oklch(100% 0 0 / 0.07);
 
   --color-paper: oklch(15.5% 0.004 258);
   --color-paper-2: oklch(19.5% 0.006 258);

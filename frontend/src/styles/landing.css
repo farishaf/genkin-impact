@@ -210,7 +210,7 @@
   top: 6%;
   width: 52%;
   aspect-ratio: 1.3;
-  background: color-mix(in oklch, var(--color-on-surface) 35%, transparent);
+  background: color-mix(in oklch, var(--glow-cobalt) 70%, transparent);
   animation: lp-drift 18s var(--ease-out) infinite alternate;
 }
 .lp-orb--b {
@@ -218,8 +218,16 @@
   top: -6%;
   width: 38%;
   aspect-ratio: 1.1;
-  background: color-mix(in oklch, var(--color-on-surface) 32%, transparent);
+  background: color-mix(in oklch, var(--glow-azure) 58%, transparent);
   animation: lp-drift 22s var(--ease-out) -6s infinite alternate-reverse;
+}
+.lp-orb--c {
+  left: 35%;
+  bottom: 8%;
+  width: 24%;
+  aspect-ratio: 1;
+  background: color-mix(in oklch, var(--glow-coral) 46%, transparent);
+  animation: lp-drift 20s var(--ease-out) -3s infinite alternate;
 }
 @keyframes lp-drift {
   from { transform: translate3d(0, 0, 0) scale(1); }
