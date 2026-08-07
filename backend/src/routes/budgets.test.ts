@@ -10,6 +10,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await pool.query("DELETE FROM transaction_tags");
+  await pool.query("UPDATE transactions SET installment_plan_id = NULL WHERE installment_plan_id IS NOT NULL");
+  await pool.query("DELETE FROM installment_plans");
   await pool.query("DELETE FROM transactions");
   await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM savings_goals");
@@ -19,6 +21,7 @@ beforeEach(async () => {
   await pool.query("DELETE FROM members");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM tags");
+  await pool.query("DELETE FROM saved_filters");
   await pool.query("DELETE FROM users");
 });
 
@@ -109,6 +112,33 @@ describe("GET /budgets", () => {
     expect(res.body.budgets[0].spent_minor).toBe("4500");
     expect(res.body.budgets[0].remaining_minor).toBe("25500");
     expect(res.body.budgets[0].pct).toBe(15);
+  });
+
+  it("excludes an installment plan's origin transaction from spent_minor", async () => {
+    const { agent, categoryId } = await setupUser();
+    await agent.post("/budgets").send({
+      name: "Groceries",
+      category_id: categoryId,
+      limit_amount: "300.00",
+      currency_code: "USD",
+      period: "monthly",
+      start_date: new Date().toISOString().slice(0, 10),
+    });
+
+    const accountsRes = await agent.get("/accounts");
+    const accountId = accountsRes.body.accounts[0].id;
+    const today = new Date().toISOString();
+
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "300.00", occurred_at: today,
+    });
+    await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 3, interval_unit: "month", first_due_date: today.slice(0, 10),
+    });
+
+    const res = await agent.get("/budgets");
+    // Only the first installment (100.00) falls in this monthly window — not the origin's 300.00.
+    expect(res.body.budgets[0].spent_minor).toBe("10000");
   });
 
   it("excludes archived (soft-deleted) budgets", async () => {

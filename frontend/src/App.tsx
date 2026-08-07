@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { LandingPage } from "./routes/LandingPage";
 import { LoginPage } from "./routes/LoginPage";
 import { RegisterPage } from "./routes/RegisterPage";
 import { VerifyEmailPage } from "./routes/VerifyEmailPage";
@@ -13,6 +14,7 @@ import { RequireAuth, RequireOnboarded, RequireNotOnboarded } from "./routes/Req
 export function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -42,7 +44,7 @@ export function App() {
         <Route path="plans" element={<PlansPage />} />
         <Route index element={<Navigate to="transactions" replace />} />
       </Route>
-      <Route path="*" element={<Navigate to="/app/transactions" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

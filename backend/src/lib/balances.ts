@@ -1,5 +1,11 @@
 import type pg from "pg";
 
+// An installment plan's origin transaction records the purchase for the user's reference,
+// but the N child transactions (installment_seq set) are what actually hit the account over
+// time — counting both would double the amount. Shared by every query that sums
+// transactions.amount so they can't drift from recomputeAccountBalance's own exclusion.
+export const EXCLUDE_INSTALLMENT_ORIGIN_SQL = "(installment_plan_id IS NULL OR installment_seq IS NOT NULL)";
+
 export interface BalanceInputs {
   openingBalance: bigint;
   incomeSum: bigint;
@@ -56,7 +62,7 @@ export async function recomputeAccountBalance(client: pg.PoolClient, accountId: 
      WHERE (account_id = $1 OR to_account_id = $1)
        AND deleted_at IS NULL
        AND status = 'cleared'
-       AND (installment_plan_id IS NULL OR installment_seq IS NOT NULL)`,
+       AND ${EXCLUDE_INSTALLMENT_ORIGIN_SQL}`,
     [accountId]
   );
 

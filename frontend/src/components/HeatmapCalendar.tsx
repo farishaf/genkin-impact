@@ -48,19 +48,21 @@ export function HeatmapCalendar({
       {Array.from({ length: leadingBlanks }).map((_, i) => (
         <span key={`blank-${i}`} aria-hidden="true" />
       ))}
-      {days.map((day) => (
-        <button
-          key={day.date}
-          type="button"
-          className={`heat-cell${selectedDate === day.date ? " heat-cell--selected" : ""}`}
-          data-sign={day.sign}
-          data-bucket={day.bucket}
-          title={`${day.date}: ${day.sign === "neutral" ? "no activity" : `${day.sign === "gain" ? "+" : ""}${formatAmount(day.net_minor, currencyCode)}`}`}
-          onClick={() => onSelectDay(day.date)}
-        >
-          {Number(day.date.slice(-2))}
-        </button>
-      ))}
+      {days.map((day) => {
+        const summary = `${day.date}: ${day.sign === "neutral" ? "no activity" : `${day.sign === "gain" ? "+" : ""}${formatAmount(day.net_minor, currencyCode)}`}`;
+        return (
+          <button
+            key={day.date}
+            type="button"
+            className={`heat-cell${selectedDate === day.date ? " heat-cell--selected" : ""}`}
+            data-sign={day.sign}
+            data-bucket={day.bucket}
+            title={summary}
+            aria-label={summary}
+            onClick={() => onSelectDay(day.date)}
+          />
+        );
+      })}
     </div>
   );
 }

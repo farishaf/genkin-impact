@@ -10,6 +10,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await pool.query("DELETE FROM transaction_tags");
+  await pool.query("UPDATE transactions SET installment_plan_id = NULL WHERE installment_plan_id IS NOT NULL");
+  await pool.query("DELETE FROM installment_plans");
   await pool.query("DELETE FROM transactions");
   await pool.query("DELETE FROM budgets");
   await pool.query("DELETE FROM savings_goals");
@@ -19,6 +21,7 @@ beforeEach(async () => {
   await pool.query("DELETE FROM members");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM tags");
+  await pool.query("DELETE FROM saved_filters");
   await pool.query("DELETE FROM users");
 });
 
@@ -228,6 +231,84 @@ describe("GET /transactions/summary", () => {
     const res = await agent.get("/transactions/summary").query({ from: "2020-01-01", to: "2020-01-31" });
     expect(res.status).toBe(400);
   });
+
+  it("includes a same-day transaction when to equals its date, not just midnight", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const today = new Date().toISOString().slice(0, 10);
+    await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "12.00", occurred_at: `${today}T23:30:00.000Z` });
+
+    const res = await agent.get("/transactions/summary").query({ from: today, to: today });
+    expect(res.status).toBe(200);
+    expect(res.body.summary.expenditure_minor).toBe("1200");
+    expect(res.body.summary.count).toBe(1);
+  });
+});
+
+describe("GET /transactions/report", () => {
+  it("groups by category and converts multi-currency totals into main currency", async () => {
+    const { agent, accountId, categoryId } = await setUp(); // main currency USD
+    const eurAccountRes = await agent.post("/accounts").send({ name: "Euro Cash", type: "cash", currency_code: "EUR", opening_balance: "0" });
+    await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "68.00", occurred_at: new Date().toISOString() });
+    // seeded rate: 1 USD = 0.92 EUR, so 9.20 EUR == 10.00 USD exactly
+    await agent.post("/transactions").send({ type: "expense", account_id: eurAccountRes.body.account.id, category_id: categoryId, amount: "9.20", occurred_at: new Date().toISOString() });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category" });
+    expect(res.status).toBe(200);
+    const delivery = res.body.groups.find((g: { label: string }) => g.label === "Delivery");
+    expect(delivery.total_minor).toBe("7800"); // 68.00 + 10.00 converted
+    expect(delivery.count).toBe(2);
+  });
+
+  it("excludes an installment origin from its category total, counting only the children", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "60.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 2, interval_unit: "month", first_due_date: "2026-09-01",
+    });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category" });
+    expect(res.status).toBe(200);
+    const delivery = res.body.groups.find((g: { label: string }) => g.label === "Delivery");
+    expect(delivery.total_minor).toBe("6000"); // children only, not origin + children
+    expect(delivery.count).toBe(2); // 2 children, origin excluded
+  });
+
+  it("excludes transfers from every dimension", async () => {
+    const { agent, accountId } = await setUp();
+    const secondAccountRes = await agent.post("/accounts").send({ name: "Savings", type: "bank", currency_code: "USD", opening_balance: "0.00" });
+    await agent.post("/transactions").send({
+      type: "transfer", account_id: accountId, to_account_id: secondAccountRes.body.account.id, amount: "100.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "account" });
+    expect(res.status).toBe(200);
+    expect(res.body.groups).toEqual([]);
+  });
+
+  it("picks the largest transaction after currency conversion, not the largest raw minor-unit amount", async () => {
+    const { agent, accountId, categoryId } = await setUp(); // main currency USD
+    const cnyAccountRes = await agent.post("/accounts").send({ name: "China Cash", type: "cash", currency_code: "CNY", opening_balance: "0" });
+    const usd = await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "100.00", occurred_at: new Date().toISOString() });
+    // seeded rate: 1 USD = 7.15 CNY, so 700.00 CNY (raw minor 70000, far bigger than USD's 10000) converts to ~97.90 USD — less than the USD transaction
+    await agent.post("/transactions").send({ type: "expense", account_id: cnyAccountRes.body.account.id, category_id: categoryId, amount: "700.00", occurred_at: new Date().toISOString() });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category" });
+    expect(res.status).toBe(200);
+    expect(res.body.outlier.id).toBe(usd.body.transaction.id);
+    expect(res.body.outlier.currency_code).toBe("USD");
+  });
+
+  it("returns empty groups and a null outlier for a range with no transactions", async () => {
+    const { agent, categoryId, accountId } = await setUp();
+    await agent.post("/transactions").send({ type: "expense", account_id: accountId, category_id: categoryId, amount: "20.00", occurred_at: new Date().toISOString() });
+
+    const res = await agent.get("/transactions/report").query({ group_by: "category", from: "2000-01-01", to: "2000-01-31" });
+    expect(res.status).toBe(200);
+    expect(res.body.groups).toEqual([]);
+    expect(res.body.outlier).toBeNull();
+  });
 });
 
 describe("PATCH /transactions/:id", () => {
@@ -349,6 +430,137 @@ describe("DELETE /transactions/:id", () => {
     expect(firstDelete.status).toBe(204);
     const secondDelete = await agent.delete(`/transactions/${created.body.transaction.id}`);
     expect(secondDelete.status).toBe(404);
+  });
+});
+
+describe("POST /transactions/:id/refund", () => {
+  it("fully refunds an expense and restores the account balance", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "68.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.post(`/transactions/${created.body.transaction.id}/refund`).send({});
+    expect(res.status).toBe(201);
+    expect(res.body.transaction.type).toBe("income");
+    expect(res.body.transaction.amount).toBe("6800");
+    expect(res.body.transaction.refund_of_id).toBe(created.body.transaction.id);
+
+    const accountRes = await agent.get("/accounts");
+    expect(accountRes.body.accounts[0].cached_balance).toBe("100000"); // back to opening balance
+  });
+
+  it("allows a partial refund, leaving the remainder refundable", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "68.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.post(`/transactions/${created.body.transaction.id}/refund`).send({ amount: "20.00" });
+    expect(res.status).toBe(201);
+
+    const accountRes = await agent.get("/accounts");
+    expect(accountRes.body.accounts[0].cached_balance).toBe("95200"); // 1000 - 68 + 20
+
+    const second = await agent.post(`/transactions/${created.body.transaction.id}/refund`).send({ amount: "60.00" });
+    expect(second.status).toBe(400); // only 48.00 remains refundable
+  });
+
+  it("rejects refunding a transfer", async () => {
+    const { agent, accountId } = await setUp();
+    const secondAccountRes = await agent.post("/accounts").send({ name: "Savings", type: "bank", currency_code: "USD", opening_balance: "0.00" });
+    const created = await agent.post("/transactions").send({
+      type: "transfer", account_id: accountId, to_account_id: secondAccountRes.body.account.id, amount: "100.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.post(`/transactions/${created.body.transaction.id}/refund`).send({});
+    expect(res.status).toBe(400);
+  });
+
+  it("404s on another user's transaction", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "20.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    const otherAgent = request.agent(app);
+    await otherAgent.post("/auth/register").send({ email: "other-refund@example.com", password: "password12345", display_name: "Other" });
+
+    const res = await otherAgent.post(`/transactions/${created.body.transaction.id}/refund`).send({});
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /transactions/:id/installments", () => {
+  it("splits a transaction into N monthly installments, excluding the origin from the balance", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "300.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 3, interval_unit: "month", first_due_date: "2026-08-04",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.installment_plan.installment_count).toBe(3);
+    expect(res.body.transactions).toHaveLength(3);
+    expect(res.body.transactions.map((t: { amount: string }) => t.amount)).toEqual(["10000", "10000", "10000"]);
+
+    // 1000.00 opening - 300.00 (the three installments, not the origin's own 300.00 again)
+    const accountRes = await agent.get("/accounts");
+    expect(accountRes.body.accounts[0].cached_balance).toBe("70000");
+
+    // Origin still visible in the list (informational) but excluded from the summary total.
+    const summary = await agent.get("/transactions/summary");
+    expect(summary.body.summary.expenditure_minor).toBe("30000");
+  });
+
+  it("puts the remainder on the last installment so the sum stays exact", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "10.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+
+    const res = await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 3, interval_unit: "month", first_due_date: "2026-08-04",
+    });
+    expect(res.body.transactions.map((t: { amount: string }) => t.amount)).toEqual(["333", "333", "334"]);
+  });
+
+  it("rejects installments on a transfer and on an already-installment transaction", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const secondAccountRes = await agent.post("/accounts").send({ name: "Savings", type: "bank", currency_code: "USD", opening_balance: "0.00" });
+    const transfer = await agent.post("/transactions").send({
+      type: "transfer", account_id: accountId, to_account_id: secondAccountRes.body.account.id, amount: "100.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    const transferRes = await agent.post(`/transactions/${transfer.body.transaction.id}/installments`).send({
+      installment_count: 2, interval_unit: "month", first_due_date: "2026-08-04",
+    });
+    expect(transferRes.status).toBe(400);
+
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "30.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 3, interval_unit: "month", first_due_date: "2026-08-04",
+    });
+    const again = await agent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 2, interval_unit: "month", first_due_date: "2026-08-04",
+    });
+    expect(again.status).toBe(400);
+  });
+
+  it("404s on another user's transaction", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const created = await agent.post("/transactions").send({
+      type: "expense", account_id: accountId, category_id: categoryId, amount: "20.00", occurred_at: "2026-08-04T09:41:00.000Z",
+    });
+    const otherAgent = request.agent(app);
+    await otherAgent.post("/auth/register").send({ email: "other-installments@example.com", password: "password12345", display_name: "Other" });
+
+    const res = await otherAgent.post(`/transactions/${created.body.transaction.id}/installments`).send({
+      installment_count: 2, interval_unit: "month", first_due_date: "2026-08-04",
+    });
+    expect(res.status).toBe(404);
   });
 });
 

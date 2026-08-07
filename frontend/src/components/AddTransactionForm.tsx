@@ -67,6 +67,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
   const [tagIds, setTagIds] = useState<string[]>(editing?.tags.map((t) => t.id) ?? []);
   const [amount, setAmount] = useState(editing ? minorToInputValue(editing.amount, editing.currency_code) : "");
   const [note, setNote] = useState(editing?.note ?? "");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
 
@@ -105,7 +106,14 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
         type === "transfer"
           ? { type, account_id: accountId, to_account_id: toAccountId, ...shared }
           : { type, account_id: accountId, category_id: categoryId, ...shared };
-      return api.post("/transactions", body);
+      return api.post<{ transaction: { id: string } }>("/transactions", body).then(async (result) => {
+        if (receiptFile) {
+          const fd = new FormData();
+          fd.append("file", receiptFile);
+          await api.postForm(`/transactions/${result.transaction.id}/attachments`, fd);
+        }
+        return result;
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
@@ -193,6 +201,16 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
         <span>Note</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
       </label>
+      {!isEditing && (
+        <label className="field">
+          <span>Receipt</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+          />
+        </label>
+      )}
       <label className="field">
         <span>Member</span>
         <select value={memberId} onChange={(e) => setMemberId(e.target.value)}>

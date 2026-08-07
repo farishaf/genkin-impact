@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 export class ApiError extends Error {
   status: number;
@@ -13,10 +13,12 @@ export class ApiError extends Error {
 const NEVER_RETRY_PATHS = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"];
 
 async function request<T>(path: string, init?: RequestInit, isRetry = false): Promise<T> {
+  // FormData bodies must not get a Content-Type header — fetch sets the multipart boundary itself.
+  const isFormData = init?.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...(init?.headers ?? {}) },
   });
 
   if (res.status === 401 && !isRetry && !NEVER_RETRY_PATHS.some((p) => path.startsWith(p))) {
@@ -40,6 +42,7 @@ async function request<T>(path: string, init?: RequestInit, isRetry = false): Pr
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) => request<T>(path, { method: "POST", body: data ? JSON.stringify(data) : undefined }),
+  postForm: <T>(path: string, data: FormData) => request<T>(path, { method: "POST", body: data }),
   patch: <T>(path: string, data?: unknown) => request<T>(path, { method: "PATCH", body: JSON.stringify(data) }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

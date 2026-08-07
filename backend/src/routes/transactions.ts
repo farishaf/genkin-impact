@@ -3,8 +3,9 @@ import { z } from "zod";
 import { pool, withTransaction } from "../db/pool.js";
 import { newId } from "../lib/ids.js";
 import { parseToMinor } from "../lib/money.js";
-import { recomputeAccountBalance } from "../lib/balances.js";
+import { recomputeAccountBalance, EXCLUDE_INSTALLMENT_ORIGIN_SQL } from "../lib/balances.js";
 import { convert } from "../lib/fx.js";
+import { advanceNextRun } from "../lib/recurring.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { validateQuery } from "../middleware/validateQuery.js";
@@ -45,6 +46,19 @@ const updateTransactionSchema = z.object({
   tag_ids: z.string().uuid().array().optional(),
   note: z.string().max(500).optional(),
   occurred_at: z.string().datetime().optional(),
+});
+
+const refundSchema = z.object({
+  amount: z.string().regex(/^\d+(\.\d+)?$/, "amount must be a plain decimal string").optional(),
+  occurred_at: z.string().datetime().optional(),
+  note: z.string().max(500).optional(),
+});
+
+const installmentsSchema = z.object({
+  installment_count: z.number().int().min(2).max(60),
+  interval_unit: z.enum(["month", "week"]),
+  fee_amount: z.string().regex(/^\d+(\.\d+)?$/, "fee_amount must be a plain decimal string").optional(),
+  first_due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date in YYYY-MM-DD format"),
 });
 
 async function loadOwnedAccount(userId: string, accountId: string) {
@@ -260,6 +274,129 @@ transactionsRouter.delete("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
+transactionsRouter.post("/:id/refund", requireAuth, validateBody(refundSchema), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof refundSchema>;
+    const originRes = await pool.query(
+      "SELECT * FROM transactions WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+      [req.params.id, req.userId]
+    );
+    if (originRes.rows.length === 0) throw new AppError(404, "not_found", "Transaction not found.");
+    const origin = originRes.rows[0];
+    if (origin.type === "transfer") throw new AppError(400, "refund_not_supported", "Transfers can't be refunded.");
+
+    const account = await loadOwnedAccount(req.userId!, origin.account_id);
+
+    const refundedRes = await pool.query(
+      "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE refund_of_id = $1 AND deleted_at IS NULL",
+      [origin.id]
+    );
+    const remaining = BigInt(origin.amount) - BigInt(refundedRes.rows[0].total);
+
+    let amountMinor: bigint;
+    if (body.amount !== undefined) {
+      try {
+        amountMinor = parseToMinor(body.amount, account.decimal_digits);
+      } catch {
+        throw new AppError(400, "invalid_amount", `Amount has more decimal places than ${account.currency_code} supports.`);
+      }
+    } else {
+      amountMinor = remaining;
+    }
+    if (amountMinor <= 0n) throw new AppError(400, "invalid_amount", "Amount must be positive.");
+    if (amountMinor > remaining) throw new AppError(400, "over_refund", "Refund amount exceeds the remaining refundable balance.");
+
+    const refundType = origin.type === "expense" ? "income" : "expense";
+
+    const transaction = await withTransaction(async (client) => {
+      const id = newId();
+      await client.query(
+        `INSERT INTO transactions (id, user_id, type, account_id, member_id, amount, currency_code, occurred_at, note, refund_of_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [id, req.userId, refundType, origin.account_id, origin.member_id, amountMinor, origin.currency_code, body.occurred_at ?? new Date().toISOString(), body.note ?? null, origin.id]
+      );
+      await recomputeAccountBalance(client, origin.account_id);
+      const created = await client.query("SELECT * FROM transactions WHERE id = $1", [id]);
+      return created.rows[0];
+    });
+
+    res.status(201).json({ transaction });
+  } catch (err) {
+    next(err);
+  }
+});
+
+transactionsRouter.post("/:id/installments", requireAuth, validateBody(installmentsSchema), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof installmentsSchema>;
+    const originRes = await pool.query(
+      "SELECT * FROM transactions WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+      [req.params.id, req.userId]
+    );
+    if (originRes.rows.length === 0) throw new AppError(404, "not_found", "Transaction not found.");
+    const origin = originRes.rows[0];
+    if (origin.type === "transfer") throw new AppError(400, "installments_not_supported", "Transfers can't be split into installments.");
+    if (origin.installment_plan_id) throw new AppError(400, "already_installment", "This transaction is already part of an installment plan.");
+
+    const account = await loadOwnedAccount(req.userId!, origin.account_id);
+
+    let feeMinor = 0n;
+    if (body.fee_amount !== undefined) {
+      try {
+        feeMinor = parseToMinor(body.fee_amount, account.decimal_digits);
+      } catch {
+        throw new AppError(400, "invalid_amount", `fee_amount has more decimal places than ${account.currency_code} supports.`);
+      }
+    }
+
+    const totalMinor = BigInt(origin.amount) + feeMinor;
+    const count = BigInt(body.installment_count);
+    const base = totalMinor / count;
+    const remainder = totalMinor % count;
+    if (base <= 0n) throw new AppError(400, "invalid_installment_count", "Installment amount would round to zero — reduce the installment count.");
+
+    const dates: string[] = [];
+    let cursor = new Date(`${body.first_due_date}T00:00:00.000Z`);
+    for (let i = 0; i < body.installment_count; i++) {
+      dates.push(cursor.toISOString());
+      cursor = advanceNextRun(cursor, { frequency: body.interval_unit === "month" ? "monthly" : "weekly", intervalCount: 1 });
+    }
+
+    const result = await withTransaction(async (client) => {
+      const planId = newId();
+      await client.query(
+        `INSERT INTO installment_plans (id, user_id, origin_transaction_id, total_amount, installment_count, interval_unit, fee_amount, first_due_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [planId, req.userId, origin.id, totalMinor, body.installment_count, body.interval_unit, feeMinor, body.first_due_date]
+      );
+      await client.query("UPDATE transactions SET installment_plan_id = $1, updated_at = now() WHERE id = $2", [planId, origin.id]);
+
+      const childIds: string[] = [];
+      for (let i = 0; i < body.installment_count; i++) {
+        const isLast = i === body.installment_count - 1;
+        const amount = isLast ? base + remainder : base;
+        const id = newId();
+        await client.query(
+          `INSERT INTO transactions (id, user_id, type, account_id, category_id, member_id, amount, currency_code, occurred_at, note, installment_plan_id, installment_seq, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'cleared')`,
+          [id, req.userId, origin.type, origin.account_id, origin.category_id, origin.member_id, amount, origin.currency_code, dates[i], origin.note, planId, i + 1]
+        );
+        childIds.push(id);
+      }
+
+      await recomputeAccountBalance(client, origin.account_id);
+
+      const plan = await client.query("SELECT * FROM installment_plans WHERE id = $1", [planId]);
+      const children = await client.query("SELECT * FROM transactions WHERE id = ANY($1) ORDER BY installment_seq", [childIds]);
+      return { installment_plan: plan.rows[0], transactions: children.rows };
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // YYYY-MM-DD only: rejects garbage like "not-a-date" up front instead of letting
 // it reach Postgres, which would fail the query and surface as a raw 500.
 const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be a date in YYYY-MM-DD format");
@@ -309,7 +446,8 @@ transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (
     params.push(query.limit, query.offset);
     const result = await pool.query(
       `SELECT t.*, c.name AS category_name, c.emoji AS category_emoji, a.name AS account_name, m.name AS member_name,
-              COALESCE(tags.tags, '[]') AS tags
+              COALESCE(tags.tags, '[]') AS tags,
+              first_att.id AS attachment_id
        FROM transactions t
        LEFT JOIN categories c ON c.id = t.category_id
        JOIN accounts a ON a.id = t.account_id
@@ -319,6 +457,9 @@ transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (
          FROM transaction_tags tt2 JOIN tags tg ON tg.id = tt2.tag_id
          WHERE tt2.transaction_id = t.id
        ) tags ON true
+       LEFT JOIN LATERAL (
+         SELECT att.id FROM attachments att WHERE att.transaction_id = t.id ORDER BY att.created_at LIMIT 1
+       ) first_att ON true
        WHERE ${conditions.join(" AND ")}
        ORDER BY t.occurred_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -340,7 +481,7 @@ const summaryQuerySchema = z.object({
 transactionsRouter.get("/summary", requireAuth, validateQuery(summaryQuerySchema), async (req, res, next) => {
   try {
     const query = req.validatedQuery as z.infer<typeof summaryQuerySchema>;
-    const conditions = ["user_id = $1", "deleted_at IS NULL"];
+    const conditions = ["user_id = $1", "deleted_at IS NULL", EXCLUDE_INSTALLMENT_ORIGIN_SQL];
     const params: unknown[] = [req.userId];
 
     if (query.type) {
@@ -353,7 +494,7 @@ transactionsRouter.get("/summary", requireAuth, validateQuery(summaryQuerySchema
     }
     if (query.to) {
       params.push(query.to);
-      conditions.push(`occurred_at <= $${params.length}`);
+      conditions.push(`occurred_at < ($${params.length}::date + interval '1 day')`);
     }
 
     const grouped = await pool.query(
@@ -402,6 +543,129 @@ transactionsRouter.get("/summary", requireAuth, validateQuery(summaryQuerySchema
         main_currency_code: mainCurrency,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const reportQuerySchema = z.object({
+  type: z.enum(["expense", "income"]).optional(),
+  from: dateOnlySchema.optional(),
+  to: dateOnlySchema.optional(),
+  member_id: z.string().uuid().optional(),
+  tag_id: z.string().uuid().optional(),
+  category_id: z.string().uuid().optional(),
+  group_by: z.enum(["category", "tag", "member", "account"]),
+});
+
+// dim.id/dim.name come from a different joined table per group_by; the join itself
+// is the only per-dimension SQL, so filter conditions stay identical across all four.
+const REPORT_GROUP_BY_JOIN: Record<string, string> = {
+  category: "JOIN categories dim ON dim.id = t.category_id",
+  tag: "JOIN transaction_tags tt ON tt.transaction_id = t.id JOIN tags dim ON dim.id = tt.tag_id",
+  member: "JOIN members dim ON dim.id = t.member_id",
+  account: "JOIN accounts dim ON dim.id = t.account_id",
+};
+
+transactionsRouter.get("/report", requireAuth, validateQuery(reportQuerySchema), async (req, res, next) => {
+  try {
+    const query = req.validatedQuery as z.infer<typeof reportQuerySchema>;
+    const conditions = ["t.user_id = $1", "t.deleted_at IS NULL", "t.type IN ('income', 'expense')", EXCLUDE_INSTALLMENT_ORIGIN_SQL];
+    const params: unknown[] = [req.userId];
+
+    if (query.type) {
+      params.push(query.type);
+      conditions.push(`t.type = $${params.length}`);
+    }
+    if (query.from) {
+      params.push(query.from);
+      conditions.push(`t.occurred_at >= $${params.length}`);
+    }
+    if (query.to) {
+      params.push(query.to);
+      conditions.push(`t.occurred_at < ($${params.length}::date + interval '1 day')`);
+    }
+    if (query.member_id) {
+      params.push(query.member_id);
+      conditions.push(`t.member_id = $${params.length}`);
+    }
+    if (query.category_id) {
+      params.push(query.category_id);
+      conditions.push(`t.category_id = $${params.length}`);
+    }
+    if (query.tag_id) {
+      params.push(query.tag_id);
+      conditions.push(`EXISTS (SELECT 1 FROM transaction_tags tt2 WHERE tt2.transaction_id = t.id AND tt2.tag_id = $${params.length})`);
+    }
+
+    const where = conditions.join(" AND ");
+
+    const userRes = await pool.query("SELECT main_currency_code FROM users WHERE id = $1", [req.userId]);
+    const mainCurrency = userRes.rows[0].main_currency_code as string | null;
+    if (!mainCurrency) throw new AppError(400, "no_main_currency", "User has not set a main currency yet.");
+
+    const currenciesRes = await pool.query("SELECT code, decimal_digits FROM currencies");
+    const decimalsByCode: Record<string, number> = {};
+    for (const row of currenciesRes.rows) decimalsByCode[row.code] = row.decimal_digits;
+
+    const onDate = (query.to ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
+
+    try {
+      const grouped = await pool.query(
+        `SELECT dim.id AS dim_id, dim.name AS label, t.currency_code, SUM(t.amount) AS total, COUNT(*) AS count
+         FROM transactions t
+         ${REPORT_GROUP_BY_JOIN[query.group_by]}
+         WHERE ${where}
+         GROUP BY dim.id, dim.name, t.currency_code`,
+        params
+      );
+
+      const byDim = new Map<string, { id: string; label: string; totalMinor: bigint; count: number }>();
+      for (const row of grouped.rows) {
+        const converted = await convert(pool, BigInt(row.total), row.currency_code, mainCurrency, onDate, decimalsByCode);
+        const existing = byDim.get(row.dim_id);
+        if (existing) {
+          existing.totalMinor += converted.amountMinor;
+          existing.count += Number(row.count);
+        } else {
+          byDim.set(row.dim_id, { id: row.dim_id, label: row.label, totalMinor: converted.amountMinor, count: Number(row.count) });
+        }
+      }
+      const groups = [...byDim.values()]
+        .sort((a, b) => (b.totalMinor > a.totalMinor ? 1 : b.totalMinor < a.totalMinor ? -1 : 0))
+        .map((g) => ({ id: g.id, label: g.label, total_minor: g.totalMinor.toString(), count: g.count }));
+
+      const outlierRes = await pool.query(
+        `SELECT DISTINCT ON (t.currency_code) t.id, t.note, t.amount, t.currency_code, t.occurred_at, c.name AS category_name
+         FROM transactions t
+         LEFT JOIN categories c ON c.id = t.category_id
+         WHERE ${where}
+         ORDER BY t.currency_code, t.amount DESC`,
+        params
+      );
+      let outlier: { id: string; label: string; amount_minor: string; currency_code: string; occurred_at: string } | null = null;
+      let outlierMainMinor = -1n;
+      for (const row of outlierRes.rows) {
+        const converted = await convert(pool, BigInt(row.amount), row.currency_code, mainCurrency, onDate, decimalsByCode);
+        if (converted.amountMinor > outlierMainMinor) {
+          outlierMainMinor = converted.amountMinor;
+          outlier = {
+            id: row.id,
+            label: row.category_name ?? row.note ?? "Transaction",
+            amount_minor: row.amount,
+            currency_code: row.currency_code,
+            occurred_at: row.occurred_at,
+          };
+        }
+      }
+
+      res.json({ groups, outlier, main_currency_code: mainCurrency });
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // convert()/getRateToUSD() throw a plain Error when no exchange rate exists at all
+      // for a currency in the filtered range — same fallback as GET /summary.
+      throw new AppError(400, "fx_rate_unavailable", "No exchange rate available for this date range yet.");
+    }
   } catch (err) {
     next(err);
   }

@@ -1,0 +1,465 @@
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R4 V4
+ * Hallmark · macrostructure: Marquee Hero · genre: modern-minimal
+ * theme: studied-DNA "Luminous Ledger" (source: stitch/DESIGN.md + two user screenshots)
+ * paper: oklch(98.6% 0.006 265) light / oklch(15.5% 0.004 258) dark · accent: emerald oklch(72.3% 0.163 162)
+ * fonts: Inter (display + body, weight-differentiated)
+ * H1 Marquee knobs: size=xl, alignment=centred, underlay=none
+ * N1b SaaS three-section knobs: centre-links=3, dropdowns=none, scroll=frost-on-scroll
+ * F1 Bento knobs: tiles=3, spans=regular, border=hairline-all
+ * Ft2 Inline single line knobs: order=credit/links, separator=middot, density=spaced
+ * enrichment: real product DOM, static demo data · motion: frost-on-scroll · panel-rise · card-lift
+ * tone: utilitarian · audience: tech-savvy individuals tracking personal finance
+ */
+
+.lp {
+  min-height: 100dvh;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-shell {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 3rem);
+}
+
+/* ---------- glass primitive ---------- */
+.lp-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-top-color: var(--glass-highlight);
+  box-shadow: var(--glass-shadow);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lp-glass { background: var(--color-surface-1); }
+}
+
+/* ---------- N1b nav ---------- */
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid transparent;
+  transition: background-color var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out);
+}
+.lp-nav[data-scrolled="true"] {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border-bottom-color: var(--glass-border);
+}
+.lp-nav__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 64px;
+}
+.lp-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.lp-brand__mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-solid);
+  color: var(--color-ink-solid-ink);
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+.lp-nav__links {
+  display: flex;
+  gap: var(--space-lg);
+  margin-inline: auto;
+}
+.lp-nav__link {
+  color: var(--color-on-surface-2);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color var(--dur-short) var(--ease-out);
+}
+.lp-nav__link:hover { color: var(--color-primary-deep); }
+.lp-nav__end { display: flex; align-items: center; gap: var(--space-xs); margin-left: auto; }
+.lp-nav__signin {
+  color: var(--color-on-surface-2);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  padding: 9px 12px;
+  white-space: nowrap;
+}
+.lp-nav__signin:hover { color: var(--color-on-surface); }
+
+.lp-theme-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: transparent;
+  color: var(--color-on-surface-2);
+  transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+}
+.lp-theme-btn:hover { background: var(--color-surface-2); color: var(--color-on-surface); }
+
+/* ---------- buttons ---------- */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  padding: 12px 20px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out),
+    color var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out);
+}
+.lp-btn:active { transform: translateY(1px); }
+.lp-btn--ink { background: var(--color-ink-solid); color: var(--color-ink-solid-ink); }
+.lp-btn--ink:hover { background: color-mix(in oklch, var(--color-ink-solid) 86%, var(--color-primary) 14%); }
+.lp-btn--outline { background: var(--color-surface-1); border-color: var(--color-line); color: var(--color-on-surface); }
+.lp-btn--outline:hover { background: var(--color-surface-2); }
+.lp-btn--sm { padding: 9px 15px; min-height: 38px; font-size: var(--text-xs); }
+
+/* ---------- hero ---------- */
+.lp-hero {
+  padding-block: clamp(var(--space-2xl), 9vw, var(--space-3xl)) var(--space-xl);
+  text-align: center;
+}
+.lp-hero__title {
+  font-size: var(--text-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0 0 var(--space-md);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.lp-hero__lede {
+  margin: 0 auto;
+  max-width: 46ch;
+  color: var(--color-on-surface-2);
+  font-size: var(--text-md);
+  line-height: 1.6;
+}
+.lp-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xl);
+}
+
+/* ---------- product panel (enrichment) ---------- */
+.lp-panel {
+  border-radius: var(--radius-xl);
+  padding: clamp(var(--space-md), 3vw, var(--space-xl));
+  margin-top: var(--space-xl);
+  text-align: left;
+}
+.lp-panel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+}
+.lp-panel__title { font-size: var(--text-headline); font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.lp-panel__count {
+  background: var(--color-surface-3);
+  color: var(--color-on-surface-2);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+.lp-seg {
+  display: flex;
+  margin-left: auto;
+  background: var(--color-surface-3);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+.lp-seg span {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-on-surface-2);
+}
+.lp-seg span[data-active="true"] {
+  background: var(--color-surface-1);
+  color: var(--color-on-surface);
+  font-weight: 600;
+}
+
+.lp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+.lp-stat {
+  background: color-mix(in oklch, var(--color-surface-2) 60%, transparent);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  min-width: 0;
+}
+.lp-stat__head { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs); }
+.lp-stat__dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex-shrink: 0; }
+.lp-stat__label { font-size: var(--text-xs); color: var(--color-on-surface-2); font-weight: 500; }
+.lp-stat__value {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.lp-stat__value[data-tone="income"] { color: var(--color-income); }
+.lp-stat__value[data-tone="expense"] { color: var(--color-expense); }
+.lp-stat__value[data-tone="balance"] { color: var(--color-balance); }
+
+.lp-daybar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-md);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--glass-border);
+  font-size: var(--text-xs);
+  color: var(--color-on-surface-2);
+}
+.lp-daybar__out { color: var(--color-expense); font-weight: 600; }
+.lp-daybar__in { color: var(--color-income); font-weight: 600; }
+
+.lp-txn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+}
+.lp-txn + .lp-txn { margin-top: 2px; }
+.lp-txn__badge {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-3);
+  color: var(--color-on-surface-2);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+.lp-txn__body { min-width: 0; flex: 1; }
+.lp-txn__top { display: flex; align-items: baseline; gap: var(--space-xs); flex-wrap: wrap; }
+.lp-txn__name { font-weight: 600; font-size: var(--text-sm); }
+.lp-txn__time { font-size: var(--text-2xs); color: var(--color-on-surface-muted); }
+.lp-txn__meta { font-size: var(--text-2xs); color: var(--color-on-surface-muted); margin-top: 2px; }
+.lp-txn__amount {
+  margin-left: auto;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-expense);
+  white-space: nowrap;
+}
+.lp-txn--fade { opacity: 0.45; }
+
+/* ---------- capability strip (replaces an invented logo wall) ---------- */
+.lp-capability {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs) var(--space-lg);
+  padding-block: var(--space-2xl);
+  font-size: var(--text-xs);
+  color: var(--color-on-surface-muted);
+}
+.lp-capability b { color: var(--color-on-surface-2); font-weight: 600; }
+
+/* ---------- F1 bento features ---------- */
+.lp-section { padding-block: var(--space-2xl); }
+.lp-section__title {
+  font-size: var(--text-display-s);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-lg);
+  overflow-wrap: anywhere;
+}
+.lp-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+.lp-tile {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  transition: transform var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out),
+    box-shadow var(--dur-med) var(--ease-out);
+}
+.lp-tile:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-line));
+  box-shadow: var(--glass-shadow);
+}
+.lp-tile__title { font-size: var(--text-md); font-weight: 700; margin: 0; }
+.lp-tile__body { margin: 0; color: var(--color-on-surface-2); font-size: var(--text-sm); line-height: 1.6; }
+.lp-tile__art {
+  margin-top: auto;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+}
+
+/* heatmap miniature */
+.lp-heat { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.lp-heat i {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: var(--color-surface-4);
+}
+/* Mixed against transparent, not against the surface: an oklch mix between a red and a blue-ish
+   grey travels through purple. Alpha over the tile background keeps the hue honest. */
+.lp-heat i[data-h="in"] { background: color-mix(in oklch, var(--color-income) 55%, transparent); }
+.lp-heat i[data-h="out-lo"] { background: color-mix(in oklch, var(--color-expense) 28%, transparent); }
+.lp-heat i[data-h="out-hi"] { background: color-mix(in oklch, var(--color-expense) 70%, transparent); }
+
+/* trend miniature */
+.lp-bars { display: flex; align-items: flex-end; gap: 5px; height: 84px; }
+.lp-bars i {
+  flex: 1;
+  min-width: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-surface-4);
+}
+.lp-bars i[data-b="out"] { background: color-mix(in oklch, var(--color-expense) 80%, transparent); }
+.lp-bars i[data-b="in"] { background: color-mix(in oklch, var(--color-income) 80%, transparent); }
+
+/* activity miniature */
+.lp-mini-rows { display: flex; flex-direction: column; gap: var(--space-xs); }
+.lp-mini-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--text-2xs);
+  min-width: 0;
+}
+.lp-mini-row__badge {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--color-surface-4);
+  color: var(--color-on-surface-2);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}
+.lp-mini-row__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-mini-row__amt {
+  margin-left: auto;
+  color: var(--color-expense);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- closing CTA ---------- */
+.lp-close {
+  text-align: center;
+  padding-block: var(--space-2xl);
+  border-top: 1px solid var(--color-line);
+}
+.lp-close__title {
+  font-size: var(--text-display-s);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-md);
+  overflow-wrap: anywhere;
+}
+.lp-close__note { color: var(--color-on-surface-muted); font-size: var(--text-xs); margin: var(--space-sm) 0 0; }
+
+/* ---------- Ft2 footer ---------- */
+.lp-foot {
+  margin-top: auto;
+  border-top: 1px solid var(--color-line);
+}
+.lp-foot__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+  padding-block: var(--space-lg);
+  font-size: var(--text-xs);
+  color: var(--color-on-surface-muted);
+}
+.lp-foot__links { display: flex; flex-wrap: wrap; gap: var(--space-md); margin-left: auto; }
+.lp-foot__links a {
+  color: var(--color-on-surface-2);
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.lp-foot__links a:hover { color: var(--color-on-surface); text-decoration: underline; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 60rem) {
+  .lp-nav__links { display: none; }
+  .lp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-tiles { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 40rem) {
+  /* The bar can't hold brand + theme + two auth actions at 375px. Sign in stays reachable in the
+     footer and on /register, so the nav keeps only the primary action. */
+  .lp-nav__signin { display: none; }
+  .lp-brand { font-size: var(--text-sm); }
+  .lp-nav__inner { gap: var(--space-xs); }
+  .lp-stats { grid-template-columns: minmax(0, 1fr); }
+  .lp-hero__cta .lp-btn { flex: 1 1 100%; }
+  .lp-foot__links { margin-left: 0; }
+  .lp-seg { margin-left: 0; width: 100%; }
+  .lp-seg span { flex: 1; text-align: center; }
+}
+
+/* ---------- motion ---------- */
+.lp-rise { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .lp-rise { opacity: 1; }
+  .lp-tile:hover { transform: none; }
+  .lp-nav, .lp-tile, .lp-btn { transition-duration: 1ms; }
+}

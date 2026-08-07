@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool.js";
+import { EXCLUDE_INSTALLMENT_ORIGIN_SQL } from "../lib/balances.js";
 import { convert } from "../lib/fx.js";
 import { signForNet, bucketForNet, monthRange, datesInRange } from "../lib/analytics.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -37,6 +38,7 @@ analyticsRouter.get("/summary", requireAuth, validateQuery(summaryQuerySchema), 
        FROM transactions
        WHERE user_id = $1 AND deleted_at IS NULL AND status = 'cleared'
          AND type IN ('income', 'expense') AND occurred_at >= $2 AND occurred_at < $3
+         AND ${EXCLUDE_INSTALLMENT_ORIGIN_SQL}
        GROUP BY DATE(occurred_at), type, currency_code`,
       [req.userId, start.toISOString(), end.toISOString()]
     );

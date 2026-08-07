@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool.js";
 import { newId } from "../lib/ids.js";
+import { EXCLUDE_INSTALLMENT_ORIGIN_SQL } from "../lib/balances.js";
 import { parseToMinor, formatMinor } from "../lib/money.js";
 import { convert } from "../lib/fx.js";
 import { getPeriodWindow, getPreviousPeriodWindow, computeBudgetProgress } from "../lib/budgetProgress.js";
@@ -39,7 +40,7 @@ async function decimalsByCode(): Promise<Record<string, number>> {
 }
 
 async function sumExpensesInWindow(userId: string, categoryId: string | null, start: Date, end: Date, budgetCurrency: string, decimals: Record<string, number>): Promise<bigint> {
-  const conditions = ["user_id = $1", "type = 'expense'", "deleted_at IS NULL", "status = 'cleared'", "occurred_at >= $2", "occurred_at < $3"];
+  const conditions = ["user_id = $1", "type = 'expense'", "deleted_at IS NULL", "status = 'cleared'", "occurred_at >= $2", "occurred_at < $3", EXCLUDE_INSTALLMENT_ORIGIN_SQL];
   const params: unknown[] = [userId, start.toISOString(), end.toISOString()];
   if (categoryId) {
     params.push(categoryId);
