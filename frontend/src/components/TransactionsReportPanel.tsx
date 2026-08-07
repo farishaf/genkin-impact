@@ -116,34 +116,26 @@ export function TransactionsReportPanel({
       )}
 
       {selectedTxn && (
-        <div className="action-grid" style={{ marginTop: "var(--space-lg)" }}>
-          <button type="button" className="action-card" onClick={onEditSelected}>
-            <span className="action-card__icon">
-              <EditIcon />
-            </span>
-            <span className="action-card__label">Edit</span>
+        <div className="report-action-row" style={{ marginTop: "var(--space-lg)" }}>
+          <button type="button" className="report-action-btn" onClick={onEditSelected}>
+            <EditIcon />
+            <span className="report-action-btn__label">Edit</span>
           </button>
           {selectedTxn.type !== "transfer" && (
-            <button type="button" className="action-card" onClick={onRefundSelected}>
-              <span className="action-card__icon">
-                <RefundIcon />
-              </span>
-              <span className="action-card__label">Refund</span>
+            <button type="button" className="report-action-btn" onClick={onRefundSelected}>
+              <RefundIcon />
+              <span className="report-action-btn__label">Refund</span>
             </button>
           )}
           {selectedTxn.type !== "transfer" && selectedTxn.installment_plan_id === null && (
-            <button type="button" className="action-card" onClick={onInstallmentsSelected}>
-              <span className="action-card__icon">
-                <InstallmentsIcon />
-              </span>
-              <span className="action-card__label">Pay by Installments</span>
+            <button type="button" className="report-action-btn" onClick={onInstallmentsSelected}>
+              <InstallmentsIcon />
+              <span className="report-action-btn__label">Installments</span>
             </button>
           )}
-          <button type="button" className="action-card" onClick={onDeleteSelected}>
-            <span className="action-card__icon">
-              <DeleteIcon />
-            </span>
-            <span className="action-card__label">Delete</span>
+          <button type="button" className="report-action-btn" onClick={onDeleteSelected}>
+            <DeleteIcon />
+            <span className="report-action-btn__label">Delete</span>
           </button>
         </div>
       )}

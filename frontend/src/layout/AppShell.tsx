@@ -12,7 +12,7 @@ export function AppShell() {
   const nextTheme = theme === "dark" ? "light" : "dark";
 
   return (
-    <div className="app" style={{ ["--color-accent" as string]: user?.accent_color || undefined }}>
+    <div className="app" style={{ ["--color-accent-override" as string]: user?.accent_color || undefined }}>
       <div className="topbar">
         <button className="menu-btn" type="button" aria-label="Toggle menu" onClick={() => setDrawerOpen((v) => !v)}>
           ☰
