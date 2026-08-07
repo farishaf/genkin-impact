@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { api, ApiError, API_URL } from "../lib/api";
-import { formatAmount, minorToInputValue } from "../lib/formatAmount";
+import { formatAmount, formatMoney, minorToInputValue } from "../lib/formatAmount";
 import { AddTransactionForm, type EditingTxn } from "../components/AddTransactionForm";
 import { TransactionsReportPanel } from "../components/TransactionsReportPanel";
 import { ChevronIcon, PaperclipIcon } from "../components/TxnIcons";
@@ -340,7 +340,7 @@ export function TransactionsPage() {
   );
 
   const handleDelete = contextSafe((t: TxnItem) => {
-    if (!confirm(`Delete this ${t.type === "expense" ? "-" : "+"}${formatAmount(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}?`)) return;
+    if (!confirm(`Delete this ${t.type === "expense" ? "-" : "+"}${formatMoney(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}?`)) return;
     const el = rowRefs.current[t.id];
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!el || reduced) {
@@ -423,7 +423,7 @@ export function TransactionsPage() {
           <div className="txn-row__end">
             <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
               {t.type === "expense" ? "-" : "+"}
-              {formatAmount(t.amount, t.currency_code)}
+              {formatMoney(t.amount, t.currency_code)}
             </span>
             <ChevronIcon />
           </div>
@@ -499,71 +499,81 @@ export function TransactionsPage() {
         <span className="count-badge">{summary?.count ?? 0}</span>
         <div className="head-spacer" />
         <div className="filter-popover-wrap" ref={filterPopoverRef}>
-          <button
-            type="button"
-            className="filter-chip filter-trigger"
-            data-open={filterOpen}
-            aria-expanded={filterOpen}
-            aria-haspopup="true"
-            onClick={() => setFilterOpen((v) => !v)}
-          >
-            Filters
-            <ChevronIcon />
-          </button>
-          {activeFilterCount > 0 && (
-            <span className="filter-chip filter-chip--emph" style={{ marginLeft: 6 }}>
-              {activeFilterCount} active
-            </span>
-          )}
+          <div className="filter-cluster">
+            <button
+              type="button"
+              className="filter-chip filter-trigger"
+              data-open={filterOpen}
+              aria-expanded={filterOpen}
+              aria-haspopup="true"
+              onClick={() => setFilterOpen((v) => !v)}
+            >
+              Filters
+              <ChevronIcon />
+            </button>
+            {activeFilterCount > 0 && <span className="filter-chip--emph">{activeFilterCount} active</span>}
+          </div>
 
           {filterOpen && (
             <div className="filter-popover" role="dialog" aria-label="Filters">
               <div className="filter-popover__section">
                 <span className="filter-popover__label">Type</span>
-                <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                  <option value="">All types</option>
-                  <option value="expense">Expenses</option>
-                  <option value="income">Income</option>
-                  <option value="transfer">Transfers</option>
-                </select>
+                <span className="select-wrap">
+                  <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                    <option value="">All types</option>
+                    <option value="expense">Expenses</option>
+                    <option value="income">Income</option>
+                    <option value="transfer">Transfers</option>
+                  </select>
+                  <ChevronIcon />
+                </span>
               </div>
               <div className="filter-popover__section">
                 <span className="filter-popover__label">Member</span>
-                <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}>
-                  <option value="">All members</option>
-                  {(members ?? []).map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
+                <span className="select-wrap">
+                  <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}>
+                    <option value="">All members</option>
+                    {(members ?? []).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronIcon />
+                </span>
               </div>
               <div className="filter-popover__section">
                 <span className="filter-popover__label">Tag</span>
-                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-                  <option value="">All tags</option>
-                  {(tags ?? []).map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                <span className="select-wrap">
+                  <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+                    <option value="">All tags</option>
+                    {(tags ?? []).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronIcon />
+                </span>
               </div>
               <div className="filter-popover__section">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="filter-popover__section-head">
                   <span className="filter-popover__label">Category</span>
                   <Button variant="ghost" size="sm" onClick={() => setCategoryManagerOpen(true)}>
                     Manage
                   </Button>
                 </div>
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                  <option value="">All categories</option>
-                  {(categories ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <span className="select-wrap">
+                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                    <option value="">All categories</option>
+                    {(categories ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronIcon />
+                </span>
               </div>
               <div className="filter-popover__section">
                 <span className="filter-popover__label">Date range</span>
@@ -707,7 +717,7 @@ export function TransactionsPage() {
                       <td className="txn-table__note">{t.note ?? ""}</td>
                       <td className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
                         {t.type === "expense" ? "-" : "+"}
-                        {formatAmount(t.amount, t.currency_code)}
+                        {formatMoney(t.amount, t.currency_code)}
                       </td>
                     </tr>
                   ))}
@@ -724,12 +734,12 @@ export function TransactionsPage() {
                     <span className="txn-group__date">{g.label}</span>
                     {g.expenseMinor !== null && g.expenseMinor > 0n && (
                       <span className="txn-group__pill" data-tone="negative">
-                        -{formatAmount(g.expenseMinor.toString(), g.currencyCode!)}
+                        -{formatMoney(g.expenseMinor.toString(), g.currencyCode!)}
                       </span>
                     )}
                     {g.incomeMinor !== null && g.incomeMinor > 0n && (
                       <span className="txn-group__pill" data-tone="positive">
-                        +{formatAmount(g.incomeMinor.toString(), g.currencyCode!)}
+                        +{formatMoney(g.incomeMinor.toString(), g.currencyCode!)}
                       </span>
                     )}
                   </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { formatAmount } from "../lib/formatAmount";
+import { formatAmount, formatMoney } from "../lib/formatAmount";
 import { HeatmapCalendar, type AnalyticsDay } from "../components/HeatmapCalendar";
 import { TrendChart } from "../components/TrendChart";
 import { ChevronIcon } from "../components/TxnIcons";
@@ -181,7 +181,7 @@ export function AnalyticsPage() {
                     <div className="txn-row__end">
                       <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
                         {t.type === "expense" ? "-" : "+"}
-                        {formatAmount(t.amount, t.currency_code)}
+                        {formatMoney(t.amount, t.currency_code)}
                       </span>
                     </div>
                   </div>

@@ -6,6 +6,7 @@ import { minorToInputValue } from "../lib/formatAmount";
 interface Account {
   id: string;
   name: string;
+  currency_code: string;
 }
 interface Category {
   id: string;
@@ -74,6 +75,8 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
   function toggleTag(id: string) {
     setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
   }
+
+  const selectedCurrencyCode = editing?.currency_code ?? (accounts ?? []).find((a) => a.id === accountId)?.currency_code;
 
   const [prevType, setPrevType] = useState(type);
   if (type !== prevType) {
@@ -150,7 +153,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
           </option>
           {(accounts ?? []).map((a) => (
             <option key={a.id} value={a.id}>
-              {a.name}
+              {a.name} ({a.currency_code})
             </option>
           ))}
         </select>
@@ -165,7 +168,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
             </option>
             {(accounts ?? []).filter((a) => a.id !== accountId).map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name}
+                {a.name} ({a.currency_code})
               </option>
             ))}
           </select>
@@ -187,7 +190,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
         </label>
       )}
       <label className="field">
-        <span>Amount</span>
+        <span>Amount{selectedCurrencyCode && <span className="field__badge">{selectedCurrencyCode}</span>}</span>
         <input
           required
           disabled={isEditing && type === "transfer"}
