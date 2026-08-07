@@ -100,21 +100,22 @@
   --color-ink-2: oklch(40% 0.008 255);
   --color-muted: oklch(57% 0.006 255);
 
-  --color-accent: oklch(19% 0.008 255);
+  --color-accent-base: oklch(19% 0.008 255);
+  --color-accent: var(--color-accent-override, var(--color-accent-base));
   --color-accent-ink: oklch(100% 0 0);
 
   /* Historical quirk, preserved deliberately: --color-positive is RED and --color-negative is
      GREEN, because this app reads amounts under the eastern convention. Do not "fix" it here —
      rename the call sites first. */
-  --color-positive: oklch(45% 0.145 25);
-  --color-negative: oklch(47% 0.095 152);
-  --color-info: oklch(48% 0.1 258);
+  --color-positive: oklch(70% 0.17 15);
+  --color-negative: oklch(76% 0.16 162);
+  --color-info: oklch(72% 0.15 258);
   --color-focus: var(--color-accent);
 
   /* Convention-swappable pair. --_conv-red / --_conv-green are theme-dependent; the mapping from
      those to gain/loss is convention-dependent. Both are set on :root, so var() resolves fine. */
-  --_conv-red: oklch(45% 0.145 25);
-  --_conv-green: oklch(47% 0.095 152);
+  --_conv-red: oklch(70% 0.17 15);
+  --_conv-green: oklch(76% 0.16 162);
   --color-gain: var(--_conv-red);
   --color-loss: var(--_conv-green);
 }
@@ -166,7 +167,8 @@
     --color-ink-2: oklch(78% 0.006 258);
     --color-muted: oklch(60% 0.006 258);
 
-    --color-accent: oklch(97% 0.002 258);
+    --color-accent-base: oklch(97% 0.002 258);
+    --color-accent: var(--color-accent-override, var(--color-accent-base));
     --color-accent-ink: oklch(17% 0.006 258);
 
     --color-positive: oklch(70% 0.17 22);
@@ -217,7 +219,8 @@
   --color-ink-2: oklch(78% 0.006 258);
   --color-muted: oklch(60% 0.006 258);
 
-  --color-accent: oklch(97% 0.002 258);
+  --color-accent-base: oklch(97% 0.002 258);
+  --color-accent: var(--color-accent-override, var(--color-accent-base));
   --color-accent-ink: oklch(17% 0.006 258);
 
   --color-positive: oklch(70% 0.17 22);

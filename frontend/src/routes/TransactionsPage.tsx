@@ -3,8 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { api, ApiError, API_URL } from "../lib/api";
-import { formatAmount, formatMoney, minorToInputValue } from "../lib/formatAmount";
-import { AddTransactionForm, type EditingTxn } from "../components/AddTransactionForm";
+import {
+  formatAmount,
+  formatMoney,
+  minorToInputValue,
+} from "../lib/formatAmount";
+import {
+  AddTransactionForm,
+  type EditingTxn,
+} from "../components/AddTransactionForm";
 import { TransactionsReportPanel } from "../components/TransactionsReportPanel";
 import { ChevronIcon, PaperclipIcon } from "../components/TxnIcons";
 import { Modal } from "../components/Modal";
@@ -81,9 +88,12 @@ interface TxnGroup {
 function toDateOnly(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-function quickRange(preset: "today" | "yesterday" | "this_week" | "last_week"): { from: string; to: string } {
+function quickRange(
+  preset: "today" | "yesterday" | "this_week" | "last_week",
+): { from: string; to: string } {
   const now = new Date();
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate());
   if (preset === "today") {
     const d = startOfDay(now);
     return { from: toDateOnly(d), to: toDateOnly(d) };
@@ -117,7 +127,11 @@ function dateGroupLabel(dateKey: string): string {
   yesterday.setDate(yesterday.getDate() - 1);
   if (dateKey === todayKey) return "Today";
   if (dateKey === toDateOnly(yesterday)) return "Yesterday";
-  return day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return day.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 // items arrive sorted occurred_at DESC from the backend, so Map insertion order already
@@ -137,8 +151,16 @@ function groupByDate(items: TxnItem[]): TxnGroup[] {
       key,
       label: dateGroupLabel(key),
       txns,
-      expenseMinor: uniform ? txns.filter((t) => t.type === "expense").reduce((sum, t) => sum + BigInt(t.amount), 0n) : null,
-      incomeMinor: uniform ? txns.filter((t) => t.type === "income").reduce((sum, t) => sum + BigInt(t.amount), 0n) : null,
+      expenseMinor: uniform
+        ? txns
+            .filter((t) => t.type === "expense")
+            .reduce((sum, t) => sum + BigInt(t.amount), 0n)
+        : null,
+      incomeMinor: uniform
+        ? txns
+            .filter((t) => t.type === "income")
+            .reduce((sum, t) => sum + BigInt(t.amount), 0n)
+        : null,
       currencyCode: uniform ? txns[0].currency_code : null,
     };
   });
@@ -167,7 +189,11 @@ export function TransactionsPage() {
   useEffect(() => {
     if (!filterOpen) return;
     function handlePointerDown(e: MouseEvent) {
-      if (filterPopoverRef.current && !filterPopoverRef.current.contains(e.target as Node)) setFilterOpen(false);
+      if (
+        filterPopoverRef.current &&
+        !filterPopoverRef.current.contains(e.target as Node)
+      )
+        setFilterOpen(false);
     }
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") setFilterOpen(false);
@@ -180,7 +206,9 @@ export function TransactionsPage() {
     };
   }, [filterOpen]);
 
-  function applyRangePreset(preset: "today" | "yesterday" | "this_week" | "last_week" | "") {
+  function applyRangePreset(
+    preset: "today" | "yesterday" | "this_week" | "last_week" | "",
+  ) {
     setActiveRangePreset(preset);
     if (preset === "") {
       setFromFilter("");
@@ -212,15 +240,25 @@ export function TransactionsPage() {
     setActiveRangePreset("");
   }
 
-  const activeFilterCount = [typeFilter, memberFilter, tagFilter, categoryFilter, fromFilter || toFilter].filter(Boolean).length;
+  const activeFilterCount = [
+    typeFilter,
+    memberFilter,
+    tagFilter,
+    categoryFilter,
+    fromFilter || toFilter,
+  ].filter(Boolean).length;
 
   const { data: savedFilters } = useQuery({
     queryKey: ["savedFilters"],
-    queryFn: () => api.get<{ saved_filters: SavedFilter[] }>("/saved-filters").then((r) => r.saved_filters),
+    queryFn: () =>
+      api
+        .get<{ saved_filters: SavedFilter[] }>("/saved-filters")
+        .then((r) => r.saved_filters),
   });
 
   const saveFilter = useMutation({
-    mutationFn: (body: { name: string; criteria: FilterCriteria }) => api.post("/saved-filters", body),
+    mutationFn: (body: { name: string; criteria: FilterCriteria }) =>
+      api.post("/saved-filters", body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["savedFilters"] }),
   });
 
@@ -250,13 +288,16 @@ export function TransactionsPage() {
       if (fromFilter) params.set("from", fromFilter);
       if (toFilter) params.set("to", toFilter);
       const qs = params.toString();
-      return api.get<{ summary: Summary }>(`/transactions/summary${qs ? `?${qs}` : ""}`).then((r) => r.summary);
+      return api
+        .get<{ summary: Summary }>(`/transactions/summary${qs ? `?${qs}` : ""}`)
+        .then((r) => r.summary);
     },
   });
 
   const { data: members } = useQuery({
     queryKey: ["members"],
-    queryFn: () => api.get<{ members: Member[] }>("/members").then((r) => r.members),
+    queryFn: () =>
+      api.get<{ members: Member[] }>("/members").then((r) => r.members),
   });
   const { data: tags } = useQuery({
     queryKey: ["tags"],
@@ -264,11 +305,27 @@ export function TransactionsPage() {
   });
   const { data: categories } = useQuery({
     queryKey: ["categories"],
-    queryFn: () => api.get<{ categories: Category[] }>("/categories").then((r) => r.categories),
+    queryFn: () =>
+      api
+        .get<{ categories: Category[] }>("/categories")
+        .then((r) => r.categories),
   });
 
-  const { data: items, isLoading, isError: isItemsError } = useQuery({
-    queryKey: ["transactions", "list", typeFilter, memberFilter, tagFilter, categoryFilter, fromFilter, toFilter],
+  const {
+    data: items,
+    isLoading,
+    isError: isItemsError,
+  } = useQuery({
+    queryKey: [
+      "transactions",
+      "list",
+      typeFilter,
+      memberFilter,
+      tagFilter,
+      categoryFilter,
+      fromFilter,
+      toFilter,
+    ],
     queryFn: () => {
       const params = new URLSearchParams();
       if (typeFilter) params.set("type", typeFilter);
@@ -278,7 +335,9 @@ export function TransactionsPage() {
       if (fromFilter) params.set("from", fromFilter);
       if (toFilter) params.set("to", toFilter);
       const qs = params.toString();
-      return api.get<{ items: TxnItem[] }>(`/transactions${qs ? `?${qs}` : ""}`).then((r) => r.items);
+      return api
+        .get<{ items: TxnItem[] }>(`/transactions${qs ? `?${qs}` : ""}`)
+        .then((r) => r.items);
     },
   });
 
@@ -291,14 +350,30 @@ export function TransactionsPage() {
     },
   });
 
-  const [openAction, setOpenAction] = useState<{ id: string; kind: "refund" | "installments" } | null>(null);
+  const [openAction, setOpenAction] = useState<{
+    id: string;
+    kind: "refund" | "installments";
+  } | null>(null);
   function toggleAction(id: string, kind: "refund" | "installments") {
-    setOpenAction((cur) => (cur?.id === id && cur.kind === kind ? null : { id, kind }));
+    setOpenAction((cur) =>
+      cur?.id === id && cur.kind === kind ? null : { id, kind },
+    );
   }
 
   const refundTxn = useMutation({
-    mutationFn: ({ id, amount, note }: { id: string; amount: string; note: string }) =>
-      api.post(`/transactions/${id}/refund`, { amount, note: note || undefined }),
+    mutationFn: ({
+      id,
+      amount,
+      note,
+    }: {
+      id: string;
+      amount: string;
+      note: string;
+    }) =>
+      api.post(`/transactions/${id}/refund`, {
+        amount,
+        note: note || undefined,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["accounts"] });
@@ -307,7 +382,13 @@ export function TransactionsPage() {
   });
 
   const installmentsTxn = useMutation({
-    mutationFn: (body: { id: string; installment_count: number; interval_unit: "month" | "week"; fee_amount: string; first_due_date: string }) =>
+    mutationFn: (body: {
+      id: string;
+      installment_count: number;
+      interval_unit: "month" | "week";
+      fee_amount: string;
+      first_due_date: string;
+    }) =>
       api.post(`/transactions/${body.id}/installments`, {
         installment_count: body.installment_count,
         interval_unit: body.interval_unit,
@@ -325,29 +406,55 @@ export function TransactionsPage() {
 
   useGSAP(
     () => {
-      gsap.from(".chip-attachment", { opacity: 0, scale: 0.85, duration: 0.2, ease: "power2.out", stagger: 0.03 });
+      gsap.from(".chip-attachment", {
+        opacity: 0,
+        scale: 0.85,
+        duration: 0.2,
+        ease: "power2.out",
+        stagger: 0.03,
+      });
     },
-    { scope: listRef, dependencies: [items] }
+    { scope: listRef, dependencies: [items] },
   );
 
   useGSAP(
     () => {
       if (!filterOpen) return;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      gsap.from(".filter-popover", { autoAlpha: 0, y: reduced ? 0 : -6, duration: reduced ? 0.15 : 0.18, ease: "power2.out" });
+      const reduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      gsap.from(".filter-popover", {
+        autoAlpha: 0,
+        y: reduced ? 0 : -6,
+        duration: reduced ? 0.15 : 0.18,
+        ease: "power2.out",
+      });
     },
-    { scope: filterPopoverRef, dependencies: [filterOpen] }
+    { scope: filterPopoverRef, dependencies: [filterOpen] },
   );
 
   const handleDelete = contextSafe((t: TxnItem) => {
-    if (!confirm(`Delete this ${t.type === "expense" ? "-" : "+"}${formatMoney(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}?`)) return;
+    if (
+      !confirm(
+        `Delete this ${t.type === "expense" ? "-" : "+"}${formatMoney(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}?`,
+      )
+    )
+      return;
     const el = rowRefs.current[t.id];
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     if (!el || reduced) {
       deleteTxn.mutate(t.id);
       return;
     }
-    gsap.to(el, { opacity: 0, x: 8, duration: 0.2, ease: "power2.out", onComplete: () => deleteTxn.mutate(t.id) });
+    gsap.to(el, {
+      opacity: 0,
+      x: 8,
+      duration: 0.2,
+      ease: "power2.out",
+      onComplete: () => deleteTxn.mutate(t.id),
+    });
   });
 
   function openCreate() {
@@ -387,26 +494,47 @@ export function TransactionsPage() {
           ref={(el) => {
             rowRefs.current[t.id] = el;
           }}
-          onClick={() => setSelectedTxnId((cur) => (cur === t.id ? null : t.id))}
+          onClick={() =>
+            setSelectedTxnId((cur) => (cur === t.id ? null : t.id))
+          }
         >
-          <span className="cat-badge">{(t.category_name ?? t.account_name).charAt(0).toUpperCase()}</span>
+          <span className="cat-badge">
+            {(t.category_name ?? t.account_name).charAt(0).toUpperCase()}
+          </span>
           <div className="txn-row__body">
             <div className="txn-row__top">
-              <span className="txn-row__cat">{t.type === "transfer" ? "Transfer" : (t.category_name ?? "Refund")}</span>
-              <span className="txn-row__time">{new Date(t.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="txn-row__cat">
+                {t.type === "transfer"
+                  ? "Transfer"
+                  : (t.category_name ?? "Refund")}
+              </span>
+              <span className="txn-row__time">
+                {new Date(t.occurred_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
             </div>
             {t.note && <div className="txn-row__note">{t.note}</div>}
             <div className="chip-row">
               <span className="chip-acct">{t.account_name}</span>
-              {t.member_name && <span className="chip-tag">{t.member_name}</span>}
+              {t.member_name && (
+                <span className="chip-tag">{t.member_name}</span>
+              )}
               {t.tags.map((tag) => (
                 <span key={tag.id} className="chip-tag">
                   {tag.name}
                 </span>
               ))}
               {t.refund_of_id && <span className="chip-tag">Refund</span>}
-              {t.installment_plan_id && t.installment_seq === null && <span className="chip-tag">Installment plan</span>}
-              {t.installment_seq !== null && <span className="chip-tag">Installment #{t.installment_seq}</span>}
+              {t.installment_plan_id && t.installment_seq === null && (
+                <span className="chip-tag">Installment plan</span>
+              )}
+              {t.installment_seq !== null && (
+                <span className="chip-tag">
+                  Installment #{t.installment_seq}
+                </span>
+              )}
               {t.attachment_id && (
                 <a
                   className="chip-tag chip-attachment"
@@ -421,7 +549,9 @@ export function TransactionsPage() {
             </div>
           </div>
           <div className="txn-row__end">
-            <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
+            <span
+              className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}
+            >
               {t.type === "expense" ? "-" : "+"}
               {formatMoney(t.amount, t.currency_code)}
             </span>
@@ -436,19 +566,42 @@ export function TransactionsPage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const fd = new FormData(e.currentTarget);
-                refundTxn.mutate({ id: t.id, amount: String(fd.get("amount") ?? ""), note: String(fd.get("note") ?? "") });
+                refundTxn.mutate({
+                  id: t.id,
+                  amount: String(fd.get("amount") ?? ""),
+                  note: String(fd.get("note") ?? ""),
+                });
               }}
             >
-              <input name="amount" inputMode="decimal" required defaultValue={minorToInputValue(t.amount, t.currency_code)} />
+              <input
+                name="amount"
+                inputMode="decimal"
+                required
+                defaultValue={minorToInputValue(t.amount, t.currency_code)}
+              />
               <input name="note" placeholder="Note (optional)" />
-              <button className="btn-primary btn-outline--sm" type="submit" disabled={refundTxn.isPending}>
+              <button
+                className="btn-primary btn-outline--sm"
+                type="submit"
+                disabled={refundTxn.isPending}
+              >
                 {refundTxn.isPending ? "Refunding…" : "Refund"}
               </button>
-              <button className="btn-outline btn-outline--sm" type="button" onClick={() => setOpenAction(null)}>
+              <button
+                className="btn-outline btn-outline--sm"
+                type="button"
+                onClick={() => setOpenAction(null)}
+              >
                 Cancel
               </button>
             </form>
-            {refundTxn.isError && <p className="field-error">{refundTxn.error instanceof ApiError ? refundTxn.error.message : "Something went wrong."}</p>}
+            {refundTxn.isError && (
+              <p className="field-error">
+                {refundTxn.error instanceof ApiError
+                  ? refundTxn.error.message
+                  : "Something went wrong."}
+              </p>
+            )}
           </div>
         )}
 
@@ -462,28 +615,57 @@ export function TransactionsPage() {
                 installmentsTxn.mutate({
                   id: t.id,
                   installment_count: Number(fd.get("installment_count")),
-                  interval_unit: fd.get("interval_unit") === "week" ? "week" : "month",
+                  interval_unit:
+                    fd.get("interval_unit") === "week" ? "week" : "month",
                   fee_amount: String(fd.get("fee_amount") ?? ""),
                   first_due_date: String(fd.get("first_due_date")),
                 });
               }}
             >
-              <input name="installment_count" type="number" min={2} max={60} defaultValue={3} required />
+              <input
+                name="installment_count"
+                type="number"
+                min={2}
+                max={60}
+                defaultValue={3}
+                required
+              />
               <select name="interval_unit" defaultValue="month">
                 <option value="month">Monthly</option>
                 <option value="week">Weekly</option>
               </select>
-              <input name="fee_amount" inputMode="decimal" placeholder="Fee (optional)" />
-              <input name="first_due_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
-              <button className="btn-primary btn-outline--sm" type="submit" disabled={installmentsTxn.isPending}>
+              <input
+                name="fee_amount"
+                inputMode="decimal"
+                placeholder="Fee (optional)"
+              />
+              <input
+                name="first_due_date"
+                type="date"
+                required
+                defaultValue={new Date().toISOString().slice(0, 10)}
+              />
+              <button
+                className="btn-primary btn-outline--sm"
+                type="submit"
+                disabled={installmentsTxn.isPending}
+              >
                 {installmentsTxn.isPending ? "Splitting…" : "Split"}
               </button>
-              <button className="btn-outline btn-outline--sm" type="button" onClick={() => setOpenAction(null)}>
+              <button
+                className="btn-outline btn-outline--sm"
+                type="button"
+                onClick={() => setOpenAction(null)}
+              >
                 Cancel
               </button>
             </form>
             {installmentsTxn.isError && (
-              <p className="field-error">{installmentsTxn.error instanceof ApiError ? installmentsTxn.error.message : "Something went wrong."}</p>
+              <p className="field-error">
+                {installmentsTxn.error instanceof ApiError
+                  ? installmentsTxn.error.message
+                  : "Something went wrong."}
+              </p>
             )}
           </div>
         )}
@@ -493,205 +675,319 @@ export function TransactionsPage() {
 
   return (
     <div className="txn-page">
-    <div className="txn-page__content">
-      <div className="page-head">
-        <h1>Transactions</h1>
-        <span className="count-badge">{summary?.count ?? 0}</span>
-        <div className="head-spacer" />
-        <div className="filter-popover-wrap" ref={filterPopoverRef}>
-          <div className="filter-cluster">
+      <div className="txn-page__content">
+        <div className="page-head">
+          <h1>Transactions</h1>
+          <span className="count-badge">{summary?.count ?? 0}</span>
+          <div className="head-spacer" />
+          <div className="filter-popover-wrap" ref={filterPopoverRef}>
+            <div className="filter-cluster">
+              <button
+                type="button"
+                className="filter-chip filter-trigger"
+                data-open={filterOpen}
+                aria-expanded={filterOpen}
+                aria-haspopup="true"
+                onClick={() => setFilterOpen((v) => !v)}
+              >
+                Filters
+                <ChevronIcon />
+              </button>
+              {activeFilterCount > 0 && (
+                <span className="filter-chip--emph">
+                  {activeFilterCount} active
+                </span>
+              )}
+            </div>
+
+            {filterOpen && (
+              <div
+                className="filter-popover"
+                role="dialog"
+                aria-label="Filters"
+              >
+                <div className="filter-popover__section">
+                  <span className="filter-popover__label">Type</span>
+                  <span className="select-wrap">
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                    >
+                      <option value="">All types</option>
+                      <option value="expense">Expenses</option>
+                      <option value="income">Income</option>
+                      <option value="transfer">Transfers</option>
+                    </select>
+                    <ChevronIcon />
+                  </span>
+                </div>
+                <div className="filter-popover__section">
+                  <span className="filter-popover__label">Member</span>
+                  <span className="select-wrap">
+                    <select
+                      value={memberFilter}
+                      onChange={(e) => setMemberFilter(e.target.value)}
+                    >
+                      <option value="">All members</option>
+                      {(members ?? []).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronIcon />
+                  </span>
+                </div>
+                <div className="filter-popover__section">
+                  <span className="filter-popover__label">Tag</span>
+                  <span className="select-wrap">
+                    <select
+                      value={tagFilter}
+                      onChange={(e) => setTagFilter(e.target.value)}
+                    >
+                      <option value="">All tags</option>
+                      {(tags ?? []).map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronIcon />
+                  </span>
+                </div>
+                <div className="filter-popover__section">
+                  <div className="filter-popover__section-head">
+                    <span className="filter-popover__label">Category</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCategoryManagerOpen(true)}
+                    >
+                      Manage
+                    </Button>
+                  </div>
+                  <span className="select-wrap">
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                    >
+                      <option value="">All categories</option>
+                      {(categories ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronIcon />
+                  </span>
+                </div>
+                <div className="filter-popover__section">
+                  <span className="filter-popover__label">Date range</span>
+                  <div className="filter-popover__row">
+                    {(
+                      [
+                        "",
+                        "today",
+                        "yesterday",
+                        "this_week",
+                        "last_week",
+                      ] as const
+                    ).map((preset) => (
+                      <button
+                        key={preset || "all"}
+                        type="button"
+                        className={`tag-chip${activeRangePreset === preset ? " tag-chip--active" : ""}`}
+                        onClick={() => applyRangePreset(preset)}
+                      >
+                        {preset === ""
+                          ? "All time"
+                          : preset === "today"
+                            ? "Today"
+                            : preset === "yesterday"
+                              ? "Yesterday"
+                              : preset === "this_week"
+                                ? "This week"
+                                : "Last week"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost-danger"
+                    size="sm"
+                    onClick={clearAllFilters}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+
+                <div className="filter-popover__foot">
+                  <span className="filter-popover__label">Saved filters</span>
+                  <div className="filter-popover__row">
+                    {(savedFilters ?? []).map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        className="tag-chip"
+                        onClick={() => applySavedFilter(f.criteria)}
+                      >
+                        {f.name}
+                        <span
+                          className="tag-chip__remove"
+                          role="button"
+                          aria-label={`Delete saved filter ${f.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Delete saved filter "${f.name}"?`))
+                              deleteSavedFilter.mutate(f.id);
+                          }}
+                        >
+                          ×
+                        </span>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="tag-chip"
+                      onClick={handleSaveCurrentFilter}
+                      disabled={saveFilter.isPending}
+                    >
+                      + Save current filter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="seg-toggle" role="group" aria-label="View mode">
             <button
               type="button"
-              className="filter-chip filter-trigger"
-              data-open={filterOpen}
-              aria-expanded={filterOpen}
-              aria-haspopup="true"
-              onClick={() => setFilterOpen((v) => !v)}
+              data-active={viewMode === "list"}
+              onClick={() => setViewMode("list")}
             >
-              Filters
-              <ChevronIcon />
+              List
             </button>
-            {activeFilterCount > 0 && <span className="filter-chip--emph">{activeFilterCount} active</span>}
+            <button
+              type="button"
+              data-active={viewMode === "table"}
+              onClick={() => setViewMode("table")}
+            >
+              Table
+            </button>
           </div>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={() => (showForm ? closeForm() : openCreate())}
+          >
+            New Transaction
+          </button>
+        </div>
 
-          {filterOpen && (
-            <div className="filter-popover" role="dialog" aria-label="Filters">
-              <div className="filter-popover__section">
-                <span className="filter-popover__label">Type</span>
-                <span className="select-wrap">
-                  <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-                    <option value="">All types</option>
-                    <option value="expense">Expenses</option>
-                    <option value="income">Income</option>
-                    <option value="transfer">Transfers</option>
-                  </select>
-                  <ChevronIcon />
-                </span>
-              </div>
-              <div className="filter-popover__section">
-                <span className="filter-popover__label">Member</span>
-                <span className="select-wrap">
-                  <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}>
-                    <option value="">All members</option>
-                    {(members ?? []).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronIcon />
-                </span>
-              </div>
-              <div className="filter-popover__section">
-                <span className="filter-popover__label">Tag</span>
-                <span className="select-wrap">
-                  <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-                    <option value="">All tags</option>
-                    {(tags ?? []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronIcon />
-                </span>
-              </div>
-              <div className="filter-popover__section">
-                <div className="filter-popover__section-head">
-                  <span className="filter-popover__label">Category</span>
-                  <Button variant="ghost" size="sm" onClick={() => setCategoryManagerOpen(true)}>
-                    Manage
-                  </Button>
-                </div>
-                <span className="select-wrap">
-                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-                    <option value="">All categories</option>
-                    {(categories ?? []).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronIcon />
-                </span>
-              </div>
-              <div className="filter-popover__section">
-                <span className="filter-popover__label">Date range</span>
-                <div className="filter-popover__row">
-                  {(["", "today", "yesterday", "this_week", "last_week"] as const).map((preset) => (
-                    <button
-                      key={preset || "all"}
-                      type="button"
-                      className={`tag-chip${activeRangePreset === preset ? " tag-chip--active" : ""}`}
-                      onClick={() => applyRangePreset(preset)}
-                    >
-                      {preset === "" ? "All time" : preset === "today" ? "Today" : preset === "yesterday" ? "Yesterday" : preset === "this_week" ? "This week" : "Last week"}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        <Modal
+          open={showForm}
+          onClose={closeForm}
+          title={editingTxn ? "Edit Transaction" : "New Transaction"}
+        >
+          <AddTransactionForm
+            key={editingTxn?.id ?? "new"}
+            editing={editingTxn}
+            onDone={closeForm}
+          />
+        </Modal>
 
-              {activeFilterCount > 0 && (
-                <Button variant="ghost-danger" size="sm" onClick={clearAllFilters}>
-                  Clear filters
-                </Button>
-              )}
+        <Modal
+          open={categoryManagerOpen}
+          onClose={() => setCategoryManagerOpen(false)}
+          title="Manage Categories"
+        >
+          <CategoryManager />
+        </Modal>
 
-              <div className="filter-popover__foot">
-                <span className="filter-popover__label">Saved filters</span>
-                <div className="filter-popover__row">
-                  {(savedFilters ?? []).map((f) => (
-                    <button key={f.id} type="button" className="tag-chip" onClick={() => applySavedFilter(f.criteria)}>
-                      {f.name}
-                      <span
-                        className="tag-chip__remove"
-                        role="button"
-                        aria-label={`Delete saved filter ${f.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`Delete saved filter "${f.name}"?`)) deleteSavedFilter.mutate(f.id);
-                        }}
-                      >
-                        ×
-                      </span>
-                    </button>
-                  ))}
-                  <button type="button" className="tag-chip" onClick={handleSaveCurrentFilter} disabled={saveFilter.isPending}>
-                    + Save current filter
-                  </button>
-                </div>
+        {isSummaryError && (
+          <p
+            className="field-error"
+            style={{ margin: "0 var(--space-xl) var(--space-lg)" }}
+          >
+            Failed to load summary. Try refreshing.
+          </p>
+        )}
+
+        {summary && (
+          <div className="summary-grid">
+            <div className="card stat-card">
+              <div className="stat-card__head">
+                <span
+                  className="dot"
+                  style={{ background: "var(--color-income)" }}
+                />
+                <span className="stat-card__label">Income</span>
+              </div>
+              <div className="stat-card__figure" data-tone="income">
+                {summary.main_currency_code}{" "}
+                {formatAmount(summary.income_minor, summary.main_currency_code)}
               </div>
             </div>
+            <div className="card stat-card">
+              <div className="stat-card__head">
+                <span
+                  className="dot"
+                  style={{ background: "var(--color-expense)" }}
+                />
+                <span className="stat-card__label">Expenditure</span>
+              </div>
+              <div className="stat-card__figure" data-tone="expense">
+                {summary.main_currency_code}{" "}
+                {formatAmount(
+                  summary.expenditure_minor,
+                  summary.main_currency_code,
+                )}
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-card__head">
+                <span
+                  className="dot"
+                  style={{ background: "var(--color-balance)" }}
+                />
+                <span className="stat-card__label">Balance</span>
+              </div>
+              <div className="stat-card__figure" data-tone="balance">
+                {summary.main_currency_code}{" "}
+                {formatAmount(
+                  summary.balance_minor,
+                  summary.main_currency_code,
+                )}
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-card__head">
+                <span
+                  className="dot"
+                  style={{ background: "var(--color-on-surface-muted)" }}
+                />
+                <span className="stat-card__label">Transactions</span>
+              </div>
+              <div className="stat-card__figure">{summary.count}</div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ padding: "0 var(--space-xl)" }}>
+          {isItemsError && (
+            <p className="field-error">
+              Failed to load transactions. Try refreshing.
+            </p>
           )}
-        </div>
-        <div className="seg-toggle" role="group" aria-label="View mode">
-          <button type="button" data-active={viewMode === "list"} onClick={() => setViewMode("list")}>
-            List
-          </button>
-          <button type="button" data-active={viewMode === "table"} onClick={() => setViewMode("table")}>
-            Table
-          </button>
-        </div>
-        <button className="btn-primary" type="button" onClick={() => (showForm ? closeForm() : openCreate())}>
-          {showForm ? "Cancel" : "+ New"}
-        </button>
-      </div>
-
-      <Modal open={showForm} onClose={closeForm} title={editingTxn ? "Edit Transaction" : "New Transaction"}>
-        <AddTransactionForm key={editingTxn?.id ?? "new"} editing={editingTxn} onDone={closeForm} />
-      </Modal>
-
-      <Modal open={categoryManagerOpen} onClose={() => setCategoryManagerOpen(false)} title="Manage Categories">
-        <CategoryManager />
-      </Modal>
-
-      {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load summary. Try refreshing.</p>}
-
-      {summary && (
-        <div className="summary-grid">
-          <div className="card stat-card">
-            <div className="stat-card__head">
-              <span className="dot" style={{ background: "var(--color-positive)" }} />
-              <span className="stat-card__label">Income</span>
-            </div>
-            <div className="stat-card__figure stat-card__figure--positive">
-              {summary.main_currency_code} {formatAmount(summary.income_minor, summary.main_currency_code)}
-            </div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-card__head">
-              <span className="dot" style={{ background: "var(--color-negative)" }} />
-              <span className="stat-card__label">Expenditure</span>
-            </div>
-            <div className="stat-card__figure stat-card__figure--negative">
-              {summary.main_currency_code} {formatAmount(summary.expenditure_minor, summary.main_currency_code)}
-            </div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-card__head">
-              <span className="dot" style={{ background: "var(--color-info)" }} />
-              <span className="stat-card__label">Balance</span>
-            </div>
-            <div className="stat-card__figure">
-              {summary.main_currency_code} {formatAmount(summary.balance_minor, summary.main_currency_code)}
-            </div>
-          </div>
-          <div className="card stat-card">
-            <div className="stat-card__head">
-              <span className="dot" style={{ background: "var(--color-muted)" }} />
-              <span className="stat-card__label">Transactions</span>
-            </div>
-            <div className="stat-card__figure">{summary.count}</div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ padding: "0 var(--space-xl)" }}>
-          {isItemsError && <p className="field-error">Failed to load transactions. Try refreshing.</p>}
           {isLoading && <p className="muted">Loading…</p>}
 
           {viewMode === "table" && (
-            <div className="card txn-card" style={{ marginBottom: "var(--space-2xl)", overflowX: "auto" }}>
+            <div
+              className="card txn-card"
+              style={{ marginBottom: "var(--space-2xl)", overflowX: "auto" }}
+            >
               <table className="txn-table">
                 <thead>
                   <tr>
@@ -708,14 +1004,22 @@ export function TransactionsPage() {
                     <tr key={t.id}>
                       <td>{new Date(t.occurred_at).toLocaleDateString()}</td>
                       <td>
-                        {t.type === "transfer" ? "Transfer" : (t.category_name ?? "Refund")}
+                        {t.type === "transfer"
+                          ? "Transfer"
+                          : (t.category_name ?? "Refund")}
                         {t.refund_of_id && <sup title="Refund">R</sup>}
-                        {t.installment_seq !== null && <sup title={`Installment #${t.installment_seq}`}>#{t.installment_seq}</sup>}
+                        {t.installment_seq !== null && (
+                          <sup title={`Installment #${t.installment_seq}`}>
+                            #{t.installment_seq}
+                          </sup>
+                        )}
                       </td>
                       <td>{t.member_name ?? "—"}</td>
                       <td>{t.account_name}</td>
                       <td className="txn-table__note">{t.note ?? ""}</td>
-                      <td className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
+                      <td
+                        className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}
+                      >
                         {t.type === "expense" ? "-" : "+"}
                         {formatMoney(t.amount, t.currency_code)}
                       </td>
@@ -734,49 +1038,60 @@ export function TransactionsPage() {
                     <span className="txn-group__date">{g.label}</span>
                     {g.expenseMinor !== null && g.expenseMinor > 0n && (
                       <span className="txn-group__pill" data-tone="negative">
-                        -{formatMoney(g.expenseMinor.toString(), g.currencyCode!)}
+                        -
+                        {formatMoney(
+                          g.expenseMinor.toString(),
+                          g.currencyCode!,
+                        )}
                       </span>
                     )}
                     {g.incomeMinor !== null && g.incomeMinor > 0n && (
                       <span className="txn-group__pill" data-tone="positive">
-                        +{formatMoney(g.incomeMinor.toString(), g.currencyCode!)}
+                        +
+                        {formatMoney(g.incomeMinor.toString(), g.currencyCode!)}
                       </span>
                     )}
                   </div>
                   <div className="card txn-card">{g.txns.map(renderRow)}</div>
                 </div>
               ))}
-              {items?.length === 0 && <p className="muted">No transactions yet.</p>}
+              {items?.length === 0 && (
+                <p className="muted">No transactions yet.</p>
+              )}
             </div>
           )}
+        </div>
       </div>
-    </div>
 
       <aside className="right">
-          <div className="right-inner">
-            <TransactionsReportPanel
-              filters={{
-                type: typeFilter || undefined,
-                member_id: memberFilter || undefined,
-                tag_id: tagFilter || undefined,
-                category_id: categoryFilter || undefined,
-                from: fromFilter || undefined,
-                to: toFilter || undefined,
-              }}
-              mainCurrencyCode={summary?.main_currency_code ?? "USD"}
-              onSelectGroup={(dimension, id) => {
-                if (dimension === "category") setCategoryFilter(id);
-                else if (dimension === "tag") setTagFilter(id);
-                else setMemberFilter(id);
-              }}
-              selectedTxn={selectedTxn}
-              onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
-              onRefundSelected={() => selectedTxn && toggleAction(selectedTxn.id, "refund")}
-              onInstallmentsSelected={() => selectedTxn && toggleAction(selectedTxn.id, "installments")}
-              onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
-            />
-          </div>
-        </aside>
+        <div className="right-inner">
+          <TransactionsReportPanel
+            filters={{
+              type: typeFilter || undefined,
+              member_id: memberFilter || undefined,
+              tag_id: tagFilter || undefined,
+              category_id: categoryFilter || undefined,
+              from: fromFilter || undefined,
+              to: toFilter || undefined,
+            }}
+            mainCurrencyCode={summary?.main_currency_code ?? "USD"}
+            onSelectGroup={(dimension, id) => {
+              if (dimension === "category") setCategoryFilter(id);
+              else if (dimension === "tag") setTagFilter(id);
+              else setMemberFilter(id);
+            }}
+            selectedTxn={selectedTxn}
+            onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
+            onRefundSelected={() =>
+              selectedTxn && toggleAction(selectedTxn.id, "refund")
+            }
+            onInstallmentsSelected={() =>
+              selectedTxn && toggleAction(selectedTxn.id, "installments")
+            }
+            onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
+          />
+        </div>
+      </aside>
     </div>
   );
 }
