@@ -2,62 +2,126 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useCurrentUser } from "../hooks/useAuth";
-import { useTheme } from "../hooks/useDisplayPrefs";
-import { formatAmount } from "../lib/formatAmount";
+import { LandingPhone } from "../components/LandingPhone";
+import { ArrowIcon, BrandMark } from "../components/TxnIcons";
 import "../styles/landing.css";
 
-// Preview figures for the marketing panel. Not a customer metric, not a claim — a sample ledger,
-// in IDR minor units so it renders through the same formatAmount the real app uses.
-const DEMO = {
-  currency: "IDR",
-  income: "18450000",
-  expenditure: "9275000",
-  balance: "9175000",
-  count: 128,
-  dayOut: "685000",
-  rows: [
-    {
-      key: "K",
-      name: "Kopi",
-      time: "09:41",
-      meta: "BCA · Food & drink",
-      amount: "45000",
-    },
-    {
-      key: "T",
-      name: "Transport",
-      time: "08:12",
-      meta: "GoPay · Daily",
-      amount: "28000",
-    },
-    {
-      key: "L",
-      name: "Listrik",
-      time: "07:30",
-      meta: "BCA · Utilities",
-      amount: "612000",
-    },
-  ],
-};
+gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-function rp(minorUnits: string) {
-  return `Rp ${formatAmount(minorUnits, DEMO.currency)}`;
+const ANNOTATIONS = [
+  { id: "heat", label: "Daily heatmap", body: "Heavy days glow before you read a number." },
+  { id: "kept", label: "Savings rate", body: "How much you kept — in one sentence." },
+  { id: "plans", label: "Budgets & goals", body: "Warned at 80%, not after the damage." },
+  { id: "fx", label: "Multi-currency", body: "Rupiah, dollars, yen — one total." },
+] as const;
+
+const FEATURES = [
+  {
+    id: "heatmap",
+    eyebrow: "Insights",
+    title: "Your month as a heatmap",
+    body: "Every day is a square. The expensive ones light up, so patterns show up before you start doing maths.",
+    art: "heat",
+  },
+  {
+    id: "kept",
+    eyebrow: "Clarity",
+    title: "“You kept 37%.”",
+    body: "Not a wall of charts. One honest sentence about what came in and what stayed.",
+    art: "kept",
+  },
+  {
+    id: "budgets",
+    eyebrow: "Plans",
+    title: "Budgets that nudge early",
+    body: "On track, getting close, over. You hear about it while there's still time to change course.",
+    art: "budgets",
+  },
+  {
+    id: "split",
+    eyebrow: "Real life",
+    title: "Refunds, splits, receipts",
+    body: "Pay-later in four? Refund came through? Snap of the bill? It all stays attached to the entry.",
+    art: "split",
+  },
+] as const;
+
+const STEPS = [
+  { n: "01", title: "Add where your money lives", body: "Bank, e-wallet, the cash in your pocket. No bank login, ever." },
+  { n: "02", title: "Log it in five seconds", body: "Tap +, type the amount, pick a category. Recurring stuff logs itself." },
+  { n: "03", title: "Read your month", body: "Heatmap, breakdown, savings rate. Know where it went — and what to change." },
+] as const;
+
+const BUDGET_SAMPLES = [
+  { name: "Coffee", pct: 34, tone: "ok" },
+  { name: "Eating out", pct: 82, tone: "warn" },
+  { name: "Shopping", pct: 104, tone: "danger" },
+] as const;
+
+// Four-and-a-bit weeks of heat levels for the feature tile: 0 quiet, 1–3 spend, g = earned-more day.
+const HEAT = "0012010301210013021g02103021012g".split("");
+
+function FeatureArt({ kind }: { kind: (typeof FEATURES)[number]["art"] }) {
+  if (kind === "heat") {
+    return (
+      <div className="art-heat" aria-hidden="true">
+        {HEAT.map((h, i) => (
+          <i key={i} data-h={h} />
+        ))}
+      </div>
+    );
+  }
+  if (kind === "kept") {
+    return (
+      <div className="art-kept" aria-hidden="true">
+        <span className="art-kept__num">
+          37<small>%</small>
+        </span>
+        <span className="art-kept__bar">
+          <i style={{ flexBasis: "62%" }} data-tone="in" />
+          <i style={{ flexBasis: "38%" }} data-tone="out" />
+        </span>
+      </div>
+    );
+  }
+  if (kind === "budgets") {
+    return (
+      <div className="art-budgets" aria-hidden="true">
+        {BUDGET_SAMPLES.map((b) => (
+          <div className="art-budgets__row" key={b.name}>
+            <span>{b.name}</span>
+            <span className="art-budgets__pct" data-tone={b.tone}>
+              {b.pct}%
+            </span>
+            <span className="art-budgets__track">
+              <i style={{ width: `${Math.min(b.pct, 100)}%` }} data-tone={b.tone} />
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="art-split" aria-hidden="true">
+      <div className="art-split__steps">
+        {["1/4", "2/4", "3/4", "4/4"].map((s, i) => (
+          <span key={s} data-paid={i < 2}>
+            {s}
+          </span>
+        ))}
+      </div>
+      <div className="art-split__chips">
+        <span>↺ Refund</span>
+        <span>📎 Receipt</span>
+      </div>
+    </div>
+  );
 }
-
-// 28 cells = four weeks. Fixed pattern, not random, so the miniature is stable across renders.
-const HEAT = "..o.....O..o....o...O....o.i".split("");
-const HEAT_KIND: Record<string, string | undefined> = {
-  o: "out-lo",
-  O: "out-hi",
-  i: "in",
-};
-const BARS = [30, 52, 41, 68, 34, 88, 46, 61, 29, 74, 38, 55];
-const BAR_IN = new Set([5, 9]);
 
 export function LandingPage() {
   const { data: user } = useCurrentUser();
-  const { theme, setTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -74,17 +138,22 @@ export function LandingPage() {
     () => {
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
-        gsap.fromTo(
-          ".lp-rise",
-          { opacity: 0, y: 16 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.5,
-            ease: "power2.out",
-            stagger: 0.08,
-          },
-        );
+        gsap
+          .timeline({ defaults: { ease: "expo.out" } })
+          .from(".lp-rise", { opacity: 0, y: 24, duration: 1.1, stagger: 0.08 })
+          .from(".phone", { opacity: 0, y: 80, rotateX: 16, duration: 1.4 }, "-=0.9")
+          .from(".lp-note", { opacity: 0, y: 12, duration: 0.9, stagger: 0.1 }, "-=0.9")
+          .from(".lp-note__line", { scaleX: 0, duration: 0.8, stagger: 0.1 }, "<");
+
+        gsap.utils.toArray<HTMLElement>(".lp-reveal").forEach((el) => {
+          gsap.from(el, {
+            opacity: 0,
+            y: 32,
+            duration: 1,
+            ease: "expo.out",
+            scrollTrigger: { trigger: el, start: "top 88%", once: true },
+          });
+        });
       });
       return () => mm.revert();
     },
@@ -94,236 +163,188 @@ export function LandingPage() {
   // Signed-in visitors never see the marketing page; the app guards handle onboarding from there.
   if (user) return <Navigate to="/app/transactions" replace />;
 
-  const nextTheme = theme === "dark" ? "light" : "dark";
-
   return (
     <div className="lp" ref={root}>
+      <div className="lp-bg" aria-hidden="true" />
+
       <header className="lp-nav" data-scrolled={scrolled}>
-        <nav className="lp-shell lp-nav__inner" aria-label="Main">
-          <a className="lp-brand" href="#top">
-            <span className="lp-brand__mark" aria-hidden="true">
-              G
-            </span>
-            Genkin-Impact
+        <div className="lp-shell lp-nav__inner">
+          <a className="lp-brand" href="#top" aria-label="Genkin home">
+            <BrandMark size={30} />
+            <span>Genkin</span>
           </a>
-          <div className="lp-nav__links">
-            <a className="lp-nav__link" href="#features">
-              Features
-            </a>
-            <a className="lp-nav__link" href="#analytics">
-              Analytics
-            </a>
-            <a className="lp-nav__link" href="#privacy">
-              Privacy
-            </a>
-          </div>
+          <nav className="lp-pill" aria-label="Main">
+            <a href="#features">Features</a>
+            <a href="#how">How it works</a>
+            <a href="#privacy">Privacy</a>
+          </nav>
           <div className="lp-nav__end">
-            <button
-              className="lp-theme-btn"
-              type="button"
-              onClick={() => setTheme(nextTheme)}
-              aria-label={`Switch to ${nextTheme} theme`}
-            >
-              <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
-            </button>
-            <Link className="lp-nav__signin" to="/login" state={authState}>
+            <Link className="lp-signin" to="/login" state={authState}>
               Sign in
             </Link>
-            <Link className="lp-btn lp-btn--ink lp-btn--sm" to="/register" state={authState}>
-              Sign up
+            <Link className="lp-cta lp-cta--sm" to="/register" state={authState}>
+              Get started
+              <span className="lp-cta__icon">
+                <ArrowIcon size={14} />
+              </span>
             </Link>
           </div>
-        </nav>
+        </div>
       </header>
 
       <main id="top">
         <section className="lp-shell lp-hero">
-          <h1 className="lp-hero__title lp-rise">Finance, simplified.</h1>
+          <span className="lp-tag lp-rise">
+            <i aria-hidden="true" /> For people who already check their balance
+          </span>
+          <h1 className="lp-hero__title lp-rise">
+            <span className="dim">Your money,</span>
+            <br />
+            finally legible.
+          </h1>
           <p className="lp-hero__lede lp-rise">
-            Every transaction, account and plan in one ledger — with the
-            heatmaps and trends that show where the money actually went.
+            <span className="dim">A calm, private ledger.</span> Log in seconds,{" "}
+            <span className="dim">see your month as a</span> heatmap,{" "}
+            <span className="dim">and know exactly</span> how much you kept.
           </p>
+          <div className="lp-hero__actions lp-rise">
+            <Link className="lp-cta" to="/register" state={authState}>
+              Start your ledger
+              <span className="lp-cta__icon">
+                <ArrowIcon size={16} />
+              </span>
+            </Link>
+            <a className="lp-ghost" href="#how">
+              See how it works
+            </a>
+          </div>
 
-          <div className="lp-stage lp-rise">
-            <div className="lp-orbs" aria-hidden="true">
-              <span className="lp-orb lp-orb--a" />
-              <span className="lp-orb lp-orb--b" />
-              <span className="lp-orb lp-orb--c" />
-            </div>
-
-            <div className="lp-glass lp-panel">
-              <div className="lp-panel__head">
-                <h2 className="lp-panel__title">Daily</h2>
-                <span className="lp-panel__count">{DEMO.count}</span>
-                <div className="lp-seg" role="presentation">
-                  <span data-active="true">List</span>
-                  <span>Calendar</span>
-                  <span>Table</span>
-                </div>
+          <div className="lp-stage">
+            {ANNOTATIONS.map((a) => (
+              <div className="lp-note" key={a.id} data-pos={a.id}>
+                <span className="lp-note__label">{a.label}</span>
+                <span className="lp-note__body">{a.body}</span>
+                <span className="lp-note__line" aria-hidden="true" />
               </div>
+            ))}
+            <LandingPhone />
+          </div>
 
-              <div className="lp-stats">
-                <div className="lp-stat">
-                  <div className="lp-stat__head">
-                    <span
-                      className="lp-stat__dot"
-                      style={{ background: "var(--color-income)" }}
-                      aria-hidden="true"
-                    />
-                    <span className="lp-stat__label">Income</span>
-                  </div>
-                  <div className="lp-stat__value" data-tone="income">
-                    +{rp(DEMO.income)}
-                  </div>
-                </div>
-                <div className="lp-stat">
-                  <div className="lp-stat__head">
-                    <span
-                      className="lp-stat__dot"
-                      style={{ background: "var(--color-expense)" }}
-                      aria-hidden="true"
-                    />
-                    <span className="lp-stat__label">Expenditure</span>
-                  </div>
-                  <div className="lp-stat__value" data-tone="expense">
-                    −{rp(DEMO.expenditure)}
-                  </div>
-                </div>
-                <div className="lp-stat">
-                  <div className="lp-stat__head">
-                    <span
-                      className="lp-stat__dot"
-                      style={{ background: "var(--color-balance)" }}
-                      aria-hidden="true"
-                    />
-                    <span className="lp-stat__label">Balance</span>
-                  </div>
-                  <div className="lp-stat__value" data-tone="balance">
-                    +{rp(DEMO.balance)}
-                  </div>
-                </div>
-                <div className="lp-stat">
-                  <div className="lp-stat__head">
-                    <span
-                      className="lp-stat__dot"
-                      style={{ background: "var(--color-on-surface-muted)" }}
-                      aria-hidden="true"
-                    />
-                    <span className="lp-stat__label">Transactions</span>
-                  </div>
-                  <div className="lp-stat__value">{DEMO.count}</div>
-                </div>
-              </div>
-
-              <div className="lp-daybar">
-                <span>Fri, Today</span>
-                <span className="lp-daybar__out">−{rp(DEMO.dayOut)}</span>
-                <span className="lp-daybar__in">+Rp 0</span>
-              </div>
-
-              <div>
-                {DEMO.rows.map((row, i) => (
-                  <div
-                    className={`lp-txn${i === DEMO.rows.length - 1 ? " lp-txn--fade" : ""}`}
-                    key={row.name}
-                  >
-                    <span className="lp-txn__badge" aria-hidden="true">
-                      {row.key}
-                    </span>
-                    <div className="lp-txn__body">
-                      <div className="lp-txn__top">
-                        <span className="lp-txn__name">{row.name}</span>
-                        <span className="lp-txn__time">{row.time}</span>
-                      </div>
-                      <div className="lp-txn__meta">{row.meta}</div>
-                    </div>
-                    <span className="lp-txn__amount">−{rp(row.amount)}</span>
-                  </div>
+          <div className="lp-hero__foot">
+            <div className="lp-stat">
+              <span className="lp-dots-icon" aria-hidden="true">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <i key={i} />
                 ))}
-              </div>
+              </span>
+              <span>
+                <b>0 bank logins</b>
+                <small>No card. No linking. Just you.</small>
+              </span>
             </div>
+            <span className="lp-scroll mono">Scroll ↓</span>
           </div>
         </section>
 
-        <section className="bottom-section" id="features">
-          <h2 className="lp-section__title">Why Genkin?</h2>
-          <div className="lp-tiles">
-            <article className="lp-tile">
-              <h3 className="lp-tile__title">Visual heatmap</h3>
-              <p className="lp-tile__body">
-                A month of spending as one grid. Heavy days stand out before you
-                read a single number.
-              </p>
-              <div className="lp-tile__art">
-                <div className="lp-heat" aria-hidden="true">
-                  {HEAT.map((c, i) => (
-                    <i key={i} data-h={HEAT_KIND[c]} />
-                  ))}
-                </div>
-              </div>
-            </article>
-
-            <article className="lp-tile" id="analytics">
-              <h3 className="lp-tile__title">Spending trends</h3>
-              <p className="lp-tile__body">
-                Income against expenditure over time, by category or account, so
-                a bad month has an explanation.
-              </p>
-              <div className="lp-tile__art">
-                <div className="lp-bars" aria-hidden="true">
-                  {BARS.map((h, i) => (
-                    <i
-                      key={i}
-                      style={{ height: `${h}%` }}
-                      data-b={BAR_IN.has(i) ? "in" : "out"}
-                    />
-                  ))}
-                </div>
-              </div>
-            </article>
-
-            <article className="lp-tile">
-              <h3 className="lp-tile__title">Recent activity</h3>
-              <p className="lp-tile__body">
-                Tags, members, accounts, attachments and refunds — the detail is
-                there when you need to audit it.
-              </p>
-              <div className="lp-tile__art">
-                <div className="lp-mini-rows" aria-hidden="true">
-                  {DEMO.rows.map((row) => (
-                    <div className="lp-mini-row" key={row.name}>
-                      <span className="lp-mini-row__badge">{row.key}</span>
-                      <span className="lp-mini-row__name">{row.name}</span>
-                      <span className="lp-mini-row__amt">
-                        −{rp(row.amount)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </article>
+        <section className="lp-shell lp-section" id="features">
+          <div className="lp-section__head lp-reveal">
+            <span className="lp-eyebrow">// What you get</span>
+            <h2 className="lp-h2">
+              <span className="dim">Less tracking.</span> More knowing.
+            </h2>
           </div>
+          <div className="lp-bento">
+            {FEATURES.map((f) => (
+              <article className="lp-tile lp-reveal" key={f.id} data-art={f.art}>
+                <div className="lp-tile__copy">
+                  <span className="lp-eyebrow">{f.eyebrow}</span>
+                  <h3>{f.title}</h3>
+                  <p>{f.body}</p>
+                </div>
+                <div className="lp-tile__art">
+                  <FeatureArt kind={f.art} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="lp-shell lp-section" id="how">
+          <div className="lp-section__head lp-reveal">
+            <span className="lp-eyebrow">// How it works</span>
+            <h2 className="lp-h2">
+              <span className="dim">Three steps.</span> No spreadsheet.
+            </h2>
+          </div>
+          <ol className="lp-steps">
+            {STEPS.map((s) => (
+              <li className="lp-step lp-reveal" key={s.n}>
+                <span className="lp-step__n mono">{s.n}</span>
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="lp-shell lp-section lp-privacy" id="privacy">
+          <div className="lp-privacy__copy lp-reveal">
+            <span className="lp-eyebrow">// Privacy</span>
+            <h2 className="lp-h2">
+              <span className="dim">Your numbers stay</span> yours.
+            </h2>
+            <p className="lp-privacy__lede">
+              Genkin never asks for a bank password or card number. You decide what goes in, and nothing
+              moves unless you log it.
+            </p>
+          </div>
+          <ul className="lp-checks lp-reveal">
+            <li>
+              <b>No bank linking</b>
+              <span>You type it, or a recurring rule does.</span>
+            </li>
+            <li>
+              <b>Your colours, your rules</b>
+              <span>Red or green for a good month. Light or dark.</span>
+            </li>
+            <li>
+              <b>Receipts kept with the entry</b>
+              <span>Proof is one tap away when you need it.</span>
+            </li>
+          </ul>
         </section>
 
         <section className="lp-shell lp-close">
-          <h2 className="lp-close__title">Start with today's coffee.</h2>
-          <Link className="lp-btn lp-btn--ink" to="/register" state={authState}>
-            Create your ledger
-          </Link>
-          <p className="lp-close__note">
-            Free while in development. No card, no bank linking.
-          </p>
+          <div className="lp-orb" aria-hidden="true" />
+          <h2 className="lp-h2 lp-reveal">
+            <span className="dim">Start with</span> today's coffee.
+          </h2>
+          <div className="lp-reveal">
+            <Link className="lp-cta" to="/register" state={authState}>
+              Create your ledger
+              <span className="lp-cta__icon">
+                <ArrowIcon size={16} />
+              </span>
+            </Link>
+          </div>
+          <p className="lp-close__note mono">Free while in development · No card needed</p>
         </section>
       </main>
 
       <footer className="lp-foot">
         <div className="lp-shell lp-foot__inner">
-          <span>© 2026 Genkin-Impact</span>
-          <span aria-hidden="true">·</span>
-          <span>Built for people who read their own ledger.</span>
+          <span className="lp-brand lp-brand--sm">
+            <BrandMark size={22} />
+            Genkin
+          </span>
+          <span className="mono">© 2026 · Built for people who read their own ledger</span>
           <div className="lp-foot__links">
-            <Link to="/login" state={authState}>Sign in</Link>
-            <Link to="/register" state={authState}>Sign up</Link>
+            <Link to="/login" state={authState}>
+              Sign in
+            </Link>
+            <Link to="/register" state={authState}>
+              Sign up
+            </Link>
           </div>
         </div>
       </footer>

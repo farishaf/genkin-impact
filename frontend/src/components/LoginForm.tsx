@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLogin } from "../hooks/useAuth";
 import { ApiError } from "../lib/api";
+import { PasswordInput } from "./PasswordInput";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -30,9 +31,14 @@ export function LoginForm() {
       </label>
       <label className="field">
         <span>Password</span>
-        <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <PasswordInput label="Password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </label>
-      {error && <p className="field-error">{error}</p>}
+      <div className="field-aside">
+        <Link to="/forgot-password" state={location.state}>
+          Forgot password?
+        </Link>
+      </div>
+      {error && <p className="field-error" role="alert">{error}</p>}
       <button className="btn-primary" type="submit" disabled={login.isPending}>
         {login.isPending ? "Signing in…" : "Sign in"}
       </button>

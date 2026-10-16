@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import request from "supertest";
+import { createHash } from "node:crypto";
 import { app } from "../app.js";
 import { pool } from "../db/pool.js";
 import { runMigrations } from "../db/migrate.js";
@@ -18,6 +19,7 @@ beforeEach(async () => {
   await pool.query("DELETE FROM recurring_rules");
   await pool.query("DELETE FROM accounts");
   await pool.query("DELETE FROM sessions");
+  await pool.query("DELETE FROM password_reset_tokens");
   await pool.query("DELETE FROM members");
   await pool.query("DELETE FROM categories");
   await pool.query("DELETE FROM tags");
@@ -174,5 +176,124 @@ describe("POST /auth/logout", () => {
 
     const session = await pool.query("SELECT revoked_at FROM sessions");
     expect(session.rows[0].revoked_at).not.toBeNull();
+  });
+});
+
+// The raw reset token is only ever emailed, so tests plant a token whose raw value they know.
+async function plantResetToken(email: string, raw: string, opts: { expiresInMs?: number; used?: boolean } = {}) {
+  const user = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+  const hash = createHash("sha256").update(raw).digest("hex");
+  await pool.query(
+    `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, used_at)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
+    [user.rows[0].id, hash, new Date(Date.now() + (opts.expiresInMs ?? 60 * 60 * 1000)), opts.used ? new Date() : null]
+  );
+}
+
+describe("POST /auth/forgot-password", () => {
+  it("returns 200 for an unknown email without creating a token (no account enumeration)", async () => {
+    const res = await request(app).post("/auth/forgot-password").send({ email: "nobody@example.com" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    const tokens = await pool.query("SELECT id FROM password_reset_tokens");
+    expect(tokens.rows).toHaveLength(0);
+  });
+
+  it("stores only a hashed, short-lived token for a known email", async () => {
+    await request(app).post("/auth/register").send({ email: "forgot@example.com", password: "password12345", display_name: "F" });
+    const res = await request(app).post("/auth/forgot-password").send({ email: "forgot@example.com" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+
+    const tokens = await pool.query("SELECT token_hash, expires_at, used_at FROM password_reset_tokens");
+    expect(tokens.rows).toHaveLength(1);
+    expect(tokens.rows[0].token_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(tokens.rows[0].used_at).toBeNull();
+    const ttlMs = new Date(tokens.rows[0].expires_at).getTime() - Date.now();
+    expect(ttlMs).toBeGreaterThan(55 * 60 * 1000);
+    expect(ttlMs).toBeLessThanOrEqual(60 * 60 * 1000);
+  });
+
+  it("does not issue a second token within the cooldown window", async () => {
+    await request(app).post("/auth/register").send({ email: "spam@example.com", password: "password12345", display_name: "S" });
+    await request(app).post("/auth/forgot-password").send({ email: "spam@example.com" });
+    const again = await request(app).post("/auth/forgot-password").send({ email: "spam@example.com" });
+    expect(again.status).toBe(200);
+    const tokens = await pool.query("SELECT id FROM password_reset_tokens");
+    expect(tokens.rows).toHaveLength(1);
+  });
+
+  it("rejects a malformed email", async () => {
+    const res = await request(app).post("/auth/forgot-password").send({ email: "not-an-email" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /auth/reset-password", () => {
+  const email = "reset@example.com";
+  const oldPassword = "old-password-123";
+  const newPassword = "brand-new-password-456";
+
+  beforeEach(async () => {
+    await request(app).post("/auth/register").send({ email, password: oldPassword, display_name: "R" });
+  });
+
+  it("sets the new password, burns the token, revokes old sessions and signs the user in", async () => {
+    await plantResetToken(email, "valid-raw-token");
+    const res = await request(app).post("/auth/reset-password").send({ token: "valid-raw-token", password: newPassword });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe(email);
+    expect(res.body.user.password_hash).toBeUndefined();
+    const setCookie = res.headers["set-cookie"];
+    const cookies = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+    expect(cookies.some((c: string) => c.startsWith("access_token="))).toBe(true);
+
+    const used = await pool.query("SELECT used_at FROM password_reset_tokens");
+    expect(used.rows[0].used_at).not.toBeNull();
+
+    // the session created at registration is revoked; only the fresh one is live
+    const live = await pool.query("SELECT id FROM sessions WHERE revoked_at IS NULL");
+    expect(live.rows).toHaveLength(1);
+
+    const oldLogin = await request(app).post("/auth/login").send({ email, password: oldPassword });
+    expect(oldLogin.status).toBe(401);
+    const newLogin = await request(app).post("/auth/login").send({ email, password: newPassword });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it("rejects a token that was already used", async () => {
+    await plantResetToken(email, "used-raw-token", { used: true });
+    const res = await request(app).post("/auth/reset-password").send({ token: "used-raw-token", password: newPassword });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("invalid_token");
+  });
+
+  it("rejects an expired token", async () => {
+    await plantResetToken(email, "expired-raw-token", { expiresInMs: -1000 });
+    const res = await request(app).post("/auth/reset-password").send({ token: "expired-raw-token", password: newPassword });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects an unknown token", async () => {
+    const res = await request(app).post("/auth/reset-password").send({ token: "never-issued", password: newPassword });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a password shorter than 10 characters without burning the token", async () => {
+    await plantResetToken(email, "short-pw-token");
+    const res = await request(app).post("/auth/reset-password").send({ token: "short-pw-token", password: "short" });
+    expect(res.status).toBe(400);
+    const used = await pool.query("SELECT used_at FROM password_reset_tokens");
+    expect(used.rows[0].used_at).toBeNull();
+  });
+
+  it("only lets one of two concurrent requests use the same token", async () => {
+    await plantResetToken(email, "race-raw-token");
+    const [a, b] = await Promise.all([
+      request(app).post("/auth/reset-password").send({ token: "race-raw-token", password: newPassword }),
+      request(app).post("/auth/reset-password").send({ token: "race-raw-token", password: "another-password-789" }),
+    ]);
+    expect([a.status, b.status].sort((x, y) => x - y)).toEqual([200, 400]);
   });
 });

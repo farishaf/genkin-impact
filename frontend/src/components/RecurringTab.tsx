@@ -2,6 +2,8 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { formatAmount } from "../lib/formatAmount";
+import { Modal } from "./Modal";
+import { PlusIcon } from "./TxnIcons";
 
 interface Account {
   id: string;
@@ -176,6 +178,13 @@ function AddRecurringRuleForm({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+const FREQUENCY_UNIT: Record<RecurringRule["frequency"], string> = {
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+  yearly: "year",
+};
+
 function RecurringRuleCard({ rule }: { rule: RecurringRule }) {
   const qc = useQueryClient();
   const invalidate = () => {
@@ -189,25 +198,31 @@ function RecurringRuleCard({ rule }: { rule: RecurringRule }) {
     onSuccess: invalidate,
   });
 
+  const unit = FREQUENCY_UNIT[rule.frequency];
+  const cadence = rule.interval_count > 1 ? `every ${rule.interval_count} ${unit}s` : `every ${unit}`;
+  const nextRun = new Date(rule.next_run_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
   return (
-    <div className="card plan-card">
+    <div className="card plan-card" data-paused={!rule.is_active}>
       <div className="plan-card__head">
-        <div>
-          <div className="plan-card__name">{rule.name}</div>
-          <div className="plan-card__meta">
+        <div className="plan-card__titles">
+          <span className="eyebrow">
             {rule.txn_type === "transfer" ? `${rule.account_name} → ${rule.to_account_name}` : `${rule.account_name} · ${rule.category_name}`}
-          </div>
+          </span>
+          <div className="plan-card__name">{rule.name}</div>
         </div>
-        <button className="btn-outline btn-outline--sm" type="button" onClick={() => toggleActive.mutate()}>
+        <span className="plan-card__amount num" data-kind={rule.txn_type}>
+          {formatAmount(rule.amount, rule.currency_code)}
+          <small>{rule.currency_code}</small>
+        </span>
+      </div>
+      <div className="plan-card__foot">
+        <span className="status-pill" data-tone={rule.is_active ? "neutral" : "warn"}>
+          {rule.is_active ? `${cadence} · next ${nextRun}` : "Paused"}
+        </span>
+        <button className="btn btn--ghost btn--sm" type="button" onClick={() => toggleActive.mutate()} disabled={toggleActive.isPending}>
           {rule.is_active ? "Pause" : "Resume"}
         </button>
-      </div>
-      <div className="plan-card__figures">
-        <span>{formatAmount(rule.amount, rule.currency_code)}</span>
-        <span className="muted-inline">
-          every {rule.interval_count > 1 ? `${rule.interval_count} ` : ""}
-          {rule.frequency} · next {new Date(rule.next_run_at).toLocaleDateString()}
-        </span>
       </div>
       {rule.pending_transaction && (
         <div className="plan-card__pending">
@@ -236,15 +251,15 @@ export function RecurringTab() {
   return (
     <div>
       <div className="plans-tab-head">
-        <button className="btn-primary" type="button" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "+ New rule"}
+        <p className="plans-tab-head__lede">Subscriptions, rent, allowance — logged for you.</p>
+        <button className="btn-primary" type="button" onClick={() => setShowForm(true)}>
+          <PlusIcon size={16} />
+          New rule
         </button>
       </div>
-      {showForm && (
-        <div className="card" style={{ margin: "0 0 var(--space-lg)", padding: "var(--space-lg)" }}>
-          <AddRecurringRuleForm onCreated={() => setShowForm(false)} />
-        </div>
-      )}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New recurring rule">
+        <AddRecurringRuleForm onCreated={() => setShowForm(false)} />
+      </Modal>
       <div className="plan-list">
         {isLoading && <p className="muted">Loading…</p>}
         {rules?.map((r) => (

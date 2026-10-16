@@ -3,6 +3,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx src/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

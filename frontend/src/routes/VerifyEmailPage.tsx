@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { BrandMark } from "../components/TxnIcons";
 
 export function VerifyEmailPage() {
   const [params] = useSearchParams();
@@ -20,7 +21,11 @@ export function VerifyEmailPage() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <h1 className="auth-title">Genkin-Impact</h1>
+        <Link to="/" className="auth-brand">
+          <BrandMark size={30} />
+          Genkin
+        </Link>
+        <h1 className="auth-title">Email verification</h1>
         {status === "checking" && <p>Verifying…</p>}
         {status === "ok" && <p>Your email is verified.</p>}
         {status === "error" && <p>This verification link is invalid or expired.</p>}

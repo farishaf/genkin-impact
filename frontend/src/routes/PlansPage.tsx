@@ -5,7 +5,7 @@ import { RecurringTab } from "../components/RecurringTab";
 
 const TABS = [
   { key: "budgets", label: "Budgets" },
-  { key: "savings", label: "Savings Goals" },
+  { key: "savings", label: "Savings" },
   { key: "recurring", label: "Recurring" },
 ] as const;
 
@@ -16,16 +16,19 @@ export function PlansPage() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <h1>Plans</h1>
-      </div>
-      <div className="plans-tabs" role="tablist">
+      <header className="page-head">
+        <div className="page-head__titles">
+          <span className="eyebrow eyebrow--accent">Stay ahead</span>
+          <h1>Plans</h1>
+        </div>
+      </header>
+      <div className="seg-toggle seg-toggle--lg plans-seg" role="tablist" aria-label="Plan type">
         {TABS.map((t) => (
           <button
             key={t.key}
             role="tab"
             type="button"
-            className={`plans-tab${tab === t.key ? " plans-tab--active" : ""}`}
+            data-active={tab === t.key}
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
           >
@@ -33,7 +36,7 @@ export function PlansPage() {
           </button>
         ))}
       </div>
-      <div className="plans-tab-panel">
+      <div className="plans-tab-panel" role="tabpanel">
         {tab === "budgets" && <BudgetsTab />}
         {tab === "savings" && <SavingsTab />}
         {tab === "recurring" && <RecurringTab />}

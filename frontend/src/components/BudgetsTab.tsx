@@ -2,7 +2,9 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { useCurrentUser } from "../hooks/useAuth";
-import { ProgressBar } from "./ProgressBar";
+import { ProgressBar, type ProgressTone } from "./ProgressBar";
+import { Modal } from "./Modal";
+import { PlusIcon } from "./TxnIcons";
 
 interface Category {
   id: string;
@@ -134,25 +136,33 @@ function BudgetCard({ budget }: { budget: Budget }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["budgets"] }),
   });
 
-  const tone = budget.pct >= 100 ? "negative" : budget.pct >= 80 ? "negative" : "positive";
+  const tone: ProgressTone = budget.pct >= 100 ? "danger" : budget.pct >= 80 ? "warn" : "ok";
+  const status = budget.pct >= 100 ? "Over budget" : budget.pct >= 80 ? "Getting close" : "On track";
 
   return (
     <div className="card plan-card">
       <div className="plan-card__head">
-        <div>
-          <div className="plan-card__name">{budget.name}</div>
-          <div className="plan-card__meta">
+        <div className="plan-card__titles">
+          <span className="eyebrow">
             {budget.category_name ?? "Overall"} · {budget.period}
-          </div>
+          </span>
+          <div className="plan-card__name">{budget.name}</div>
         </div>
-        <button className="btn-outline btn-outline--sm" type="button" onClick={() => archive.mutate()}>
-          Archive
-        </button>
+        <span className="plan-card__pct num" data-tone={tone}>
+          {Math.round(budget.pct)}
+          <small>%</small>
+        </span>
       </div>
       <ProgressBar pct={budget.pct} tone={tone} />
       <div className="plan-card__figures">
-        <span>{budget.spent_display} spent</span>
-        <span className="muted-inline">of {budget.limit_display}</span>
+        <span className="num">{budget.spent_display}</span>
+        <span className="muted-inline num">of {budget.limit_display}</span>
+      </div>
+      <div className="plan-card__foot">
+        <span className="status-pill" data-tone={tone}>{status}</span>
+        <button className="btn btn--ghost btn--sm" type="button" onClick={() => archive.mutate()} disabled={archive.isPending}>
+          Archive
+        </button>
       </div>
     </div>
   );
@@ -168,21 +178,21 @@ export function BudgetsTab() {
   return (
     <div>
       <div className="plans-tab-head">
-        <button className="btn-primary" type="button" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "+ New budget"}
+        <p className="plans-tab-head__lede">Spending caps that reset each period.</p>
+        <button className="btn-primary" type="button" onClick={() => setShowForm(true)}>
+          <PlusIcon size={16} />
+          New budget
         </button>
       </div>
-      {showForm && (
-        <div className="card" style={{ margin: "0 0 var(--space-lg)", padding: "var(--space-lg)" }}>
-          <AddBudgetForm onCreated={() => setShowForm(false)} />
-        </div>
-      )}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New budget">
+        <AddBudgetForm onCreated={() => setShowForm(false)} />
+      </Modal>
       <div className="plan-list">
         {isLoading && <p className="muted">Loading…</p>}
         {budgets?.map((b) => (
           <BudgetCard key={b.id} budget={b} />
         ))}
-        {budgets?.length === 0 && <p className="muted">No budgets yet.</p>}
+        {budgets?.length === 0 && <p className="muted">No budgets yet. Set one for the category you overspend on most.</p>}
       </div>
     </div>
   );

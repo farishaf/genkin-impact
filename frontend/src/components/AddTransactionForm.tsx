@@ -35,6 +35,12 @@ export interface EditingTxn {
   tags: { id: string; name: string }[];
 }
 
+const TYPE_OPTIONS: { value: EditingTxn["type"]; label: string }[] = [
+  { value: "expense", label: "Expense" },
+  { value: "income", label: "Income" },
+  { value: "transfer", label: "Transfer" },
+];
+
 export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn | null; onDone: () => void }) {
   const isEditing = !!editing;
 
@@ -137,16 +143,37 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
 
   return (
     <form className="txn-form" onSubmit={onSubmit}>
-      <label className="field">
-        <span>Type</span>
-        <select disabled={isEditing} value={type} onChange={(e) => setType(e.target.value as typeof type)}>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="transfer">Transfer</option>
-        </select>
+      <div className="field">
+        <div className="seg-toggle seg-toggle--fill seg-toggle--lg" role="radiogroup" aria-label="Type">
+          {TYPE_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={type === o.value}
+              data-active={type === o.value}
+              disabled={isEditing && type !== o.value}
+              onClick={() => setType(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="field amount-field" data-type={type}>
+        <span>Amount{selectedCurrencyCode && <span className="field__badge">{selectedCurrencyCode}</span>}</span>
+        <input
+          required
+          disabled={isEditing && type === "transfer"}
+          inputMode="decimal"
+          autoFocus={!isEditing}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="0"
+        />
       </label>
       <label className="field">
-        <span>From account</span>
+        <span>{type === "transfer" ? "From account" : type === "income" ? "Into account" : "Paid from"}</span>
         <select required disabled={isEditing} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           <option value="" disabled>
             Select an account
@@ -190,19 +217,8 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
         </label>
       )}
       <label className="field">
-        <span>Amount{selectedCurrencyCode && <span className="field__badge">{selectedCurrencyCode}</span>}</span>
-        <input
-          required
-          disabled={isEditing && type === "transfer"}
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-        />
-      </label>
-      <label className="field">
         <span>Note</span>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was it for? (optional)" />
       </label>
       {!isEditing && (
         <label className="field">
@@ -244,7 +260,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
       )}
       {error && <p className="field-error">{error}</p>}
       <button className="btn-primary" type="submit" disabled={submitTxn.isPending}>
-        {submitTxn.isPending ? "Saving…" : isEditing ? "Save changes" : "Save transaction"}
+        {submitTxn.isPending ? "Saving…" : isEditing ? "Save changes" : "Add entry"}
       </button>
     </form>
   );

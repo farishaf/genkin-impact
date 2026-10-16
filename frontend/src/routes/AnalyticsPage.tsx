@@ -5,6 +5,8 @@ import { formatAmount, formatMoney } from "../lib/formatAmount";
 import { HeatmapCalendar, type AnalyticsDay } from "../components/HeatmapCalendar";
 import { TrendChart } from "../components/TrendChart";
 import { ChevronIcon } from "../components/TxnIcons";
+import { SummaryHero } from "../components/SummaryHero";
+import { hueStyle } from "../lib/categoryHue";
 
 interface AnalyticsSummary {
   month: string;
@@ -75,50 +77,63 @@ export function AnalyticsPage() {
   return (
     <div className="txn-page">
       <div className="txn-page__content">
-        <div className="page-head">
-          <h1>Analytics</h1>
-          <div className="head-spacer" />
-          <button className="icon-btn" type="button" aria-label="Previous month" style={{ width: 32, height: 32 }} onClick={() => changeMonth(-1)}>
-            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}>
-              <ChevronIcon />
-            </span>
-          </button>
-          <span className="filter-chip filter-chip--emph">{monthLabel(month)}</span>
-          <button className="icon-btn" type="button" aria-label="Next month" style={{ width: 32, height: 32 }} onClick={() => changeMonth(1)}>
-            <ChevronIcon />
-          </button>
-        </div>
+        <header className="page-head">
+          <div className="page-head__titles">
+            <span className="eyebrow eyebrow--accent">Patterns</span>
+            <h1>Insights</h1>
+          </div>
+          <div className="page-head__actions">
+            <div className="month-stepper" role="group" aria-label="Month">
+              <button className="icon-btn" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>
+                <span className="chevron--back">
+                  <ChevronIcon />
+                </span>
+              </button>
+              <span className="month-stepper__label">{monthLabel(month)}</span>
+              <button className="icon-btn" type="button" aria-label="Next month" onClick={() => changeMonth(1)}>
+                <ChevronIcon />
+              </button>
+            </div>
+          </div>
+        </header>
 
-        {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load analytics. Try refreshing.</p>}
+        {isSummaryError && <p className="field-error">Failed to load analytics. Try refreshing.</p>}
 
         {summary && (
-          <div style={{ padding: "0 var(--space-xl) var(--space-2xl)" }}>
-            <div className="card kv-card">
-              <div className="kv-row"><span className="kv-row__k">Begin</span><span className="kv-row__v">{dayLabel(summary.days[0]?.date ?? month)}</span></div>
-              <div className="kv-row"><span className="kv-row__k">End</span><span className="kv-row__v">{dayLabel(summary.days[summary.days.length - 1]?.date ?? month)}</span></div>
-              <div className="kv-row">
-                <span className="kv-row__k">Net this month</span>
-                <span className={`kv-row__v${Number(summary.month_net_minor) > 0 ? " kv-row__v--gain" : Number(summary.month_net_minor) < 0 ? " kv-row__v--loss" : ""}`}>
-                  {Number(summary.month_net_minor) > 0 ? "+" : ""}
-                  {formatAmount(summary.month_net_minor, summary.main_currency_code)} {summary.main_currency_code}
-                </span>
+          <div className="stack">
+            <SummaryHero
+              rangeLabel={monthLabel(month)}
+              summary={{
+                income_minor: summary.month_income_minor,
+                expenditure_minor: summary.month_expenditure_minor,
+                balance_minor: summary.month_net_minor,
+                main_currency_code: summary.main_currency_code,
+              }}
+            />
+
+            <div className="card panel">
+              <div className="panel__head">
+                <div>
+                  <span className="eyebrow">Daily heatmap</span>
+                  <div className="panel__title">Your month at a glance</div>
+                </div>
+                <span className="panel__hint">Tap a day</span>
+              </div>
+              <HeatmapCalendar days={summary.days} selectedDate={selectedDate} onSelectDay={setSelectedDate} currencyCode={summary.main_currency_code} />
+              <div className="legend-row">
+                <span className="legend-item"><span className="legend-swatch" data-tone="loss" /> Spent more</span>
+                <span className="legend-item"><span className="legend-swatch" data-tone="neutral" /> Quiet day</span>
+                <span className="legend-item"><span className="legend-swatch" data-tone="gain" /> Earned more</span>
               </div>
             </div>
 
             <div className="card panel">
               <div className="panel__head">
-                <span className="panel__title">Daily Breakdown</span>
+                <div>
+                  <span className="eyebrow">Daily net</span>
+                  <div className="panel__title">Trend</div>
+                </div>
               </div>
-              <HeatmapCalendar days={summary.days} selectedDate={selectedDate} onSelectDay={setSelectedDate} currencyCode={summary.main_currency_code} />
-              <div className="legend-row">
-                <span className="legend-item"><span className="legend-swatch" data-tone="loss" /> Loss (spend &gt; income)</span>
-                <span className="legend-item"><span className="legend-swatch" data-tone="neutral" /> No activity</span>
-                <span className="legend-item"><span className="legend-swatch" data-tone="gain" /> Gain (income &gt; spend)</span>
-              </div>
-            </div>
-
-            <div className="card panel">
-              <span className="panel__label">Daily Net Trend</span>
               <TrendChart days={summary.days} />
               <div className="chart-months">
                 {tickDays.map((d) => (
@@ -132,29 +147,32 @@ export function AnalyticsPage() {
 
       <aside className="right">
         <div className="right-inner">
-          <div className="right-title">Day Detail</div>
+          <div className="right-head">
+            <span className="eyebrow eyebrow--accent">Day detail</span>
+            <h2 className="right-title">{selectedDay ? (isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)) : "Pick a day"}</h2>
+          </div>
 
-          {!selectedDay && <p className="muted">Select a day in the calendar to see its transactions.</p>}
+          {!selectedDay && <p className="muted muted--flush">Tap any square in the heatmap to see what happened that day.</p>}
 
           {selectedDay && summary && (
             <>
               <div className="tile-grid">
-                <div className="card stat-card">
-                  <div className="stat-card__label">Expenditure</div>
-                  <div className="stat-card__figure" style={{ color: "var(--color-loss)" }}>
+                <div className="stat-tile">
+                  <span className="eyebrow"><span className="dot" data-tone="expense" /> Out</span>
+                  <div className="stat-tile__figure num">
                     {formatAmount(selectedDay.expenditure_minor, summary.main_currency_code)}
                   </div>
                 </div>
-                <div className="card stat-card">
-                  <div className="stat-card__label">Income</div>
-                  <div className="stat-card__figure" style={{ color: "var(--color-gain)" }}>
+                <div className="stat-tile">
+                  <span className="eyebrow"><span className="dot" data-tone="income" /> In</span>
+                  <div className="stat-tile__figure num">
                     {formatAmount(selectedDay.income_minor, summary.main_currency_code)}
                   </div>
                 </div>
               </div>
 
-              <div className="txn-group__head" style={{ padding: "16px 2px 10px" }}>
-                <span className="txn-group__date">{isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)}</span>
+              <div className="txn-group__head">
+                <span className="eyebrow">Net for the day</span>
                 {selectedDay.sign !== "neutral" && (
                   <span className="txn-group__pill" data-tone={selectedDay.sign === "gain" ? "positive" : "negative"}>
                     {selectedDay.sign === "gain" ? "+" : ""}
@@ -167,7 +185,9 @@ export function AnalyticsPage() {
                 {isDayLoading && <p className="muted">Loading…</p>}
                 {dayTxns?.map((t) => (
                   <div className="txn-row" key={t.id}>
-                    <span className="cat-badge">{(t.category_name ?? t.account_name).charAt(0).toUpperCase()}</span>
+                    <span className="cat-badge" data-kind={t.type} style={hueStyle(t.category_name ?? t.account_name)}>
+                      {(t.category_name ?? t.account_name).charAt(0).toUpperCase()}
+                    </span>
                     <div className="txn-row__body">
                       <div className="txn-row__top">
                         <span className="txn-row__cat">{t.category_name ?? "Transfer"}</span>

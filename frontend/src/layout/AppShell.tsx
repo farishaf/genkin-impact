@@ -1,69 +1,88 @@
-import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../hooks/useAuth";
-import { useConvention, useTheme } from "../hooks/useDisplayPrefs";
+import type { ComponentType } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { SettingsMenu } from "../components/SettingsMenu";
+import { ActivityIcon, BrandMark, InsightsIcon, PlusIcon, TargetIcon, WalletIcon } from "../components/TxnIcons";
+
+interface NavEntry {
+  to: string;
+  label: string;
+  Icon: ComponentType<{ size?: number }>;
+}
+
+const NAV: NavEntry[] = [
+  { to: "/app/transactions", label: "Activity", Icon: ActivityIcon },
+  { to: "/app/assets", label: "Accounts", Icon: WalletIcon },
+  { to: "/app/analytics", label: "Insights", Icon: InsightsIcon },
+  { to: "/app/plans", label: "Plans", Icon: TargetIcon },
+];
+
+// TransactionsPage opens its composer when it sees ?new=1, so "+" works from any tab.
+const NEW_ENTRY = "/app/transactions?new=1";
+
+function navClass({ isActive }: { isActive: boolean }) {
+  return `nav-item${isActive ? " nav-item--active" : ""}`;
+}
 
 export function AppShell() {
-  const { data: user } = useCurrentUser();
-  const logout = useLogout();
-  const { theme, setTheme } = useTheme();
-  const { convention, setConvention } = useConvention();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const nextTheme = theme === "dark" ? "light" : "dark";
-
   return (
-    <div className="app" style={{ ["--color-accent-override" as string]: user?.accent_color || undefined }}>
-      <div className="topbar">
-        <button className="menu-btn" type="button" aria-label="Toggle menu" onClick={() => setDrawerOpen((v) => !v)}>
-          ☰
-        </button>
-        <div className="brand">
-          <div className="brand-mark">G</div>
-          <span className="brand-name">Genkin-Impact</span>
-        </div>
-        <div className="topbar-spacer" />
-        {user?.main_currency_code && <span className="cur-btn">{user.main_currency_code}</span>}
-        <button
-          className="btn-outline btn-outline--sm"
-          type="button"
-          onClick={() => setConvention(convention === "western" ? "eastern" : "western")}
-          title="Which colour means a gain. Eastern: red. Western: green."
-        >
-          Gain: {convention === "western" ? "green" : "red"}
-        </button>
-        <button
-          className="btn-outline btn-outline--sm"
-          type="button"
-          onClick={() => setTheme(nextTheme)}
-          aria-label={`Switch to ${nextTheme} theme`}
-        >
-          <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
-        </button>
-        <button className="btn-outline" type="button" onClick={() => logout.mutate()}>
-          Log out
-        </button>
-      </div>
-      <div className="body-row">
-        <aside className={`sidebar${drawerOpen ? " sidebar--open" : ""}`}>
-          <div className="sidebar-inner">
-            <NavLink to="/app/transactions" className={({ isActive }) => `nav-item${isActive ? " nav-item--active" : ""}`}>
-              Transactions
-            </NavLink>
-            <NavLink to="/app/assets" className={({ isActive }) => `nav-item${isActive ? " nav-item--active" : ""}`}>
-              Assets
-            </NavLink>
-            <NavLink to="/app/analytics" className={({ isActive }) => `nav-item${isActive ? " nav-item--active" : ""}`}>
-              Analytics
-            </NavLink>
-            <NavLink to="/app/plans" className={({ isActive }) => `nav-item${isActive ? " nav-item--active" : ""}`}>
-              Plans
-            </NavLink>
+    <div className="app">
+      <aside className="rail" aria-label="Primary">
+        <div className="rail__inner">
+          <Link to="/app/transactions" className="brand">
+            <BrandMark size={30} />
+            <span className="brand-name">Genkin</span>
+          </Link>
+
+          <Link to={NEW_ENTRY} className="btn-cta btn-cta--block">
+            <PlusIcon size={18} />
+            New entry
+          </Link>
+
+          <nav className="rail__nav">
+            <span className="eyebrow rail__label">Menu</span>
+            {NAV.map(({ to, label, Icon }) => (
+              <NavLink key={to} to={to} className={navClass}>
+                <Icon size={19} />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="rail__foot">
+            <SettingsMenu placement="up" showIdentity />
           </div>
-        </aside>
-        <main className="main">
-          <Outlet />
-        </main>
-      </div>
+        </div>
+      </aside>
+
+      <header className="mobile-bar">
+        <Link to="/app/transactions" className="brand">
+          <BrandMark size={28} />
+          <span className="brand-name">Genkin</span>
+        </Link>
+        <SettingsMenu placement="down" />
+      </header>
+
+      <main className="main">
+        <Outlet />
+      </main>
+
+      <nav className="tabbar" aria-label="Primary">
+        {NAV.slice(0, 2).map(({ to, label, Icon }) => (
+          <NavLink key={to} to={to} className={({ isActive }) => `tab${isActive ? " tab--active" : ""}`}>
+            <Icon size={22} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+        <Link to={NEW_ENTRY} className="tab-fab" aria-label="New entry">
+          <PlusIcon size={24} />
+        </Link>
+        {NAV.slice(2).map(({ to, label, Icon }) => (
+          <NavLink key={to} to={to} className={({ isActive }) => `tab${isActive ? " tab--active" : ""}`}>
+            <Icon size={22} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

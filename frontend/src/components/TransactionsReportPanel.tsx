@@ -40,6 +40,45 @@ export interface SelectedTxn {
   installment_plan_id: string | null;
 }
 
+interface TxnActionsProps {
+  selectedTxn: SelectedTxn;
+  onEdit: () => void;
+  onRefund: () => void;
+  onInstallments: () => void;
+  onDelete: () => void;
+  className?: string;
+}
+
+/** Edit / refund / split / delete for one transaction. Shared by the side panel and the inline row on mobile. */
+export function TxnActions({ selectedTxn, onEdit, onRefund, onInstallments, onDelete, className = "" }: TxnActionsProps) {
+  const canRefund = selectedTxn.type !== "transfer";
+  const canSplit = canRefund && selectedTxn.installment_plan_id === null;
+  return (
+    <div className={`report-action-row ${className}`.trim()}>
+      <button type="button" className="report-action-btn" onClick={onEdit}>
+        <EditIcon />
+        <span className="report-action-btn__label">Edit</span>
+      </button>
+      {canRefund && (
+        <button type="button" className="report-action-btn" onClick={onRefund}>
+          <RefundIcon />
+          <span className="report-action-btn__label">Refund</span>
+        </button>
+      )}
+      {canSplit && (
+        <button type="button" className="report-action-btn" onClick={onInstallments}>
+          <InstallmentsIcon />
+          <span className="report-action-btn__label">Split</span>
+        </button>
+      )}
+      <button type="button" className="report-action-btn report-action-btn--danger" onClick={onDelete}>
+        <DeleteIcon />
+        <span className="report-action-btn__label">Delete</span>
+      </button>
+    </div>
+  );
+}
+
 export function TransactionsReportPanel({
   filters,
   mainCurrencyCode,
@@ -60,12 +99,17 @@ export function TransactionsReportPanel({
   onDeleteSelected: () => void;
 }) {
   const [groupBy, setGroupBy] = useState<GroupBy>("category");
+  // A breakdown that mixes salary with groceries answers nothing. Show spending unless the
+  // list is filtered to income, in which case show where the money came from.
+  const reportType = filters.type === "income" ? "income" : "expense";
+  // Transfers move money between your own accounts; there's nothing to break down.
+  const isTransferView = filters.type === "transfer";
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["transactions", "report", groupBy, filters],
+    enabled: !isTransferView,
+    queryKey: ["transactions", "report", groupBy, reportType, filters],
     queryFn: () => {
-      const params = new URLSearchParams({ group_by: groupBy });
-      if (filters.type === "expense" || filters.type === "income") params.set("type", filters.type);
+      const params = new URLSearchParams({ group_by: groupBy, type: reportType });
       if (filters.member_id) params.set("member_id", filters.member_id);
       if (filters.tag_id) params.set("tag_id", filters.tag_id);
       if (filters.category_id) params.set("category_id", filters.category_id);
@@ -81,22 +125,23 @@ export function TransactionsReportPanel({
 
   return (
     <>
-      <div className="right-title">Report</div>
-
-      <div className="row-toggle">
-        <span className="row-toggle__label">Group By</span>
-        <div className="seg-toggle" role="group" aria-label="Group by">
-          {GROUP_BY_OPTIONS.map((opt) => (
-            <button key={opt.value} type="button" data-active={groupBy === opt.value} onClick={() => setGroupBy(opt.value)}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      <div className="right-head">
+        <span className="eyebrow eyebrow--accent">{reportType === "income" ? "Income" : "Spending"} breakdown</span>
+        <h2 className="right-title">{reportType === "income" ? "Where it came from" : "Where it went"}</h2>
       </div>
 
+      <div className="seg-toggle seg-toggle--fill" role="group" aria-label="Group by">
+        {GROUP_BY_OPTIONS.map((opt) => (
+          <button key={opt.value} type="button" data-active={groupBy === opt.value} onClick={() => setGroupBy(opt.value)}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {isTransferView && <p className="muted">Transfers just move money between your accounts — no breakdown to show.</p>}
       {isError && <p className="field-error">Failed to load report.</p>}
-      {isLoading && <p className="muted">Loading…</p>}
-      {!isLoading && !isError && groups.length === 0 && <p className="muted">No transactions in range.</p>}
+      {!isTransferView && isLoading && <p className="muted">Loading…</p>}
+      {!isTransferView && !isLoading && !isError && groups.length === 0 && <p className="muted">Nothing in this range yet.</p>}
 
       <ReportBarChart
         groups={groups}
@@ -108,35 +153,24 @@ export function TransactionsReportPanel({
 
       {data?.outlier && (
         <div className="outlier-card">
-          <span className="outlier-card__label">Largest transaction</span>
+          <span className="eyebrow">Biggest single entry</span>
           <span className="outlier-card__value">
-            {data.outlier.label} — {formatAmount(data.outlier.amount_minor, data.outlier.currency_code)} {data.outlier.currency_code}
+            <span>{data.outlier.label}</span>
+            <span className="num">{formatAmount(data.outlier.amount_minor, data.outlier.currency_code)} {data.outlier.currency_code}</span>
           </span>
         </div>
       )}
 
       {selectedTxn && (
-        <div className="report-action-row" style={{ marginTop: "var(--space-lg)" }}>
-          <button type="button" className="report-action-btn" onClick={onEditSelected}>
-            <EditIcon />
-            <span className="report-action-btn__label">Edit</span>
-          </button>
-          {selectedTxn.type !== "transfer" && (
-            <button type="button" className="report-action-btn" onClick={onRefundSelected}>
-              <RefundIcon />
-              <span className="report-action-btn__label">Refund</span>
-            </button>
-          )}
-          {selectedTxn.type !== "transfer" && selectedTxn.installment_plan_id === null && (
-            <button type="button" className="report-action-btn" onClick={onInstallmentsSelected}>
-              <InstallmentsIcon />
-              <span className="report-action-btn__label">Installments</span>
-            </button>
-          )}
-          <button type="button" className="report-action-btn" onClick={onDeleteSelected}>
-            <DeleteIcon />
-            <span className="report-action-btn__label">Delete</span>
-          </button>
+        <div className="right-selected">
+          <span className="eyebrow">Selected entry</span>
+          <TxnActions
+            selectedTxn={selectedTxn}
+            onEdit={onEditSelected}
+            onRefund={onRefundSelected}
+            onInstallments={onInstallmentsSelected}
+            onDelete={onDeleteSelected}
+          />
         </div>
       )}
     </>

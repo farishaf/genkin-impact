@@ -11,7 +11,7 @@ import {
   ACCESS_TOKEN_TTL_MS,
   REFRESH_TOKEN_TTL_MS,
 } from "../lib/tokens.js";
-import { sendVerificationEmail } from "../lib/mailer.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../lib/mailer.js";
 import { env } from "../env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
@@ -223,6 +223,116 @@ authRouter.get("/me", requireAuth, async (req, res, next) => {
     const user = result.rows[0];
     if (!user) throw new AppError(401, "unauthenticated", "User not found.");
     res.json({ user: toPublicUser(user) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+const RESET_REQUEST_COOLDOWN_SECONDS = 60;
+
+function hashResetToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
+
+const forgotPasswordSchema = z.object({ email: z.string().email() });
+
+// Always answers { ok: true } so the endpoint can't be used to discover which emails have accounts.
+authRouter.post("/forgot-password", validateBody(forgotPasswordSchema), async (req, res, next) => {
+  try {
+    const { email } = req.body as z.infer<typeof forgotPasswordSchema>;
+    const userRes = await pool.query("SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL", [email]);
+    const user = userRes.rows[0];
+
+    if (user) {
+      // One email per account per cooldown window, so the form can't be used to flood an inbox.
+      // Check-and-insert in one statement so near-simultaneous requests don't each pass the check.
+      const rawToken = randomBytes(32).toString("base64url");
+      const inserted = await pool.query(
+        `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at)
+         SELECT $1, $2, $3, $4
+         WHERE NOT EXISTS (
+           SELECT 1 FROM password_reset_tokens
+           WHERE user_id = $2 AND created_at > now() - make_interval(secs => $5)
+         )
+         RETURNING id`,
+        [newId(), user.id, hashResetToken(rawToken), new Date(Date.now() + RESET_TOKEN_TTL_MS), RESET_REQUEST_COOLDOWN_SECONDS]
+      );
+      if (inserted.rows.length > 0) {
+        const resetUrl = `${env.APP_ORIGIN}/reset-password?token=${rawToken}`;
+        // Best-effort, like verification: a broken SMTP config must not change the response.
+        sendPasswordResetEmail(email, resetUrl).catch((err) => console.error("failed to send password reset email", err));
+        // Read process.env, not env: env.NODE_ENV defaults to "development" when unset, and a
+        // deploy that forgot NODE_ENV must never write live reset links to its logs.
+        if (process.env.NODE_ENV === "development") {
+          // Seeded/demo accounts use addresses that can't receive mail; surface the link locally.
+          console.info(`[dev] password reset link for ${email}: ${resetUrl}`);
+        }
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(10, "Password must be at least 10 characters."),
+});
+
+authRouter.post("/reset-password", validateBody(resetPasswordSchema), async (req, res, next) => {
+  try {
+    const { token, password } = req.body as z.infer<typeof resetPasswordSchema>;
+    const tokenHash = hashResetToken(token);
+    // Cheap lock-free check first, so random tokens can't make us burn an Argon2 hash each.
+    // The locked re-check inside the transaction stays the source of truth.
+    const precheck = await pool.query(
+      "SELECT 1 FROM password_reset_tokens WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()",
+      [tokenHash]
+    );
+    if (precheck.rows.length === 0) throw new AppError(400, "invalid_token", "This reset link is invalid or has expired.");
+    // Hash before opening the transaction so the row lock below is held only briefly.
+    const passwordHash = await hashPassword(password);
+
+    const client = await pool.connect();
+    let userId: string;
+    try {
+      await client.query("BEGIN");
+      // FOR UPDATE serialises concurrent uses of one token: the second request re-checks
+      // used_at after the first commits and finds nothing.
+      const tokenRes = await client.query(
+        `SELECT t.id, t.user_id FROM password_reset_tokens t
+         JOIN users u ON u.id = t.user_id
+         WHERE t.token_hash = $1 AND t.used_at IS NULL AND t.expires_at > now() AND u.deleted_at IS NULL
+         FOR UPDATE OF t`,
+        [tokenHash]
+      );
+      const row = tokenRes.rows[0];
+      if (!row) throw new AppError(400, "invalid_token", "This reset link is invalid or has expired.");
+      userId = row.user_id;
+
+      // Following an emailed link also proves the address, so count it as verified.
+      await client.query(
+        "UPDATE users SET password_hash = $1, email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $2",
+        [passwordHash, userId]
+      );
+      // Burn this token and any other outstanding ones for the account.
+      await client.query("UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [userId]);
+      // Whoever knew the old password is signed out everywhere.
+      await client.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [userId]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    await issueSession(userId, req, res);
+    const userRes = await pool.query("SELECT * FROM users WHERE id = $1", [userId]);
+    res.json({ user: toPublicUser(userRes.rows[0]) });
   } catch (err) {
     next(err);
   }

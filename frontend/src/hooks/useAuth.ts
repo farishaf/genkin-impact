@@ -38,9 +38,27 @@ export function useRegister() {
 }
 
 export function useLogout() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post("/auth/logout"),
-    onSuccess: () => qc.clear(),
+    onSuccess: () => {
+      // Hard navigation, on purpose: it drops every cached query with the page. A router
+      // navigate() runs in a transition, so clearing ["me"] alongside it let RequireAuth
+      // redirect to /login first (and qc.clear() alone redirected nowhere).
+      window.location.replace("/");
+    },
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: { email: string }) => api.post<{ ok: true }>("/auth/forgot-password", input),
+  });
+}
+
+export function useResetPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { token: string; password: string }) => api.post<{ user: User }>("/auth/reset-password", input),
+    onSuccess: (data) => qc.setQueryData(["me"], data.user),
   });
 }

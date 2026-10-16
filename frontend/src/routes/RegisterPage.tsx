@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { RegisterForm } from "../components/RegisterForm";
+import { BrandMark } from "../components/TxnIcons";
 
 // Full-page fallback for direct navigation / bookmarks / refresh on /register.
 // When reached from the landing page instead, AuthModal renders this same
@@ -7,8 +9,12 @@ export function RegisterPage() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <h1 className="auth-title">Genkin-Impact</h1>
-        <p className="auth-sub">Create your ledger.</p>
+        <Link to="/" className="auth-brand">
+          <BrandMark size={30} />
+          Genkin
+        </Link>
+        <h1 className="auth-title">Start your ledger.</h1>
+        <p className="auth-sub">Free, private, and no bank login — ever.</p>
         <RegisterForm />
       </div>
     </div>

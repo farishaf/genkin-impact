@@ -3,6 +3,8 @@ import { LandingPage } from "./routes/LandingPage";
 import { LoginPage } from "./routes/LoginPage";
 import { RegisterPage } from "./routes/RegisterPage";
 import { VerifyEmailPage } from "./routes/VerifyEmailPage";
+import { ForgotPasswordPage } from "./routes/ForgotPasswordPage";
+import { ResetPasswordPage } from "./routes/ResetPasswordPage";
 import { OnboardingPage } from "./routes/OnboardingPage";
 import { AppShell } from "./layout/AppShell";
 import { AssetsPage } from "./routes/AssetsPage";
@@ -25,6 +27,8 @@ export function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route
           path="/onboarding"
@@ -58,6 +62,7 @@ export function App() {
         <Routes>
           <Route path="/login" element={<AuthModal />} />
           <Route path="/register" element={<AuthModal />} />
+          <Route path="/forgot-password" element={<AuthModal />} />
         </Routes>
       )}
     </>

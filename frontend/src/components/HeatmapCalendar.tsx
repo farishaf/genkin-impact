@@ -5,6 +5,9 @@ import { formatAmount } from "../lib/formatAmount";
 
 gsap.registerPlugin(useGSAP);
 
+// Sunday-first, matching getUTCDay() used for the leading blanks below.
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
+
 export interface AnalyticsDay {
   date: string;
   income_minor: string;
@@ -45,6 +48,11 @@ export function HeatmapCalendar({
 
   return (
     <div ref={gridRef} className="heat-grid">
+      {WEEKDAYS.map((d, i) => (
+        <span key={`wd-${i}`} className="heat-weekday" aria-hidden="true">
+          {d}
+        </span>
+      ))}
       {Array.from({ length: leadingBlanks }).map((_, i) => (
         <span key={`blank-${i}`} aria-hidden="true" />
       ))}
@@ -59,8 +67,11 @@ export function HeatmapCalendar({
             data-bucket={day.bucket}
             title={summary}
             aria-label={summary}
+            aria-pressed={selectedDate === day.date}
             onClick={() => onSelectDay(day.date)}
-          />
+          >
+            {Number(day.date.slice(8, 10))}
+          </button>
         );
       })}
     </div>

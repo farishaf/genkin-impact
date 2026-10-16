@@ -2,10 +2,9 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { formatAmount, formatMoney } from "../lib/formatAmount";
+import { hueStyle } from "../lib/categoryHue";
 
 gsap.registerPlugin(useGSAP);
-
-const TICKS = [1, 0.75, 0.5, 0.25, 0];
 
 export interface ReportChartGroup {
   id: string;
@@ -14,66 +13,70 @@ export interface ReportChartGroup {
   count: number;
 }
 
-// Vertical bar chart for report group totals — bars + a y-axis value scale,
-// in place of a per-bar amount label (kept in the title attribute instead,
-// mirrors Genkin-Impact.dc.html's report chart language).
-export function ReportBarChart({
-  groups,
-  maxMinor,
-  currencyCode,
-  clickable,
-  onSelect,
-}: {
+interface ReportBarChartProps {
   groups: ReportChartGroup[];
   maxMinor: number;
   currencyCode: string;
   clickable: boolean;
   onSelect: (id: string) => void;
-}) {
-  const scope = useRef<HTMLDivElement>(null);
+}
+
+// Ranked horizontal bars: full labels stay readable in a narrow side panel (vertical bars truncated
+// every category to two letters), and the share of total answers "how much of my spending is this?".
+export function ReportBarChart({ groups, maxMinor, currencyCode, clickable, onSelect }: ReportBarChartProps) {
+  const scope = useRef<HTMLOListElement>(null);
+  const ranked = [...groups].sort((a, b) => Number(b.total_minor) - Number(a.total_minor));
+  const grandTotal = ranked.reduce((sum, g) => sum + Number(g.total_minor), 0);
 
   useGSAP(
     () => {
-      if (groups.length === 0) return;
+      if (ranked.length === 0) return;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      gsap.from(".chart-bar", {
-        scaleY: 0,
-        transformOrigin: "bottom",
-        duration: reduced ? 0 : 0.5,
+      gsap.from(".rank-row__bar i", {
+        scaleX: 0,
+        transformOrigin: "left center",
+        duration: reduced ? 0 : 0.7,
         stagger: reduced ? 0 : 0.04,
-        ease: "power2.out",
+        ease: "expo.out",
       });
     },
-    { dependencies: [groups.map((g) => g.id).join(","), currencyCode], scope }
+    { dependencies: [ranked.map((g) => g.id).join(","), currencyCode], scope }
   );
 
-  if (groups.length === 0) return null;
+  if (ranked.length === 0) return null;
 
   return (
-    <div className="chart-wrap" ref={scope}>
-      <div className="chart-axis">
-        {TICKS.map((t) => (
-          <span key={t}>{formatAmount(Math.round(maxMinor * t).toString(), currencyCode)}</span>
-        ))}
-      </div>
-      <div className="chart-bars">
-        {groups.map((g) => {
-          const pct = maxMinor > 0 ? (Number(g.total_minor) / maxMinor) * 100 : 0;
-          const title = `${g.label}: ${formatMoney(g.total_minor, currencyCode)}`;
-          const bar = <span className="chart-bar" style={{ height: `${pct}%` }} />;
-          return clickable ? (
-            <button key={g.id} type="button" className="chart-col" title={title} onClick={() => onSelect(g.id)}>
-              {bar}
-              <span className="chart-col__label">{g.label}</span>
-            </button>
-          ) : (
-            <div key={g.id} className="chart-col chart-col--static" title={title}>
-              {bar}
-              <span className="chart-col__label">{g.label}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <ol className="rank-list" ref={scope}>
+      {ranked.map((g) => {
+        const pct = maxMinor > 0 ? (Number(g.total_minor) / maxMinor) * 100 : 0;
+        const share = grandTotal > 0 ? Math.round((Number(g.total_minor) / grandTotal) * 100) : 0;
+        const title = `${g.label}: ${formatMoney(g.total_minor, currencyCode)} · ${g.count} entries`;
+        const body = (
+          <>
+            <span className="rank-row__label">
+              {g.label}
+              <span className="rank-row__share mono">{share}%</span>
+            </span>
+            <span className="rank-row__value num">{formatAmount(g.total_minor, currencyCode)}</span>
+            <span className="rank-row__bar" aria-hidden="true">
+              <i style={{ width: `${Math.max(pct, 1.5)}%`, ...hueStyle(g.label) }} />
+            </span>
+          </>
+        );
+        return (
+          <li key={g.id}>
+            {clickable ? (
+              <button type="button" className="rank-row" title={`${title} — tap to filter`} onClick={() => onSelect(g.id)}>
+                {body}
+              </button>
+            ) : (
+              <div className="rank-row rank-row--static" title={title}>
+                {body}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { ProgressBar } from "./ProgressBar";
+import { Modal } from "./Modal";
+import { PlusIcon } from "./TxnIcons";
 
 interface Account {
   id: string;
@@ -140,9 +142,9 @@ function ContributeForm({ goalId }: { goalId: string }) {
 
   return (
     <form className="contribute-form" onSubmit={onSubmit}>
-      <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Add amount" required />
-      <button className="btn-outline btn-outline--sm" type="submit" disabled={contribute.isPending}>
-        Add
+      <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Add to this goal" required />
+      <button className="btn-outline" type="submit" disabled={contribute.isPending}>
+        {contribute.isPending ? "Adding…" : "Add"}
       </button>
       {error && <p className="field-error">{error}</p>}
     </form>
@@ -157,29 +159,37 @@ function SavingsGoalCard({ goal }: { goal: SavingsGoal }) {
   });
 
   return (
-    <div className="card plan-card">
+    <div className="card plan-card" data-achieved={goal.achieved}>
       <div className="plan-card__head">
-        <div>
+        <div className="plan-card__titles">
+          <span className="eyebrow">
+            {goal.account_id ? `Linked · ${goal.account_name}` : "Manual"}
+            {goal.target_date ? ` · by ${goal.target_date}` : ""}
+          </span>
           <div className="plan-card__name">
             {goal.emoji ? `${goal.emoji} ` : ""}
             {goal.name}
           </div>
-          <div className="plan-card__meta">
-            {goal.account_id ? `Linked to ${goal.account_name}` : "Manual"}
-            {goal.target_date ? ` · due ${goal.target_date}` : ""}
-          </div>
         </div>
-        <button className="btn-outline btn-outline--sm" type="button" onClick={() => archive.mutate()}>
+        <span className="plan-card__pct num" data-tone="ok">
+          {Math.round(goal.pct)}
+          <small>%</small>
+        </span>
+      </div>
+      <ProgressBar pct={goal.pct} tone="ok" />
+      <div className="plan-card__figures">
+        <span className="num">{goal.progress_display}</span>
+        <span className="muted-inline num">of {goal.target_display}</span>
+      </div>
+      {!goal.account_id && !goal.achieved && <ContributeForm goalId={goal.id} />}
+      <div className="plan-card__foot">
+        <span className="status-pill" data-tone={goal.achieved ? "ok" : "neutral"}>
+          {goal.achieved ? "Reached 🎉" : "Saving"}
+        </span>
+        <button className="btn btn--ghost btn--sm" type="button" onClick={() => archive.mutate()} disabled={archive.isPending}>
           Archive
         </button>
       </div>
-      <ProgressBar pct={goal.pct} tone={goal.achieved ? "positive" : "neutral"} />
-      <div className="plan-card__figures">
-        <span>{goal.progress_display} saved</span>
-        <span className="muted-inline">of {goal.target_display}</span>
-      </div>
-      {goal.achieved && <div className="plan-card__badge">Achieved 🎉</div>}
-      {!goal.account_id && !goal.achieved && <ContributeForm goalId={goal.id} />}
     </div>
   );
 }
@@ -194,15 +204,15 @@ export function SavingsTab() {
   return (
     <div>
       <div className="plans-tab-head">
-        <button className="btn-primary" type="button" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "+ New goal"}
+        <p className="plans-tab-head__lede">Put a number on the thing you're saving for.</p>
+        <button className="btn-primary" type="button" onClick={() => setShowForm(true)}>
+          <PlusIcon size={16} />
+          New goal
         </button>
       </div>
-      {showForm && (
-        <div className="card" style={{ margin: "0 0 var(--space-lg)", padding: "var(--space-lg)" }}>
-          <AddSavingsGoalForm onCreated={() => setShowForm(false)} />
-        </div>
-      )}
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="New savings goal">
+        <AddSavingsGoalForm onCreated={() => setShowForm(false)} />
+      </Modal>
       <div className="plan-list">
         {isLoading && <p className="muted">Loading…</p>}
         {goals?.map((g) => (

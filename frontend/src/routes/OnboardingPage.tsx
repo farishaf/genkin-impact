@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { AddAccountForm } from "../components/AddAccountForm";
+import { BrandMark } from "../components/TxnIcons";
 
 interface Currency {
   code: string;
@@ -41,10 +42,18 @@ export function OnboardingPage() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <h1 className="auth-title">Genkin-Impact</h1>
+        <div className="auth-brand">
+          <BrandMark size={30} />
+          Genkin
+        </div>
+        <div className="steps" aria-label={`Step ${step} of 2`}>
+          <i data-done="true" />
+          <i data-done={step === 2} />
+        </div>
         {step === 1 && (
           <>
-            <p className="auth-sub">Step 1 of 2 — pick your main currency.</p>
+            <h1 className="auth-title">What do you spend in?</h1>
+            <p className="auth-sub">Your main currency. Totals and reports are shown in it.</p>
             <label className="field">
               <span>Main currency</span>
               <select value={mainCurrency} onChange={(e) => setMainCurrency(e.target.value)}>
@@ -57,14 +66,15 @@ export function OnboardingPage() {
             </label>
             {isCurrenciesError && <p className="field-error">Failed to load currencies. Try refreshing.</p>}
             {error && <p className="field-error">{error}</p>}
-            <button className="btn-primary" onClick={onPickCurrency} disabled={setCurrency.isPending}>
+            <button className="btn-primary btn-cta--block" onClick={onPickCurrency} disabled={setCurrency.isPending}>
               {setCurrency.isPending ? "Saving…" : "Continue"}
             </button>
           </>
         )}
         {step === 2 && (
           <>
-            <p className="auth-sub">Step 2 of 2 — add your first account.</p>
+            <h1 className="auth-title">Where does it live?</h1>
+            <p className="auth-sub">Add your first account — a bank, an e-wallet, or cash. You can add more later.</p>
             <AddAccountForm onCreated={() => navigate("/app/transactions")} defaultCurrency={mainCurrency} />
           </>
         )}

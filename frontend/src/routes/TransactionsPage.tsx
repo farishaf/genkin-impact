@@ -1,19 +1,26 @@
 import { Fragment, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { api, ApiError, API_URL } from "../lib/api";
-import {
-  formatAmount,
-  formatMoney,
-  minorToInputValue,
-} from "../lib/formatAmount";
+import { formatMoney, minorToInputValue } from "../lib/formatAmount";
+import { hueStyle } from "../lib/categoryHue";
 import {
   AddTransactionForm,
   type EditingTxn,
 } from "../components/AddTransactionForm";
-import { TransactionsReportPanel } from "../components/TransactionsReportPanel";
-import { ChevronIcon, PaperclipIcon } from "../components/TxnIcons";
+import {
+  TransactionsReportPanel,
+  TxnActions,
+} from "../components/TransactionsReportPanel";
+import { SummaryHero } from "../components/SummaryHero";
+import {
+  ChevronIcon,
+  PaperclipIcon,
+  PlusIcon,
+  SlidersIcon,
+} from "../components/TxnIcons";
 import { Modal } from "../components/Modal";
 import { CategoryManager } from "../components/CategoryManager";
 import { Button } from "../components/Button";
@@ -185,6 +192,12 @@ export function TransactionsPage() {
   const rowRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const filterPopoverRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+
+  // The shell's "+" links here with ?new=1 so a new entry can be started from any tab.
+  // Derived rather than synced into state, so there's no effect to keep in step.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const wantsNew = searchParams.get("new") === "1";
+  const formOpen = showForm || wantsNew;
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -479,7 +492,25 @@ export function TransactionsPage() {
   function closeForm() {
     setShowForm(false);
     setEditingTxn(null);
+    if (wantsNew) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
   }
+
+  const rangeLabel =
+    activeRangePreset === "today"
+      ? "Today"
+      : activeRangePreset === "yesterday"
+        ? "Yesterday"
+        : activeRangePreset === "this_week"
+          ? "This week"
+          : activeRangePreset === "last_week"
+            ? "Last week"
+            : fromFilter || toFilter
+              ? "Custom range"
+              : "All time";
 
   const selectedTxn = items?.find((t) => t.id === selectedTxnId) ?? null;
   const groups = groupByDate(items ?? []);
@@ -498,7 +529,11 @@ export function TransactionsPage() {
             setSelectedTxnId((cur) => (cur === t.id ? null : t.id))
           }
         >
-          <span className="cat-badge">
+          <span
+            className="cat-badge"
+            data-kind={t.type}
+            style={hueStyle(t.category_name ?? t.account_name)}
+          >
             {(t.category_name ?? t.account_name).charAt(0).toUpperCase()}
           </span>
           <div className="txn-row__body">
@@ -558,6 +593,17 @@ export function TransactionsPage() {
             <ChevronIcon />
           </div>
         </button>
+
+        {selectedTxnId === t.id && (
+          <TxnActions
+            className="report-action-row--inline"
+            selectedTxn={t}
+            onEdit={() => openEdit(t)}
+            onRefund={() => toggleAction(t.id, "refund")}
+            onInstallments={() => toggleAction(t.id, "installments")}
+            onDelete={() => handleDelete(t)}
+          />
+        )}
 
         {openAction?.id === t.id && openAction.kind === "refund" && (
           <div className="inline-action">
@@ -676,28 +722,29 @@ export function TransactionsPage() {
   return (
     <div className="txn-page">
       <div className="txn-page__content">
-        <div className="page-head">
-          <h1>Transactions</h1>
-          <span className="count-badge">{summary?.count ?? 0}</span>
-          <div className="head-spacer" />
+        <header className="page-head">
+          <div className="page-head__titles">
+            <span className="eyebrow eyebrow--accent">Your ledger</span>
+            <h1>Activity</h1>
+          </div>
+          <div className="page-head__actions">
           <div className="filter-popover-wrap" ref={filterPopoverRef}>
             <div className="filter-cluster">
               <button
                 type="button"
-                className="filter-chip filter-trigger"
+                className="filter-trigger"
                 data-open={filterOpen}
+                data-active={activeFilterCount > 0}
                 aria-expanded={filterOpen}
                 aria-haspopup="true"
                 onClick={() => setFilterOpen((v) => !v)}
               >
-                Filters
-                <ChevronIcon />
+                <SlidersIcon size={16} />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="filter-chip--emph">{activeFilterCount}</span>
+                )}
               </button>
-              {activeFilterCount > 0 && (
-                <span className="filter-chip--emph">
-                  {activeFilterCount} active
-                </span>
-              )}
             </div>
 
             {filterOpen && (
@@ -878,18 +925,20 @@ export function TransactionsPage() {
             </button>
           </div>
           <button
-            className="btn-primary"
+            className="btn-primary page-head__new"
             type="button"
-            onClick={() => (showForm ? closeForm() : openCreate())}
+            onClick={() => (formOpen ? closeForm() : openCreate())}
           >
-            New Transaction
+            <PlusIcon size={16} />
+            New entry
           </button>
-        </div>
+          </div>
+        </header>
 
         <Modal
-          open={showForm}
+          open={formOpen}
           onClose={closeForm}
-          title={editingTxn ? "Edit Transaction" : "New Transaction"}
+          title={editingTxn ? "Edit entry" : "New entry"}
         >
           <AddTransactionForm
             key={editingTxn?.id ?? "new"}
@@ -901,81 +950,18 @@ export function TransactionsPage() {
         <Modal
           open={categoryManagerOpen}
           onClose={() => setCategoryManagerOpen(false)}
-          title="Manage Categories"
+          title="Categories"
         >
           <CategoryManager />
         </Modal>
 
         {isSummaryError && (
-          <p
-            className="field-error"
-            style={{ margin: "0 var(--space-xl) var(--space-lg)" }}
-          >
-            Failed to load summary. Try refreshing.
-          </p>
+          <p className="field-error">Failed to load summary. Try refreshing.</p>
         )}
 
-        {summary && (
-          <div className="summary-grid">
-            <div className="card stat-card">
-              <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-income)" }}
-                />
-                <span className="stat-card__label">Income</span>
-              </div>
-              <div className="stat-card__figure" data-tone="income">
-                {summary.main_currency_code}{" "}
-                {formatAmount(summary.income_minor, summary.main_currency_code)}
-              </div>
-            </div>
-            <div className="card stat-card">
-              <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-expense)" }}
-                />
-                <span className="stat-card__label">Expenditure</span>
-              </div>
-              <div className="stat-card__figure" data-tone="expense">
-                {summary.main_currency_code}{" "}
-                {formatAmount(
-                  summary.expenditure_minor,
-                  summary.main_currency_code,
-                )}
-              </div>
-            </div>
-            <div className="card stat-card">
-              <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-balance)" }}
-                />
-                <span className="stat-card__label">Balance</span>
-              </div>
-              <div className="stat-card__figure" data-tone="balance">
-                {summary.main_currency_code}{" "}
-                {formatAmount(
-                  summary.balance_minor,
-                  summary.main_currency_code,
-                )}
-              </div>
-            </div>
-            <div className="card stat-card">
-              <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-on-surface-muted)" }}
-                />
-                <span className="stat-card__label">Transactions</span>
-              </div>
-              <div className="stat-card__figure">{summary.count}</div>
-            </div>
-          </div>
-        )}
+        {summary && <SummaryHero summary={summary} rangeLabel={rangeLabel} />}
 
-        <div style={{ padding: "0 var(--space-xl)" }}>
+        <div>
           {isItemsError && (
             <p className="field-error">
               Failed to load transactions. Try refreshing.
@@ -984,10 +970,7 @@ export function TransactionsPage() {
           {isLoading && <p className="muted">Loading…</p>}
 
           {viewMode === "table" && (
-            <div
-              className="card txn-card"
-              style={{ marginBottom: "var(--space-2xl)", overflowX: "auto" }}
-            >
+            <div className="card txn-card txn-card--table">
               <table className="txn-table">
                 <thead>
                   <tr>
@@ -1056,7 +1039,24 @@ export function TransactionsPage() {
                 </div>
               ))}
               {items?.length === 0 && (
-                <p className="muted">No transactions yet.</p>
+                <div className="empty-state">
+                  <span className="eyebrow eyebrow--accent">Nothing here yet</span>
+                  <p>
+                    {activeFilterCount > 0
+                      ? "No entries match these filters."
+                      : "Log your first coffee, top-up or payday — it takes five seconds."}
+                  </p>
+                  {activeFilterCount > 0 ? (
+                    <button className="btn-outline" type="button" onClick={clearAllFilters}>
+                      Clear filters
+                    </button>
+                  ) : (
+                    <button className="btn-primary" type="button" onClick={openCreate}>
+                      <PlusIcon size={16} />
+                      New entry
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
