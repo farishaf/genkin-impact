@@ -7,6 +7,8 @@ import { TrendChart } from "../components/TrendChart";
 import { ChevronIcon } from "../components/TxnIcons";
 import { SummaryHero } from "../components/SummaryHero";
 import { hueStyle } from "../lib/categoryHue";
+import { Modal } from "../components/Modal";
+import { MOBILE_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 
 interface AnalyticsSummary {
   month: string;
@@ -52,6 +54,8 @@ function isToday(date: string): boolean {
 export function AnalyticsPage() {
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
 
   const { data: summary, isError: isSummaryError } = useQuery({
     queryKey: ["analytics", "summary", month],
@@ -74,79 +78,8 @@ export function AnalyticsPage() {
     setSelectedDate(null);
   }
 
-  return (
-    <div className="txn-page">
-      <div className="txn-page__content">
-        <header className="page-head">
-          <div className="page-head__titles">
-            <span className="eyebrow eyebrow--accent">Patterns</span>
-            <h1>Insights</h1>
-          </div>
-          <div className="page-head__actions">
-            <div className="month-stepper" role="group" aria-label="Month">
-              <button className="icon-btn" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>
-                <span className="chevron--back">
-                  <ChevronIcon />
-                </span>
-              </button>
-              <span className="month-stepper__label">{monthLabel(month)}</span>
-              <button className="icon-btn" type="button" aria-label="Next month" onClick={() => changeMonth(1)}>
-                <ChevronIcon />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {isSummaryError && <p className="field-error">Failed to load analytics. Try refreshing.</p>}
-
-        {summary && (
-          <div className="stack">
-            <SummaryHero
-              rangeLabel={monthLabel(month)}
-              summary={{
-                income_minor: summary.month_income_minor,
-                expenditure_minor: summary.month_expenditure_minor,
-                balance_minor: summary.month_net_minor,
-                main_currency_code: summary.main_currency_code,
-              }}
-            />
-
-            <div className="card panel">
-              <div className="panel__head">
-                <div>
-                  <span className="eyebrow">Daily heatmap</span>
-                  <div className="panel__title">Your month at a glance</div>
-                </div>
-                <span className="panel__hint">Tap a day</span>
-              </div>
-              <HeatmapCalendar days={summary.days} selectedDate={selectedDate} onSelectDay={setSelectedDate} currencyCode={summary.main_currency_code} />
-              <div className="legend-row">
-                <span className="legend-item"><span className="legend-swatch" data-tone="loss" /> Spent more</span>
-                <span className="legend-item"><span className="legend-swatch" data-tone="neutral" /> Quiet day</span>
-                <span className="legend-item"><span className="legend-swatch" data-tone="gain" /> Earned more</span>
-              </div>
-            </div>
-
-            <div className="card panel">
-              <div className="panel__head">
-                <div>
-                  <span className="eyebrow">Daily net</span>
-                  <div className="panel__title">Trend</div>
-                </div>
-              </div>
-              <TrendChart days={summary.days} />
-              <div className="chart-months">
-                {tickDays.map((d) => (
-                  <span key={d.date}>{new Date(`${d.date}T00:00:00.000Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <aside className="right">
-        <div className="right-inner">
+  const dayDetail = (
+    <>
           <div className="right-head">
             <span className="eyebrow eyebrow--accent">Day detail</span>
             <h2 className="right-title">{selectedDay ? (isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)) : "Pick a day"}</h2>
@@ -210,8 +143,92 @@ export function AnalyticsPage() {
               </div>
             </>
           )}
-        </div>
-      </aside>
+    </>
+  );
+
+  return (
+    <div className="txn-page">
+      <div className="txn-page__content">
+        <header className="page-head">
+          <div className="page-head__titles">
+            <span className="eyebrow eyebrow--accent">Patterns</span>
+            <h1>Insights</h1>
+          </div>
+          <div className="page-head__actions">
+            <div className="month-stepper" role="group" aria-label="Month">
+              <button className="icon-btn" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>
+                <span className="chevron--back">
+                  <ChevronIcon />
+                </span>
+              </button>
+              <span className="month-stepper__label">{monthLabel(month)}</span>
+              <button className="icon-btn" type="button" aria-label="Next month" onClick={() => changeMonth(1)}>
+                <ChevronIcon />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {isSummaryError && <p className="field-error">Failed to load analytics. Try refreshing.</p>}
+
+        {summary && (
+          <div className="stack">
+            <SummaryHero
+              rangeLabel={monthLabel(month)}
+              summary={{
+                income_minor: summary.month_income_minor,
+                expenditure_minor: summary.month_expenditure_minor,
+                balance_minor: summary.month_net_minor,
+                main_currency_code: summary.main_currency_code,
+              }}
+            />
+
+            <div className="card panel">
+              <div className="panel__head">
+                <div>
+                  <span className="eyebrow">Daily heatmap</span>
+                  <div className="panel__title">Your month at a glance</div>
+                </div>
+                <span className="panel__hint">Tap a day</span>
+              </div>
+              <HeatmapCalendar days={summary.days} selectedDate={selectedDate} onSelectDay={(date) => {
+                  setSelectedDate(date);
+                  setIsDetailOpen(true);
+                }} currencyCode={summary.main_currency_code} />
+              <div className="legend-row">
+                <span className="legend-item"><span className="legend-swatch" data-tone="loss" /> Spent more</span>
+                <span className="legend-item"><span className="legend-swatch" data-tone="neutral" /> Quiet day</span>
+                <span className="legend-item"><span className="legend-swatch" data-tone="gain" /> Earned more</span>
+              </div>
+            </div>
+
+            <div className="card panel">
+              <div className="panel__head">
+                <div>
+                  <span className="eyebrow">Daily net</span>
+                  <div className="panel__title">Trend</div>
+                </div>
+              </div>
+              <TrendChart days={summary.days} />
+              <div className="chart-months">
+                {tickDays.map((d) => (
+                  <span key={d.date}>{new Date(`${d.date}T00:00:00.000Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {!isMobile && (
+        <aside className="right">
+          <div className="right-inner">{dayDetail}</div>
+        </aside>
+      )}
+
+      <Modal open={isDetailOpen && isMobile && selectedDate !== null} onClose={() => setIsDetailOpen(false)} title="Day detail">
+        <div className="right-inner">{dayDetail}</div>
+      </Modal>
     </div>
   );
 }

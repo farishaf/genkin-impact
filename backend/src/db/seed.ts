@@ -49,17 +49,17 @@ const ACCOUNTS = [
 type AccountKey = (typeof ACCOUNTS)[number]["key"];
 
 const EXTRA_EXPENSE_CATEGORIES = [
-  { name: "Groceries", emoji: "🛒" },
-  { name: "Eating Out", emoji: "🍜" },
-  { name: "Transport", emoji: "🚆" },
-  { name: "Rent", emoji: "🏠" },
-  { name: "Utilities", emoji: "💡" },
-  { name: "Entertainment", emoji: "🎬" },
-  { name: "Shopping", emoji: "🛍️" },
-  { name: "Coffee", emoji: "☕" },
-  { name: "Subscriptions", emoji: "🔁" },
+  { name: "Groceries" },
+  { name: "Eating Out" },
+  { name: "Transport" },
+  { name: "Rent" },
+  { name: "Utilities" },
+  { name: "Entertainment" },
+  { name: "Shopping" },
+  { name: "Coffee" },
+  { name: "Subscriptions" },
 ];
-const EXTRA_INCOME_CATEGORIES = [{ name: "Freelance", emoji: "💻" }];
+const EXTRA_INCOME_CATEGORIES = [{ name: "Freelance" }];
 
 const TAGS = [
   { name: "Essential", color: "#16a34a" },
@@ -212,16 +212,16 @@ async function main(): Promise<void> {
     );
 
     // Categories (same defaults the app creates on registration + extras for a lived-in look)
-    const defaults: Array<{ name: string; emoji: string; kind: "expense" | "income" }> = [
-      { name: "Delivery", emoji: "🍕", kind: "expense" },
-      { name: "Pet", emoji: "🐸", kind: "expense" },
-      { name: "Gasoline", emoji: "⛽", kind: "expense" },
-      { name: "Fruit", emoji: "🥝", kind: "expense" },
-      { name: "Health", emoji: "🧬", kind: "expense" },
-      { name: "Travel", emoji: "⛱️", kind: "expense" },
-      { name: "Salary", emoji: "", kind: "income" },
-      { name: "Bonus", emoji: "", kind: "income" },
-      { name: "Refund", emoji: "", kind: "income" },
+    const defaults: Array<{ name: string; kind: "expense" | "income" }> = [
+      { name: "Delivery", kind: "expense" },
+      { name: "Pet", kind: "expense" },
+      { name: "Gasoline", kind: "expense" },
+      { name: "Fruit", kind: "expense" },
+      { name: "Health", kind: "expense" },
+      { name: "Travel", kind: "expense" },
+      { name: "Salary", kind: "income" },
+      { name: "Bonus", kind: "income" },
+      { name: "Refund", kind: "income" },
     ];
     const allCategories = [
       ...defaults,
@@ -233,8 +233,8 @@ async function main(): Promise<void> {
       const id = newId();
       categoryIds.set(c.name, id);
       await client.query(
-        "INSERT INTO categories (id, user_id, name, emoji, kind, sort_order, is_system) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-        [id, userId, c.name, c.emoji, c.kind, i, i < defaults.length]
+        "INSERT INTO categories (id, user_id, name, kind, sort_order, is_system) VALUES ($1,$2,$3,$4,$5,$6)",
+        [id, userId, c.name, c.kind, i, i < defaults.length]
       );
     }
 

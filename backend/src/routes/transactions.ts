@@ -445,7 +445,7 @@ transactionsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (
 
     params.push(query.limit, query.offset);
     const result = await pool.query(
-      `SELECT t.*, c.name AS category_name, c.emoji AS category_emoji, a.name AS account_name, m.name AS member_name,
+      `SELECT t.*, c.name AS category_name, a.name AS account_name, m.name AS member_name,
               COALESCE(tags.tags, '[]') AS tags,
               first_att.id AS attachment_id
        FROM transactions t

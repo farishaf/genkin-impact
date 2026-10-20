@@ -68,6 +68,16 @@
   .right-selected { display: none; }
 }
 
+/* ---------- phone bottom sheets (filters, breakdown, day detail) ---------- */
+.filter-sheet { display: flex; flex-direction: column; gap: var(--space-md); }
+.modal-panel .right-inner { padding: 0; }
+.page-head__breakdown { display: none; }
+.page-head__title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+@media (max-width: 60rem) {
+  .page-head__titles--wide { flex: 1 1 100%; }
+  .page-head__breakdown { display: inline-flex; }
+}
+
 /* ---------- hero balance card ---------- */
 .hero-card {
   position: relative; isolation: isolate; overflow: hidden;
@@ -382,4 +392,3 @@ button.rank-row:hover { background: var(--color-surface-2); }
 .category-manager__row input { flex: 1; min-height: 36px; font-size: var(--text-sm); }
 .category-manager__add { display: flex; gap: var(--space-xs); margin-top: var(--space-sm); }
 .category-manager__add input { flex: 1; min-height: 40px; font-size: var(--text-sm); }
-.category-manager__add input[name="emoji"] { flex: 0 0 56px; text-align: center; padding: 0; }

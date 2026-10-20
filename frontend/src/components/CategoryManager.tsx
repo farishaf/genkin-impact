@@ -7,7 +7,6 @@ import { Button } from "./Button";
 interface Category {
   id: string;
   name: string;
-  emoji: string | null;
   kind: "expense" | "income";
   is_system: boolean;
 }
@@ -17,9 +16,7 @@ export function CategoryManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [newExpenseName, setNewExpenseName] = useState("");
-  const [newExpenseEmoji, setNewExpenseEmoji] = useState("");
   const [newIncomeName, setNewIncomeName] = useState("");
-  const [newIncomeEmoji, setNewIncomeEmoji] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const { data: categories } = useQuery({
@@ -28,13 +25,11 @@ export function CategoryManager() {
   });
 
   const createCategory = useMutation({
-    mutationFn: (body: { name: string; emoji?: string; kind: "expense" | "income" }) => api.post("/categories", body),
+    mutationFn: (body: { name: string; kind: "expense" | "income" }) => api.post("/categories", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categories"] });
       setNewExpenseName("");
-      setNewExpenseEmoji("");
       setNewIncomeName("");
-      setNewIncomeEmoji("");
       setError(null);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Something went wrong."),
@@ -79,10 +74,7 @@ export function CategoryManager() {
               </>
             ) : (
               <>
-                <span style={{ flex: 1 }}>
-                  {c.emoji ? `${c.emoji} ` : ""}
-                  {c.name}
-                </span>
+                <span style={{ flex: 1 }}>{c.name}</span>
                 <button
                   type="button"
                   className="icon-btn"
@@ -115,17 +107,10 @@ export function CategoryManager() {
           onSubmit={(e) => {
             e.preventDefault();
             const name = kind === "expense" ? newExpenseName : newIncomeName;
-            const emoji = kind === "expense" ? newExpenseEmoji : newIncomeEmoji;
             if (!name.trim()) return;
-            createCategory.mutate({ name: name.trim(), emoji: emoji.trim() || undefined, kind });
+            createCategory.mutate({ name: name.trim(), kind });
           }}
         >
-          <input
-            name="emoji"
-            placeholder="🏷"
-            value={kind === "expense" ? newExpenseEmoji : newIncomeEmoji}
-            onChange={(e) => (kind === "expense" ? setNewExpenseEmoji(e.target.value) : setNewIncomeEmoji(e.target.value))}
-          />
           <input
             placeholder={`New ${label.toLowerCase().slice(0, -1)} category`}
             value={kind === "expense" ? newExpenseName : newIncomeName}

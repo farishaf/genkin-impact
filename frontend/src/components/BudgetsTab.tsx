@@ -9,7 +9,6 @@ import { PlusIcon } from "./TxnIcons";
 interface Category {
   id: string;
   name: string;
-  emoji: string | null;
 }
 
 interface Currency {
@@ -88,7 +87,6 @@ function AddBudgetForm({ onCreated }: { onCreated: () => void }) {
           <option value="">Overall (all expenses)</option>
           {(categories ?? []).map((c) => (
             <option key={c.id} value={c.id}>
-              {c.emoji ? `${c.emoji} ` : ""}
               {c.name}
             </option>
           ))}

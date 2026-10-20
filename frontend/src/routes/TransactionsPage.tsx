@@ -24,6 +24,7 @@ import {
 import { Modal } from "../components/Modal";
 import { CategoryManager } from "../components/CategoryManager";
 import { Button } from "../components/Button";
+import { MOBILE_QUERY, useMediaQuery } from "../hooks/useMediaQuery";
 
 gsap.registerPlugin(useGSAP);
 
@@ -186,6 +187,8 @@ export function TransactionsPage() {
   const [viewMode, setViewMode] = useState<"list" | "table">("list");
   const [selectedTxnId, setSelectedTxnId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -200,7 +203,7 @@ export function TransactionsPage() {
   const formOpen = showForm || wantsNew;
 
   useEffect(() => {
-    if (!filterOpen) return;
+    if (!filterOpen || isMobile) return;
     function handlePointerDown(e: MouseEvent) {
       if (
         filterPopoverRef.current &&
@@ -217,7 +220,7 @@ export function TransactionsPage() {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [filterOpen]);
+  }, [filterOpen, isMobile]);
 
   function applyRangePreset(
     preset: "today" | "yesterday" | "this_week" | "last_week" | "",
@@ -719,40 +722,8 @@ export function TransactionsPage() {
     );
   }
 
-  return (
-    <div className="txn-page">
-      <div className="txn-page__content">
-        <header className="page-head">
-          <div className="page-head__titles">
-            <span className="eyebrow eyebrow--accent">Your ledger</span>
-            <h1>Activity</h1>
-          </div>
-          <div className="page-head__actions">
-          <div className="filter-popover-wrap" ref={filterPopoverRef}>
-            <div className="filter-cluster">
-              <button
-                type="button"
-                className="filter-trigger"
-                data-open={filterOpen}
-                data-active={activeFilterCount > 0}
-                aria-expanded={filterOpen}
-                aria-haspopup="true"
-                onClick={() => setFilterOpen((v) => !v)}
-              >
-                <SlidersIcon size={16} />
-                Filter
-                {activeFilterCount > 0 && (
-                  <span className="filter-chip--emph">{activeFilterCount}</span>
-                )}
-              </button>
-            </div>
-
-            {filterOpen && (
-              <div
-                className="filter-popover"
-                role="dialog"
-                aria-label="Filters"
-              >
+  const filterContent = (
+    <>
                 <div className="filter-popover__section">
                   <span className="filter-popover__label">Type</span>
                   <span className="select-wrap">
@@ -905,6 +876,74 @@ export function TransactionsPage() {
                     </button>
                   </div>
                 </div>
+    </>
+  );
+
+  const breakdownPanel = (
+    <TransactionsReportPanel
+      filters={{
+        type: typeFilter || undefined,
+        member_id: memberFilter || undefined,
+        tag_id: tagFilter || undefined,
+        category_id: categoryFilter || undefined,
+        from: fromFilter || undefined,
+        to: toFilter || undefined,
+      }}
+      mainCurrencyCode={summary?.main_currency_code ?? "USD"}
+      onSelectGroup={(dimension, id) => {
+        if (dimension === "category") setCategoryFilter(id);
+        else if (dimension === "tag") setTagFilter(id);
+        else setMemberFilter(id);
+        setBreakdownOpen(false);
+      }}
+      selectedTxn={selectedTxn}
+      onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
+      onRefundSelected={() => selectedTxn && toggleAction(selectedTxn.id, "refund")}
+      onInstallmentsSelected={() => selectedTxn && toggleAction(selectedTxn.id, "installments")}
+      onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
+    />
+  );
+
+  return (
+    <div className="txn-page">
+      <div className="txn-page__content">
+        <header className="page-head">
+          <div className="page-head__titles page-head__titles--wide">
+            <span className="eyebrow eyebrow--accent">Your ledger</span>
+            <div className="page-head__title-row">
+              <h1>Activity</h1>
+              <Button variant="outline" size="sm" className="page-head__breakdown" onClick={() => setBreakdownOpen(true)}>
+                Breakdown
+              </Button>
+            </div>
+          </div>
+          <div className="page-head__actions">
+          <div className="filter-popover-wrap" ref={filterPopoverRef}>
+            <div className="filter-cluster">
+              <button
+                type="button"
+                className="filter-trigger"
+                data-open={filterOpen}
+                data-active={activeFilterCount > 0}
+                aria-expanded={filterOpen}
+                aria-haspopup="true"
+                onClick={() => setFilterOpen((v) => !v)}
+              >
+                <SlidersIcon size={16} />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="filter-chip--emph">{activeFilterCount}</span>
+                )}
+              </button>
+            </div>
+
+            {filterOpen && !isMobile && (
+              <div
+                className="filter-popover"
+                role="dialog"
+                aria-label="Filters"
+              >
+                {filterContent}
               </div>
             )}
           </div>
@@ -924,6 +963,9 @@ export function TransactionsPage() {
               Table
             </button>
           </div>
+          <Button variant="outline" onClick={() => setCategoryManagerOpen(true)}>
+            Categories
+          </Button>
           <button
             className="btn-primary page-head__new"
             type="button"
@@ -1063,35 +1105,19 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      <aside className="right">
-        <div className="right-inner">
-          <TransactionsReportPanel
-            filters={{
-              type: typeFilter || undefined,
-              member_id: memberFilter || undefined,
-              tag_id: tagFilter || undefined,
-              category_id: categoryFilter || undefined,
-              from: fromFilter || undefined,
-              to: toFilter || undefined,
-            }}
-            mainCurrencyCode={summary?.main_currency_code ?? "USD"}
-            onSelectGroup={(dimension, id) => {
-              if (dimension === "category") setCategoryFilter(id);
-              else if (dimension === "tag") setTagFilter(id);
-              else setMemberFilter(id);
-            }}
-            selectedTxn={selectedTxn}
-            onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
-            onRefundSelected={() =>
-              selectedTxn && toggleAction(selectedTxn.id, "refund")
-            }
-            onInstallmentsSelected={() =>
-              selectedTxn && toggleAction(selectedTxn.id, "installments")
-            }
-            onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
-          />
-        </div>
-      </aside>
+      {!isMobile && (
+        <aside className="right">
+          <div className="right-inner">{breakdownPanel}</div>
+        </aside>
+      )}
+
+      <Modal open={filterOpen && isMobile} onClose={() => setFilterOpen(false)} title="Filters">
+        <div className="filter-sheet">{filterContent}</div>
+      </Modal>
+
+      <Modal open={breakdownOpen && isMobile} onClose={() => setBreakdownOpen(false)} title="Breakdown">
+        <div className="right-inner">{breakdownPanel}</div>
+      </Modal>
     </div>
   );
 }

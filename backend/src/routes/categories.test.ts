@@ -67,7 +67,7 @@ describe("POST /categories", () => {
     const agent = request.agent(app);
     await agent.post("/auth/register").send({ email: "create@example.com", password: "password12345", display_name: "Create" });
 
-    const res = await agent.post("/categories").send({ name: "Pet Supplies", emoji: "🐾", kind: "expense" });
+    const res = await agent.post("/categories").send({ name: "Pet Supplies", kind: "expense" });
     expect(res.status).toBe(201);
     expect(res.body.category.name).toBe("Pet Supplies");
     expect(res.body.category.is_system).toBe(false);

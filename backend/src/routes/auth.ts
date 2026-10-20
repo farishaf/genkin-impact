@@ -19,16 +19,16 @@ import { AppError } from "../middleware/errorHandler.js";
 
 export const authRouter = Router();
 
-const DEFAULT_CATEGORIES: Array<{ name: string; emoji: string; kind: "expense" | "income" }> = [
-  { name: "Delivery", emoji: "🍕", kind: "expense" },
-  { name: "Pet", emoji: "🐸", kind: "expense" },
-  { name: "Gasoline", emoji: "⛽", kind: "expense" },
-  { name: "Fruit", emoji: "🥝", kind: "expense" },
-  { name: "Health", emoji: "🧬", kind: "expense" },
-  { name: "Travel", emoji: "⛱️", kind: "expense" },
-  { name: "Salary", emoji: "", kind: "income" },
-  { name: "Bonus", emoji: "", kind: "income" },
-  { name: "Refund", emoji: "", kind: "income" },
+const DEFAULT_CATEGORIES: Array<{ name: string; kind: "expense" | "income" }> = [
+  { name: "Delivery", kind: "expense" },
+  { name: "Pet", kind: "expense" },
+  { name: "Gasoline", kind: "expense" },
+  { name: "Fruit", kind: "expense" },
+  { name: "Health", kind: "expense" },
+  { name: "Travel", kind: "expense" },
+  { name: "Salary", kind: "income" },
+  { name: "Bonus", kind: "income" },
+  { name: "Refund", kind: "income" },
 ];
 
 function initialsOf(name: string): string {
@@ -117,8 +117,8 @@ authRouter.post("/register", validateBody(registerSchema), async (req, res, next
 
       for (const [i, cat] of DEFAULT_CATEGORIES.entries()) {
         await client.query(
-          `INSERT INTO categories (id, user_id, name, emoji, kind, sort_order, is_system) VALUES ($1, $2, $3, $4, $5, $6, true)`,
-          [newId(), userId, cat.name, cat.emoji, cat.kind, i]
+          `INSERT INTO categories (id, user_id, name, kind, sort_order, is_system) VALUES ($1, $2, $3, $4, $5, true)`,
+          [newId(), userId, cat.name, cat.kind, i]
         );
       }
 
