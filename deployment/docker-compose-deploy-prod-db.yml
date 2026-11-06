@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ${PROJECT_NAME}-db-prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod.db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    external: true
+    name: ${PROJECT_NAME}-prod-net
+
+volumes:
+  db_data:

@@ -1,0 +1,17 @@
+services:
+  frontend:
+    build:
+      context: ../${FRONTEND_DIR}
+      args:
+        BACKEND_ORIGIN: http://${PROJECT_NAME}-backend-prod:4000
+    container_name: ${PROJECT_NAME}-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3002}:3000"
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    external: true
+    name: ${PROJECT_NAME}-prod-net
