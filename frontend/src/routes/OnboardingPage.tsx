@@ -65,7 +65,7 @@ export function OnboardingPage() {
         {step === 2 && (
           <>
             <p className="auth-sub">Step 2 of 2 — add your first account.</p>
-            <AddAccountForm onCreated={() => navigate("/app/transactions")} defaultCurrency={mainCurrency} />
+            <AddAccountForm onCreated={() => navigate("/mainichi")} defaultCurrency={mainCurrency} />
           </>
         )}
       </div>

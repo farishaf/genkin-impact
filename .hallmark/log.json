@@ -1,5 +1,25 @@
 [
   {
+    "date": "2026-11-02",
+    "macrostructure": "none (restyle of existing app, layouts unchanged)",
+    "theme": "studied-DNA (user reference image)",
+    "theme_axes": "light + dark / grotesk-sans (Helvetica Neue) / cool (indigo 275) + chromatic-green (mint 165)",
+    "nav": "unchanged, navy bar",
+    "footer": "none",
+    "enrichment": "none",
+    "brief": "Mainichi contrast pass: navy panels, white cards, mint actions, 4.5:1 text floor, larger base text"
+  },
+  {
+    "date": "2026-11-02",
+    "macrostructure": "Split Panel (app sign-in)",
+    "theme": "studied-DNA (Luminous Ledger)",
+    "theme_axes": "light + dark / grotesk-sans (Helvetica Neue) / chromatic-green (emerald 162)",
+    "nav": "none",
+    "footer": "none",
+    "enrichment": "CSS year-of-days dot grid from the real date",
+    "brief": "Mainichi /login redesign: today's date and year grid beside a sign-in form"
+  },
+  {
     "date": "2026-08-07",
     "macrostructure": "Marquee Hero",
     "theme": "studied-DNA (Luminous Ledger)",

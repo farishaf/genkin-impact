@@ -1,31 +1,30 @@
-import { Routes, Route, Navigate, useLocation, type Location } from "react-router-dom";
-import { LandingPage } from "./routes/LandingPage";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { LoginPage } from "./routes/LoginPage";
-import { RegisterPage } from "./routes/RegisterPage";
 import { VerifyEmailPage } from "./routes/VerifyEmailPage";
+import { ForgotPasswordPage } from "./routes/ForgotPasswordPage";
+import { ResetPasswordPage } from "./routes/ResetPasswordPage";
 import { OnboardingPage } from "./routes/OnboardingPage";
-import { AppShell } from "./layout/AppShell";
 import { AssetsPage } from "./routes/AssetsPage";
 import { TransactionsPage } from "./routes/TransactionsPage";
 import { PlansPage } from "./routes/PlansPage";
 import { AnalyticsPage } from "./routes/AnalyticsPage";
 import { RequireAuth, RequireOnboarded, RequireNotOnboarded } from "./routes/RequireAuth";
-import { AuthModal } from "./components/AuthModal";
+import { MainichiShell, MoneyLayout } from "./routes/mainichi/MainichiShell";
+import { TodayPage } from "./routes/mainichi/TodayPage";
+import { CalendarPage } from "./routes/mainichi/CalendarPage";
+import { WorkoutEventPage, RoutinePage } from "./routes/mainichi/WorkoutPage";
+import { PageView } from "./routes/mainichi/PageView";
+import { MoneyPage } from "./routes/mainichi/MoneyPage";
 
 export function App() {
-  const location = useLocation();
-  // Set by LandingPage's Sign in / Sign up links: render /login and /register
-  // as a modal over the landing page instead of navigating away from it.
-  // Direct navigation (no background state) falls through to the full-page routes.
-  const background = (location.state as { background?: Location } | null)?.background;
-
   return (
-    <>
-      <Routes location={background ?? location}>
-        <Route path="/" element={<LandingPage />} />
+    <Routes>
+        <Route path="/" element={<Navigate to="/mainichi" replace />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/register" element={<LoginPage mode="register" />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/onboarding"
           element={
@@ -36,30 +35,37 @@ export function App() {
             </RequireAuth>
           }
         />
+        {/* Old Genkin-Impact URLs now live under Mainichi's Money tab. */}
+        <Route path="/app/:page?" element={<LegacyAppRedirect />} />
         <Route
-          path="/app"
+          path="/mainichi"
           element={
             <RequireAuth>
               <RequireOnboarded>
-                <AppShell />
+                <MainichiShell />
               </RequireOnboarded>
             </RequireAuth>
           }
         >
-          <Route path="transactions" element={<TransactionsPage />} />
-          <Route path="assets" element={<AssetsPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="plans" element={<PlansPage />} />
-          <Route index element={<Navigate to="transactions" replace />} />
+          <Route index element={<TodayPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="workout/:id" element={<WorkoutEventPage />} />
+          <Route path="routines/:id" element={<RoutinePage />} />
+          <Route path="pages/:id" element={<PageView />} />
+          <Route path="money" element={<MoneyLayout />}>
+            <Route index element={<MoneyPage />} />
+            <Route path="transactions" element={<TransactionsPage />} />
+            <Route path="assets" element={<AssetsPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="plans" element={<PlansPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {background && (
-        <Routes>
-          <Route path="/login" element={<AuthModal />} />
-          <Route path="/register" element={<AuthModal />} />
-        </Routes>
-      )}
-    </>
   );
+}
+
+function LegacyAppRedirect() {
+  const { page } = useParams();
+  return <Navigate to={`/mainichi/money${page ? `/${page}` : ""}`} replace />;
 }

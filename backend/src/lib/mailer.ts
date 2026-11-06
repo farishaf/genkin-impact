@@ -17,3 +17,13 @@ export async function sendVerificationEmail(to: string, verifyUrl: string): Prom
     html: `<p>Welcome to Genkin-Impact.</p><p><a href="${verifyUrl}">Verify your email</a></p>`,
   });
 }
+
+export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+  await transport.sendMail({
+    from: env.CONTACT_EMAIL_FROM,
+    to,
+    subject: "Reset your Genkin-Impact password",
+    text: `Reset your password: ${resetUrl}\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
+    html: `<p>Reset your password:</p><p><a href="${resetUrl}">Reset password</a></p><p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>`,
+  });
+}

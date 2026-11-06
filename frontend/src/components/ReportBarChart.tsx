@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { formatAmount, formatMoney } from "../lib/formatAmount";
+import { formatMoney } from "../lib/formatAmount";
 
 gsap.registerPlugin(useGSAP);
 
@@ -44,7 +44,8 @@ export function ReportBarChart({
         ease: "power2.out",
       });
     },
-    { dependencies: [groups.map((g) => g.id).join(","), currencyCode], scope }
+    // revertOnUpdate: otherwise a rerun mid-animation takes the partial height as the final one.
+    { dependencies: [groups.map((g) => g.id).join(","), currencyCode], scope, revertOnUpdate: true }
   );
 
   if (groups.length === 0) return null;
@@ -53,7 +54,7 @@ export function ReportBarChart({
     <div className="chart-wrap" ref={scope}>
       <div className="chart-axis">
         {TICKS.map((t) => (
-          <span key={t}>{formatAmount(Math.round(maxMinor * t).toString(), currencyCode)}</span>
+          <span key={t}>{formatMoney(Math.round(maxMinor * t).toString(), currencyCode)}</span>
         ))}
       </div>
       <div className="chart-bars">

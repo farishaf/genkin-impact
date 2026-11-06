@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { formatAmount } from "../lib/formatAmount";
+import { formatMoney } from "../lib/formatAmount";
 import { ReportBarChart } from "./ReportBarChart";
 import { EditIcon, RefundIcon, InstallmentsIcon, DeleteIcon } from "./TxnIcons";
 
@@ -110,7 +110,7 @@ export function TransactionsReportPanel({
         <div className="outlier-card">
           <span className="outlier-card__label">Largest transaction</span>
           <span className="outlier-card__value">
-            {data.outlier.label} — {formatAmount(data.outlier.amount_minor, data.outlier.currency_code)} {data.outlier.currency_code}
+            {data.outlier.label} — {formatMoney(data.outlier.amount_minor, data.outlier.currency_code)}
           </span>
         </div>
       )}

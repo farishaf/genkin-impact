@@ -75,6 +75,35 @@ describe("POST /categories", () => {
     const list = await agent.get("/categories");
     expect(list.body.categories).toHaveLength(10);
   });
+
+  it("appends new categories after existing ones instead of colliding at sort_order 0", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "sortorder@example.com", password: "password12345", display_name: "Sort" });
+
+    const first = await agent.post("/categories").send({ name: "First Extra", kind: "expense" });
+    const second = await agent.post("/categories").send({ name: "Second Extra", kind: "expense" });
+
+    // 6 seeded expense categories occupy sort_order 0-5 (see DEFAULT_CATEGORIES in auth.ts).
+    expect(first.body.category.sort_order).toBe(6);
+    expect(second.body.category.sort_order).toBe(7);
+
+    const list = await agent.get("/categories").query({ kind: "expense" });
+    const names = list.body.categories.map((c: { name: string }) => c.name);
+    expect(names.slice(-2)).toEqual(["First Extra", "Second Extra"]);
+  });
+
+  it("tracks sort_order independently per kind", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "sortorder-kind@example.com", password: "password12345", display_name: "Sort2" });
+
+    const expense = await agent.post("/categories").send({ name: "Extra Expense", kind: "expense" });
+    const income = await agent.post("/categories").send({ name: "Extra Income", kind: "income" });
+
+    // DEFAULT_CATEGORIES in auth.ts indexes across the whole mixed array (not per-kind):
+    // expense occupies 0-5, income occupies 6-8.
+    expect(expense.body.category.sort_order).toBe(6);
+    expect(income.body.category.sort_order).toBe(9);
+  });
 });
 
 describe("PATCH /categories/:id", () => {

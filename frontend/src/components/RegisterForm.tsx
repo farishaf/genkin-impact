@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useRegister } from "../hooks/useAuth";
 import { ApiError } from "../lib/api";
+import { PasswordField } from "./PasswordField";
 
 export function RegisterForm() {
   const [displayName, setDisplayName] = useState("");
@@ -24,25 +25,50 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={onSubmit}>
-      <label className="field">
+    <form className="mi-login__fields" onSubmit={onSubmit}>
+      <div className="mi-login__live" role="alert">
+        {error && (
+          <div className="mi-login__alert">
+            <strong>Couldn’t create your account</strong>
+            <span>{error}</span>
+          </div>
+        )}
+      </div>
+      <label className="mi-login__field">
         <span>Name</span>
-        <input required value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+        <input
+          className="mi-login__input"
+          autoComplete="name"
+          required
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+        />
       </label>
-      <label className="field">
+      <label className="mi-login__field">
         <span>Email</span>
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          className="mi-login__input"
+          type="email"
+          autoComplete="email"
+          required
+          aria-invalid={error ? true : undefined}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
       </label>
-      <label className="field">
-        <span>Password</span>
-        <input type="password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} />
-      </label>
-      {error && <p className="field-error">{error}</p>}
-      <button className="btn-primary" type="submit" disabled={register.isPending}>
+      <PasswordField
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        minLength={10}
+        hint="At least 10 characters."
+        invalid={!!error}
+      />
+      <button className="mi-solid mi-login__submit" type="submit" disabled={register.isPending}>
         {register.isPending ? "Creating account…" : "Create account"}
       </button>
-      <p className="auth-switch">
-        Already have an account? <Link to="/login" state={location.state}>Sign in</Link>
+      <p className="mi-login__footer">
+        Already have an account? <Link className="mi-link" to="/login" state={location.state}>Sign in</Link>
       </p>
     </form>
   );

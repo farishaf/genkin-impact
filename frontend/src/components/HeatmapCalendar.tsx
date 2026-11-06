@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { formatAmount } from "../lib/formatAmount";
+import { formatMoney } from "../lib/formatAmount";
 
 gsap.registerPlugin(useGSAP);
 
@@ -49,7 +49,7 @@ export function HeatmapCalendar({
         <span key={`blank-${i}`} aria-hidden="true" />
       ))}
       {days.map((day) => {
-        const summary = `${day.date}: ${day.sign === "neutral" ? "no activity" : `${day.sign === "gain" ? "+" : ""}${formatAmount(day.net_minor, currencyCode)}`}`;
+        const summary = `${day.date}: ${day.sign === "neutral" ? "no activity" : `${day.sign === "gain" ? "+" : ""}${formatMoney(day.net_minor, currencyCode)}`}`;
         return (
           <button
             key={day.date}

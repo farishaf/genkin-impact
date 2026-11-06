@@ -100,4 +100,110 @@ describe("GET /accounts", () => {
     expect(res.body.accounts).toHaveLength(1);
     expect(res.body.accounts[0].name).toBe("Checking");
   });
+
+  it("returns net worth in the main currency, summing non-archived non-excluded accounts", async () => {
+    const agent = await registerAndLogin();
+    await agent.patch("/users/me").send({ main_currency_code: "USD" });
+    await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "100.00" });
+
+    const res = await agent.get("/accounts");
+    expect(res.status).toBe(200);
+    expect(res.body.main_currency_code).toBe("USD");
+    expect(res.body.net_worth_minor).toBe("10000");
+  });
+});
+
+describe("PATCH /accounts/:id", () => {
+  it("renames an account", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "100.00" });
+
+    const res = await agent.patch(`/accounts/${created.body.account.id}`).send({ name: "Main Checking" });
+    expect(res.status).toBe(200);
+    expect(res.body.account.name).toBe("Main Checking");
+  });
+
+  it("archives an account, removing it from the default list and its balance from net worth", async () => {
+    const agent = await registerAndLogin();
+    await agent.patch("/users/me").send({ main_currency_code: "USD" });
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "100.00" });
+
+    const patchRes = await agent.patch(`/accounts/${created.body.account.id}`).send({ is_archived: true });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.account.is_archived).toBe(true);
+
+    const listRes = await agent.get("/accounts");
+    expect(listRes.body.accounts).toHaveLength(0);
+    expect(listRes.body.net_worth_minor).toBe("0");
+
+    const includeArchivedRes = await agent.get("/accounts?include_archived=true");
+    expect(includeArchivedRes.body.accounts).toHaveLength(1);
+  });
+
+  it("excludes an account from net worth without archiving it", async () => {
+    const agent = await registerAndLogin();
+    await agent.patch("/users/me").send({ main_currency_code: "USD" });
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "100.00" });
+
+    await agent.patch(`/accounts/${created.body.account.id}`).send({ exclude_from_net_worth: true });
+
+    const listRes = await agent.get("/accounts");
+    expect(listRes.body.accounts).toHaveLength(1);
+    expect(listRes.body.net_worth_minor).toBe("0");
+  });
+
+  it("sets credit_limit and statement_day on a credit_card account", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent
+      .post("/accounts")
+      .send({ name: "Visa", type: "credit_card", currency_code: "USD", opening_balance: "0" });
+
+    const res = await agent.patch(`/accounts/${created.body.account.id}`).send({ credit_limit: "5000.00", statement_day: 15 });
+    expect(res.status).toBe(200);
+    expect(res.body.account.credit_limit).toBe("500000");
+    expect(res.body.account.statement_day).toBe(15);
+  });
+
+  it("rejects statement_day on a non-credit_card account", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "0" });
+
+    const res = await agent.patch(`/accounts/${created.body.account.id}`).send({ statement_day: 15 });
+    expect(res.status).toBe(400);
+  });
+
+  it("404s for another user's account", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "0" });
+
+    const otherAgent = request.agent(app);
+    await otherAgent.post("/auth/register").send({ email: "other2@example.com", password: "password12345", display_name: "Other" });
+
+    const res = await otherAgent.patch(`/accounts/${created.body.account.id}`).send({ name: "Hijacked" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /accounts/:id", () => {
+  it("soft-deletes an account so it disappears even with include_archived", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "0" });
+
+    const res = await agent.delete(`/accounts/${created.body.account.id}`);
+    expect(res.status).toBe(204);
+
+    const listRes = await agent.get("/accounts?include_archived=true");
+    expect(listRes.body.accounts).toHaveLength(0);
+  });
+
+  it("404s for another user's account", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent.post("/accounts").send({ name: "Checking", type: "bank", currency_code: "USD", opening_balance: "0" });
+
+    const otherAgent = request.agent(app);
+    await otherAgent.post("/auth/register").send({ email: "other3@example.com", password: "password12345", display_name: "Other" });
+
+    const res = await otherAgent.delete(`/accounts/${created.body.account.id}`);
+    expect(res.status).toBe(404);
+  });
 });

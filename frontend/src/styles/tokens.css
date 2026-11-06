@@ -1,11 +1,13 @@
-/* Luminous Ledger — dual-theme design tokens.
+/* Luminous Ledger — dual-theme design tokens. Palette: navy ink + indigo panels + mint action.
  *
  * Two layers live here:
- *   1. The canonical system (--color-surface*, --color-on-surface*, --color-primary, --glass-*).
+ *   1. The canonical system (--color-surface*, --color-on-surface*, --color-primary, --color-panel*, --glass-*).
  *      New work should use these. They have light and dark values.
- *   2. Legacy aliases (--color-paper*, --color-ink*, --color-accent, ...). Their light values are
- *      identical to the pre-rebase token file, so existing pages render exactly as before.
+ *   2. Legacy aliases (--color-paper*, --color-ink*, --color-accent, ...), kept in step with layer 1.
  *      Migrate a page to layer 1 when you redesign it; delete its aliases when nothing uses them.
+ *
+ * Contrast floor: every text token clears 4.5:1 on the surfaces it sits on; --color-control clears
+ * 3:1 on surface-1 for input and checkbox edges.
  *
  * Dark values apply under prefers-color-scheme: dark AND [data-theme="dark"];
  * [data-theme="light"] wins back over the media query.
@@ -14,39 +16,54 @@
 :root {
   color-scheme: light;
 
-  /* ---- surfaces (light: DESIGN.md #f8f9ff / #ffffff / #eff4ff / #e5eeff / #d3e4fe) ---- */
-  --color-surface: oklch(98.6% 0.006 265);
+  /* ---- surfaces: cool lavender page, pure white cards ---- */
+  --color-surface: oklch(96.5% 0.012 275);
   --color-surface-1: oklch(100% 0 0);
-  --color-surface-2: oklch(96.8% 0.012 262);
-  --color-surface-3: oklch(94.4% 0.021 259);
-  --color-surface-4: oklch(91.6% 0.032 257);
-  --color-surface-full: oklch(100% 0.006 265);
+  --color-surface-2: oklch(95.5% 0.014 275);
+  --color-surface-3: oklch(91.5% 0.02 275);
+  --color-surface-4: oklch(87% 0.028 275);
+  --color-surface-full: oklch(100% 0 0);
 
   /* ---- ink ---- */
-  --color-on-surface: oklch(24.5% 0.045 250);
-  --color-on-surface-2: oklch(45% 0.02 258);
-  --color-on-surface-muted: oklch(60% 0.015 258);
-  --color-line: oklch(89% 0.015 258);
+  --color-on-surface: oklch(20% 0.045 275);
+  --color-on-surface-2: oklch(38% 0.035 275);
+  --color-on-surface-muted: oklch(48% 0.03 275);
+  --color-line: oklch(89% 0.018 275);
+  --color-control: oklch(60% 0.03 275);
 
-  /* ---- brand ---- */
-  --color-primary: oklch(72.3% 0.163 162);
-  --color-primary-ink: oklch(21% 0.03 258);
-  --color-primary-deep: oklch(48% 0.11 163);
-  --color-ink-solid: oklch(21% 0.03 258);
+  /* ---- brand. Mint means "act here / you are here"; primary-deep is its text-safe form. ---- */
+  --color-primary: oklch(78% 0.11 165);
+  --color-primary-ink: oklch(22% 0.05 275);
+  --color-primary-deep: oklch(42% 0.1 165);
+  --color-ink-solid: oklch(22% 0.05 275);
   --color-ink-solid-ink: oklch(100% 0 0);
+
+  /* ---- dark panels: same navy in the light theme, lifted indigo in the dark theme ---- */
+  --color-panel: oklch(21% 0.045 275);
+  --color-panel-2: oklch(29% 0.055 275);
+  --color-panel-line: oklch(38% 0.055 275);
+  --color-on-panel: oklch(97% 0.01 275);
+  --color-on-panel-2: oklch(82% 0.04 275);
+  --color-expense-panel: oklch(80% 0.13 20);
+
+  /* ---- item types (calendar, tags, run steps) ---- */
+  --color-workout: oklch(50% 0.17 275);
+  --color-run: oklch(52% 0.13 165);
+  --color-event: oklch(58% 0.15 55);
 
   /* ---- money semantics. Fixed: money in is green, money out is red, everywhere, always.
          Not to be confused with gain/loss below, which follows the user's convention. ---- */
-  --color-income: oklch(62% 0.15 162);
-  --color-expense: oklch(58% 0.19 15);
-  --color-balance: oklch(55% 0.19 258);
+  --color-income: oklch(45% 0.12 162);
+  --color-expense: oklch(50% 0.19 20);
+  --color-balance: oklch(45% 0.17 275);
 
   /* ---- glass (recipe: opaque tinted pill, inset top-highlight + outer drop) ---- */
-  --glass-bg: oklch(97% 0.004 258 / 0.82);
+  --glass-bg: oklch(100% 0 0 / 0.92);
   --glass-blur: 16px;
-  --glass-border: oklch(0% 0 0 / 0.07);
+  --glass-border: oklch(20% 0.045 275 / 0.1);
   --glass-highlight: oklch(100% 0 0 / 1);
-  --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.06), inset 0 1px 1px oklch(100% 0 0 / 1);
+  --glass-shadow: 0 2px 8px oklch(20% 0.045 275 / 0.08), inset 0 1px 1px oklch(100% 0 0 / 1);
+  --shadow-card: 0 1px 2px oklch(20% 0.045 275 / 0.05), 0 8px 24px oklch(20% 0.045 275 / 0.05);
 
   /* ---- type ---- */
   --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -90,32 +107,32 @@
   --dur-short: 150ms;
   --dur-med: 320ms;
 
-  /* ---- legacy aliases · light values identical to the pre-rebase file ---- */
+  /* ---- legacy aliases ---- */
   --color-paper: oklch(100% 0 0);
-  --color-paper-2: oklch(98.4% 0.004 255);
-  --color-paper-3: oklch(96.2% 0.007 255);
+  --color-paper-2: oklch(98% 0.006 275);
+  --color-paper-3: oklch(95.5% 0.014 275);
 
-  --color-rule: oklch(90.5% 0.006 255);
-  --color-ink: oklch(19% 0.008 255);
-  --color-ink-2: oklch(40% 0.008 255);
-  --color-muted: oklch(57% 0.006 255);
+  --color-rule: oklch(89% 0.018 275);
+  --color-ink: oklch(20% 0.045 275);
+  --color-ink-2: oklch(38% 0.035 275);
+  --color-muted: oklch(48% 0.03 275);
 
-  --color-accent-base: oklch(19% 0.008 255);
+  --color-accent-base: oklch(22% 0.05 275);
   --color-accent: var(--color-accent-override, var(--color-accent-base));
   --color-accent-ink: oklch(100% 0 0);
 
   /* Historical quirk, preserved deliberately: --color-positive is RED and --color-negative is
      GREEN, because this app reads amounts under the eastern convention. Do not "fix" it here —
      rename the call sites first. */
-  --color-positive: oklch(70% 0.17 15);
-  --color-negative: oklch(76% 0.16 162);
-  --color-info: oklch(72% 0.15 258);
+  --color-positive: oklch(50% 0.19 20);
+  --color-negative: oklch(45% 0.12 162);
+  --color-info: oklch(45% 0.17 275);
   --color-focus: var(--color-accent);
 
   /* Convention-swappable pair. --_conv-red / --_conv-green are theme-dependent; the mapping from
      those to gain/loss is convention-dependent. Both are set on :root, so var() resolves fine. */
-  --_conv-red: oklch(70% 0.17 15);
-  --_conv-green: oklch(76% 0.16 162);
+  --_conv-red: oklch(50% 0.19 20);
+  --_conv-green: oklch(45% 0.12 162);
   --color-gain: var(--_conv-red);
   --color-loss: var(--_conv-green);
 }
@@ -131,102 +148,128 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --color-surface: oklch(15.5% 0.004 258);
-    --color-surface-1: oklch(19.5% 0.006 258);
-    --color-surface-2: oklch(23.5% 0.007 258);
-    --color-surface-3: oklch(28% 0.008 258);
-    --color-surface-4: oklch(33% 0.009 258);
-    --color-surface-full: oklch(1% 0.004 258);
+    --color-surface: oklch(16% 0.03 275);
+    --color-surface-1: oklch(21% 0.035 275);
+    --color-surface-2: oklch(25.5% 0.04 275);
+    --color-surface-3: oklch(30% 0.04 275);
+    --color-surface-4: oklch(35% 0.045 275);
+    --color-surface-full: oklch(12% 0.03 275);
 
-    --color-on-surface: oklch(97% 0.002 258);
-    --color-on-surface-2: oklch(78% 0.006 258);
-    --color-on-surface-muted: oklch(60% 0.006 258);
-    --color-line: oklch(31% 0.008 258);
+    --color-on-surface: oklch(97% 0.008 275);
+    --color-on-surface-2: oklch(85% 0.02 275);
+    --color-on-surface-muted: oklch(75% 0.03 275);
+    --color-line: oklch(33% 0.04 275);
+    --color-control: oklch(58% 0.04 275);
 
-    --color-primary: oklch(76% 0.16 162);
-    --color-primary-ink: oklch(18% 0.03 162);
-    --color-primary-deep: oklch(62% 0.13 163);
-    --color-ink-solid: oklch(97% 0.002 258);
-    --color-ink-solid-ink: oklch(17% 0.006 258);
+    --color-primary: oklch(78% 0.11 165);
+    --color-primary-ink: oklch(20% 0.05 275);
+    --color-primary-deep: oklch(80% 0.1 165);
+    --color-ink-solid: oklch(97% 0.008 275);
+    --color-ink-solid-ink: oklch(20% 0.05 275);
 
-    --color-income: oklch(76% 0.16 162);
-    --color-expense: oklch(70% 0.17 15);
-    --color-balance: oklch(72% 0.15 258);
+    --color-panel: oklch(28% 0.075 275);
+    --color-panel-2: oklch(35% 0.08 275);
+    --color-panel-line: oklch(44% 0.08 275);
+    --color-on-panel: oklch(98% 0.008 275);
+    --color-on-panel-2: oklch(86% 0.04 275);
+    --color-expense-panel: oklch(82% 0.12 20);
 
-    --glass-bg: oklch(10% 0.035 258 / 0.82);
-    --glass-border: oklch(100% 0 0 / 0.1);
+    --color-workout: oklch(76% 0.11 280);
+    --color-run: oklch(82% 0.13 165);
+    --color-event: oklch(82% 0.13 65);
+
+    --color-income: oklch(84% 0.14 162);
+    --color-expense: oklch(76% 0.15 20);
+    --color-balance: oklch(78% 0.11 280);
+
+    --glass-bg: oklch(21% 0.035 275 / 0.92);
+    --glass-border: oklch(100% 0 0 / 0.12);
     --glass-highlight: oklch(100% 0 0 / 0.07);
     --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.4), inset 0 1px 1px oklch(100% 0 0 / 0.07);
+    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3);
 
-    --color-paper: oklch(15.5% 0.004 258);
-    --color-paper-2: oklch(19.5% 0.006 258);
-    --color-paper-3: oklch(24.5% 0.007 258);
+    --color-paper: oklch(16% 0.03 275);
+    --color-paper-2: oklch(21% 0.035 275);
+    --color-paper-3: oklch(25.5% 0.04 275);
 
-    --color-rule: oklch(31% 0.008 258);
-    --color-ink: oklch(97% 0.002 258);
-    --color-ink-2: oklch(78% 0.006 258);
-    --color-muted: oklch(60% 0.006 258);
+    --color-rule: oklch(33% 0.04 275);
+    --color-ink: oklch(97% 0.008 275);
+    --color-ink-2: oklch(85% 0.02 275);
+    --color-muted: oklch(75% 0.03 275);
 
-    --color-accent-base: oklch(97% 0.002 258);
+    --color-accent-base: oklch(97% 0.008 275);
     --color-accent: var(--color-accent-override, var(--color-accent-base));
-    --color-accent-ink: oklch(17% 0.006 258);
+    --color-accent-ink: oklch(20% 0.05 275);
 
-    --color-positive: oklch(70% 0.17 22);
-    --color-negative: oklch(72% 0.13 152);
-    --color-info: oklch(72% 0.15 258);
+    --color-positive: oklch(76% 0.15 20);
+    --color-negative: oklch(84% 0.14 162);
+    --color-info: oklch(78% 0.11 280);
 
-    --_conv-red: oklch(70% 0.17 22);
-    --_conv-green: oklch(72% 0.13 152);
+    --_conv-red: oklch(76% 0.15 20);
+    --_conv-green: oklch(84% 0.14 162);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --color-surface: oklch(15.5% 0.004 258);
-  --color-surface-1: oklch(19.5% 0.006 258);
-  --color-surface-2: oklch(23.5% 0.007 258);
-  --color-surface-3: oklch(28% 0.008 258);
-  --color-surface-4: oklch(33% 0.009 258);
-  --color-surface-full: oklch(1% 0.004 258);
+  --color-surface: oklch(16% 0.03 275);
+  --color-surface-1: oklch(21% 0.035 275);
+  --color-surface-2: oklch(25.5% 0.04 275);
+  --color-surface-3: oklch(30% 0.04 275);
+  --color-surface-4: oklch(35% 0.045 275);
+  --color-surface-full: oklch(12% 0.03 275);
 
-  --color-on-surface: oklch(97% 0.01 250);
-  --color-on-surface-2: oklch(78% 0.006 258);
-  --color-on-surface-muted: oklch(60% 0.006 258);
-  --color-line: oklch(31% 0.008 258);
+  --color-on-surface: oklch(97% 0.008 275);
+  --color-on-surface-2: oklch(85% 0.02 275);
+  --color-on-surface-muted: oklch(75% 0.03 275);
+  --color-line: oklch(33% 0.04 275);
+  --color-control: oklch(58% 0.04 275);
 
-  --color-primary: oklch(76% 0.16 162);
-  --color-primary-ink: oklch(18% 0.03 162);
-  --color-primary-deep: oklch(62% 0.13 163);
-  --color-ink-solid: oklch(97% 0.002 258);
-  --color-ink-solid-ink: oklch(17% 0.006 258);
+  --color-primary: oklch(78% 0.11 165);
+  --color-primary-ink: oklch(20% 0.05 275);
+  --color-primary-deep: oklch(80% 0.1 165);
+  --color-ink-solid: oklch(97% 0.008 275);
+  --color-ink-solid-ink: oklch(20% 0.05 275);
 
-  --color-income: oklch(76% 0.16 162);
-  --color-expense: oklch(70% 0.17 15);
-  --color-balance: oklch(72% 0.15 258);
+  --color-panel: oklch(28% 0.075 275);
+  --color-panel-2: oklch(35% 0.08 275);
+  --color-panel-line: oklch(44% 0.08 275);
+  --color-on-panel: oklch(98% 0.008 275);
+  --color-on-panel-2: oklch(86% 0.04 275);
+  --color-expense-panel: oklch(82% 0.12 20);
 
-  --glass-bg: oklch(10% 0.035 258 / 0.82);
-  --glass-border: oklch(100% 0 0 / 0.1);
+  --color-workout: oklch(76% 0.11 280);
+  --color-run: oklch(82% 0.13 165);
+  --color-event: oklch(82% 0.13 65);
+
+  --color-income: oklch(84% 0.14 162);
+  --color-expense: oklch(76% 0.15 20);
+  --color-balance: oklch(78% 0.11 280);
+
+  --glass-bg: oklch(21% 0.035 275 / 0.92);
+  --glass-border: oklch(100% 0 0 / 0.12);
   --glass-highlight: oklch(100% 0 0 / 0.07);
   --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.4), inset 0 1px 1px oklch(100% 0 0 / 0.07);
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3);
 
-  --color-paper: oklch(15.5% 0.004 258);
-  --color-paper-2: oklch(19.5% 0.006 258);
-  --color-paper-3: oklch(24.5% 0.007 258);
+  --color-paper: oklch(16% 0.03 275);
+  --color-paper-2: oklch(21% 0.035 275);
+  --color-paper-3: oklch(25.5% 0.04 275);
 
-  --color-rule: oklch(31% 0.008 258);
-  --color-ink: oklch(97% 0.002 258);
-  --color-ink-2: oklch(78% 0.006 258);
-  --color-muted: oklch(60% 0.006 258);
+  --color-rule: oklch(33% 0.04 275);
+  --color-ink: oklch(97% 0.008 275);
+  --color-ink-2: oklch(85% 0.02 275);
+  --color-muted: oklch(75% 0.03 275);
 
-  --color-accent-base: oklch(97% 0.002 258);
+  --color-accent-base: oklch(97% 0.008 275);
   --color-accent: var(--color-accent-override, var(--color-accent-base));
-  --color-accent-ink: oklch(17% 0.006 258);
+  --color-accent-ink: oklch(20% 0.05 275);
 
-  --color-positive: oklch(70% 0.17 22);
-  --color-negative: oklch(72% 0.13 152);
-  --color-info: oklch(72% 0.15 258);
+  --color-positive: oklch(76% 0.15 20);
+  --color-negative: oklch(84% 0.14 162);
+  --color-info: oklch(78% 0.11 280);
 
-  --_conv-red: oklch(70% 0.17 22);
-  --_conv-green: oklch(72% 0.13 152);
+  --_conv-red: oklch(76% 0.15 20);
+  --_conv-green: oklch(84% 0.14 162);
 }

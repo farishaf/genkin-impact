@@ -1,8 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import request from "supertest";
 import { app } from "../app.js";
 import { pool } from "../db/pool.js";
 import { runMigrations } from "../db/migrate.js";
+
+const { sendPasswordResetEmailMock } = vi.hoisted(() => ({ sendPasswordResetEmailMock: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("../lib/mailer.js", () => ({
+  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
+  sendPasswordResetEmail: sendPasswordResetEmailMock,
+}));
 
 beforeAll(async () => {
   await runMigrations();
@@ -23,6 +29,7 @@ beforeEach(async () => {
   await pool.query("DELETE FROM tags");
   await pool.query("DELETE FROM saved_filters");
   await pool.query("DELETE FROM users");
+  sendPasswordResetEmailMock.mockClear();
 });
 
 afterAll(async () => {
@@ -174,5 +181,76 @@ describe("POST /auth/logout", () => {
 
     const session = await pool.query("SELECT revoked_at FROM sessions");
     expect(session.rows[0].revoked_at).not.toBeNull();
+  });
+});
+
+function tokenFromResetUrl(url: string): string {
+  return new URL(url).searchParams.get("token")!;
+}
+
+describe("POST /auth/forgot-password + POST /auth/reset-password", () => {
+  it("emails a reset link for an existing email and lets it set a new password", async () => {
+    await request(app)
+      .post("/auth/register")
+      .send({ email: "reset@example.com", password: "old-password-123", display_name: "R" });
+    sendPasswordResetEmailMock.mockClear();
+
+    const forgotRes = await request(app).post("/auth/forgot-password").send({ email: "reset@example.com" });
+    expect(forgotRes.status).toBe(200);
+    expect(sendPasswordResetEmailMock).toHaveBeenCalledTimes(1);
+
+    const resetUrl = sendPasswordResetEmailMock.mock.calls[0][1] as string;
+    const token = tokenFromResetUrl(resetUrl);
+
+    const resetRes = await request(app).post("/auth/reset-password").send({ token, password: "new-password-456" });
+    expect(resetRes.status).toBe(200);
+
+    const loginWithNew = await request(app).post("/auth/login").send({ email: "reset@example.com", password: "new-password-456" });
+    expect(loginWithNew.status).toBe(200);
+
+    const loginWithOld = await request(app).post("/auth/login").send({ email: "reset@example.com", password: "old-password-123" });
+    expect(loginWithOld.status).toBe(401);
+  });
+
+  it("revokes existing sessions on reset, so the old refresh token can no longer mint a new access token", async () => {
+    const agent = request.agent(app);
+    await agent.post("/auth/register").send({ email: "reset-revoke@example.com", password: "old-password-123", display_name: "R" });
+    sendPasswordResetEmailMock.mockClear();
+
+    await request(app).post("/auth/forgot-password").send({ email: "reset-revoke@example.com" });
+    const resetUrl = sendPasswordResetEmailMock.mock.calls[0][1] as string;
+    const token = tokenFromResetUrl(resetUrl);
+    await request(app).post("/auth/reset-password").send({ token, password: "new-password-456" });
+
+    const refreshRes = await agent.post("/auth/refresh");
+    expect(refreshRes.status).toBe(401);
+  });
+
+  it("returns 200 without sending an email for a nonexistent address (no enumeration)", async () => {
+    const res = await request(app).post("/auth/forgot-password").send({ email: "nobody@example.com" });
+    expect(res.status).toBe(200);
+    expect(sendPasswordResetEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an expired or invalid token", async () => {
+    const res = await request(app).post("/auth/reset-password").send({ token: "not-a-real-token", password: "new-password-456" });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a token that's already been used once", async () => {
+    await request(app)
+      .post("/auth/register")
+      .send({ email: "reset-reuse@example.com", password: "old-password-123", display_name: "R" });
+    sendPasswordResetEmailMock.mockClear();
+
+    await request(app).post("/auth/forgot-password").send({ email: "reset-reuse@example.com" });
+    const resetUrl = sendPasswordResetEmailMock.mock.calls[0][1] as string;
+    const token = tokenFromResetUrl(resetUrl);
+
+    const first = await request(app).post("/auth/reset-password").send({ token, password: "new-password-456" });
+    expect(first.status).toBe(200);
+
+    const second = await request(app).post("/auth/reset-password").send({ token, password: "another-password-789" });
+    expect(second.status).toBe(400);
   });
 });

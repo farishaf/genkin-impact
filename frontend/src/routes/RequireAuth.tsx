@@ -17,6 +17,6 @@ export function RequireOnboarded({ children }: { children: ReactNode }) {
 
 export function RequireNotOnboarded({ children }: { children: ReactNode }) {
   const { data: user } = useCurrentUser();
-  if (user?.onboarded_at) return <Navigate to="/app/transactions" replace />;
+  if (user?.onboarded_at) return <Navigate to="/mainichi" replace />;
   return <>{children}</>;
 }

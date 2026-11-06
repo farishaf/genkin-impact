@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { api, ApiError, API_URL } from "../lib/api";
-import {
-  formatAmount,
-  formatMoney,
-  minorToInputValue,
-} from "../lib/formatAmount";
+import { formatMoney, minorToInputValue } from "../lib/formatAmount";
 import {
   AddTransactionForm,
   type EditingTxn,
@@ -40,6 +36,7 @@ interface TxnItem {
   occurred_at: string;
   note: string | null;
   category_name: string | null;
+  category_emoji: string | null;
   account_name: string;
   member_name: string | null;
   tags: { id: string; name: string }[];
@@ -499,7 +496,7 @@ export function TransactionsPage() {
           }
         >
           <span className="cat-badge">
-            {(t.category_name ?? t.account_name).charAt(0).toUpperCase()}
+            {t.category_emoji || (t.category_name ?? t.account_name).charAt(0).toUpperCase()}
           </span>
           <div className="txn-row__body">
             <div className="txn-row__top">
@@ -674,8 +671,8 @@ export function TransactionsPage() {
   }
 
   return (
-    <div className="txn-page">
-      <div className="txn-page__content">
+    <div className="mi-cols mi-money">
+      <div className="mi-cols__main mi-money__main">
         <div className="page-head">
           <h1>Transactions</h1>
           <span className="count-badge">{summary?.count ?? 0}</span>
@@ -907,12 +904,7 @@ export function TransactionsPage() {
         </Modal>
 
         {isSummaryError && (
-          <p
-            className="field-error"
-            style={{ margin: "0 var(--space-xl) var(--space-lg)" }}
-          >
-            Failed to load summary. Try refreshing.
-          </p>
+          <p className="field-error">Failed to load summary. Try refreshing.</p>
         )}
 
         {summary && (
@@ -926,8 +918,7 @@ export function TransactionsPage() {
                 <span className="stat-card__label">Income</span>
               </div>
               <div className="stat-card__figure" data-tone="income">
-                {summary.main_currency_code}{" "}
-                {formatAmount(summary.income_minor, summary.main_currency_code)}
+                {formatMoney(summary.income_minor, summary.main_currency_code)}
               </div>
             </div>
             <div className="card stat-card">
@@ -939,11 +930,7 @@ export function TransactionsPage() {
                 <span className="stat-card__label">Expenditure</span>
               </div>
               <div className="stat-card__figure" data-tone="expense">
-                {summary.main_currency_code}{" "}
-                {formatAmount(
-                  summary.expenditure_minor,
-                  summary.main_currency_code,
-                )}
+                {formatMoney(summary.expenditure_minor, summary.main_currency_code)}
               </div>
             </div>
             <div className="card stat-card">
@@ -955,11 +942,7 @@ export function TransactionsPage() {
                 <span className="stat-card__label">Balance</span>
               </div>
               <div className="stat-card__figure" data-tone="balance">
-                {summary.main_currency_code}{" "}
-                {formatAmount(
-                  summary.balance_minor,
-                  summary.main_currency_code,
-                )}
+                {formatMoney(summary.balance_minor, summary.main_currency_code)}
               </div>
             </div>
             <div className="card stat-card">
@@ -975,7 +958,7 @@ export function TransactionsPage() {
           </div>
         )}
 
-        <div style={{ padding: "0 var(--space-xl)" }}>
+        <div>
           {isItemsError && (
             <p className="field-error">
               Failed to load transactions. Try refreshing.
@@ -984,10 +967,7 @@ export function TransactionsPage() {
           {isLoading && <p className="muted">Loading…</p>}
 
           {viewMode === "table" && (
-            <div
-              className="card txn-card"
-              style={{ marginBottom: "var(--space-2xl)", overflowX: "auto" }}
-            >
+            <div className="card txn-card" style={{ overflowX: "auto" }}>
               <table className="txn-table">
                 <thead>
                   <tr>
@@ -1063,34 +1043,32 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      <aside className="right">
-        <div className="right-inner">
-          <TransactionsReportPanel
-            filters={{
-              type: typeFilter || undefined,
-              member_id: memberFilter || undefined,
-              tag_id: tagFilter || undefined,
-              category_id: categoryFilter || undefined,
-              from: fromFilter || undefined,
-              to: toFilter || undefined,
-            }}
-            mainCurrencyCode={summary?.main_currency_code ?? "USD"}
-            onSelectGroup={(dimension, id) => {
-              if (dimension === "category") setCategoryFilter(id);
-              else if (dimension === "tag") setTagFilter(id);
-              else setMemberFilter(id);
-            }}
-            selectedTxn={selectedTxn}
-            onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
-            onRefundSelected={() =>
-              selectedTxn && toggleAction(selectedTxn.id, "refund")
-            }
-            onInstallmentsSelected={() =>
-              selectedTxn && toggleAction(selectedTxn.id, "installments")
-            }
-            onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
-          />
-        </div>
+      <aside className="card mi-card mi-cols__side">
+        <TransactionsReportPanel
+          filters={{
+            type: typeFilter || undefined,
+            member_id: memberFilter || undefined,
+            tag_id: tagFilter || undefined,
+            category_id: categoryFilter || undefined,
+            from: fromFilter || undefined,
+            to: toFilter || undefined,
+          }}
+          mainCurrencyCode={summary?.main_currency_code ?? "USD"}
+          onSelectGroup={(dimension, id) => {
+            if (dimension === "category") setCategoryFilter(id);
+            else if (dimension === "tag") setTagFilter(id);
+            else setMemberFilter(id);
+          }}
+          selectedTxn={selectedTxn}
+          onEditSelected={() => selectedTxn && openEdit(selectedTxn)}
+          onRefundSelected={() =>
+            selectedTxn && toggleAction(selectedTxn.id, "refund")
+          }
+          onInstallmentsSelected={() =>
+            selectedTxn && toggleAction(selectedTxn.id, "installments")
+          }
+          onDeleteSelected={() => selectedTxn && handleDelete(selectedTxn)}
+        />
       </aside>
     </div>
   );

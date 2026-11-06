@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
-import { formatAmount } from "../lib/formatAmount";
+import { formatMoney } from "../lib/formatAmount";
 
 interface Account {
   id: string;
@@ -203,7 +203,7 @@ function RecurringRuleCard({ rule }: { rule: RecurringRule }) {
         </button>
       </div>
       <div className="plan-card__figures">
-        <span>{formatAmount(rule.amount, rule.currency_code)}</span>
+        <span>{formatMoney(rule.amount, rule.currency_code)}</span>
         <span className="muted-inline">
           every {rule.interval_count > 1 ? `${rule.interval_count} ` : ""}
           {rule.frequency} · next {new Date(rule.next_run_at).toLocaleDateString()}
@@ -211,7 +211,7 @@ function RecurringRuleCard({ rule }: { rule: RecurringRule }) {
       </div>
       {rule.pending_transaction && (
         <div className="plan-card__pending">
-          <span>Awaiting confirmation: {formatAmount(rule.pending_transaction.amount, rule.currency_code)}</span>
+          <span>Awaiting confirmation: {formatMoney(rule.pending_transaction.amount, rule.currency_code)}</span>
           <div className="plan-card__pending-actions">
             <button className="btn-primary btn-outline--sm" type="button" onClick={() => confirm.mutate()}>
               Confirm

@@ -11,7 +11,7 @@ import {
   ACCESS_TOKEN_TTL_MS,
   REFRESH_TOKEN_TTL_MS,
 } from "../lib/tokens.js";
-import { sendVerificationEmail } from "../lib/mailer.js";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../lib/mailer.js";
 import { env } from "../env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
@@ -57,7 +57,7 @@ function setAuthCookies(res: Response, accessToken: string, refreshToken: string
 }
 
 function toPublicUser(row: any) {
-  const { password_hash, email_verification_token_hash, ...rest } = row;
+  const { password_hash, email_verification_token_hash, password_reset_token_hash, ...rest } = row;
   return rest;
 }
 
@@ -241,6 +241,66 @@ authRouter.post("/verify", validateBody(verifySchema), async (req, res, next) =>
       [hash]
     );
     if (result.rows.length === 0) throw new AppError(400, "invalid_token", "This verification link is invalid or expired.");
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const forgotPasswordSchema = z.object({ email: z.string().email() });
+
+authRouter.post("/forgot-password", validateBody(forgotPasswordSchema), async (req, res, next) => {
+  try {
+    const { email } = req.body as z.infer<typeof forgotPasswordSchema>;
+    const result = await pool.query("SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL", [email]);
+    const user = result.rows[0];
+
+    if (user) {
+      const rawToken = randomBytes(24).toString("base64url");
+      const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // §5 "short TTL"
+      await pool.query("UPDATE users SET password_reset_token_hash = $1, password_reset_expires_at = $2 WHERE id = $3", [
+        tokenHash,
+        expiresAt,
+        user.id,
+      ]);
+      const resetUrl = `${env.APP_ORIGIN}/reset-password?token=${rawToken}`;
+      // Best-effort, same as the register flow's verification email.
+      sendPasswordResetEmail(email, resetUrl).catch((err) => console.error("failed to send password reset email", err));
+    }
+
+    // Same response whether or not the email exists — no account enumeration.
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(10, "Password must be at least 10 characters."),
+});
+
+authRouter.post("/reset-password", validateBody(resetPasswordSchema), async (req, res, next) => {
+  try {
+    const { token, password } = req.body as z.infer<typeof resetPasswordSchema>;
+    const hash = createHash("sha256").update(token).digest("hex");
+
+    const result = await pool.query(
+      "SELECT id FROM users WHERE password_reset_token_hash = $1 AND password_reset_expires_at > now() AND deleted_at IS NULL",
+      [hash]
+    );
+    const user = result.rows[0];
+    if (!user) throw new AppError(400, "invalid_token", "This reset link is invalid or expired.");
+
+    const passwordHash = await hashPassword(password);
+    await pool.query(
+      "UPDATE users SET password_hash = $1, password_reset_token_hash = NULL, password_reset_expires_at = NULL WHERE id = $2",
+      [passwordHash, user.id]
+    );
+    // A leaked/stale password shouldn't leave old sessions valid.
+    await pool.query("UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [user.id]);
+
     res.json({ ok: true });
   } catch (err) {
     next(err);

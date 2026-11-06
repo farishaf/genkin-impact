@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { formatAmount, formatMoney } from "../lib/formatAmount";
+import { formatMoney } from "../lib/formatAmount";
 import { HeatmapCalendar, type AnalyticsDay } from "../components/HeatmapCalendar";
 import { TrendChart } from "../components/TrendChart";
-import { ChevronIcon } from "../components/TxnIcons";
+import { Icon } from "./mainichi/parts";
 
 interface AnalyticsSummary {
   month: string;
@@ -23,6 +23,7 @@ interface TxnItem {
   occurred_at: string;
   note: string | null;
   category_name: string | null;
+  category_emoji: string | null;
   account_name: string;
 }
 
@@ -73,26 +74,24 @@ export function AnalyticsPage() {
   }
 
   return (
-    <div className="txn-page">
-      <div className="txn-page__content">
+    <div className="mi-cols mi-money">
+      <div className="mi-cols__main mi-money__main">
         <div className="page-head">
           <h1>Analytics</h1>
           <div className="head-spacer" />
-          <button className="icon-btn" type="button" aria-label="Previous month" style={{ width: 32, height: 32 }} onClick={() => changeMonth(-1)}>
-            <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}>
-              <ChevronIcon />
-            </span>
+          <button className="mi-iconbtn" type="button" aria-label="Previous month" onClick={() => changeMonth(-1)}>
+            <Icon name="back" />
           </button>
-          <span className="filter-chip filter-chip--emph">{monthLabel(month)}</span>
-          <button className="icon-btn" type="button" aria-label="Next month" style={{ width: 32, height: 32 }} onClick={() => changeMonth(1)}>
-            <ChevronIcon />
+          <span className="mi-pill mi-pill--page">{monthLabel(month)}</span>
+          <button className="mi-iconbtn" type="button" aria-label="Next month" onClick={() => changeMonth(1)}>
+            <Icon name="chevron" />
           </button>
         </div>
 
-        {isSummaryError && <p className="field-error" style={{ margin: "0 var(--space-xl) var(--space-lg)" }}>Failed to load analytics. Try refreshing.</p>}
+        {isSummaryError && <p className="field-error">Failed to load analytics. Try refreshing.</p>}
 
         {summary && (
-          <div style={{ padding: "0 var(--space-xl) var(--space-2xl)" }}>
+          <>
             <div className="card kv-card">
               <div className="kv-row"><span className="kv-row__k">Begin</span><span className="kv-row__v">{dayLabel(summary.days[0]?.date ?? month)}</span></div>
               <div className="kv-row"><span className="kv-row__k">End</span><span className="kv-row__v">{dayLabel(summary.days[summary.days.length - 1]?.date ?? month)}</span></div>
@@ -100,7 +99,7 @@ export function AnalyticsPage() {
                 <span className="kv-row__k">Net this month</span>
                 <span className={`kv-row__v${Number(summary.month_net_minor) > 0 ? " kv-row__v--gain" : Number(summary.month_net_minor) < 0 ? " kv-row__v--loss" : ""}`}>
                   {Number(summary.month_net_minor) > 0 ? "+" : ""}
-                  {formatAmount(summary.month_net_minor, summary.main_currency_code)} {summary.main_currency_code}
+                  {formatMoney(summary.month_net_minor, summary.main_currency_code)}
                 </span>
               </div>
             </div>
@@ -126,71 +125,69 @@ export function AnalyticsPage() {
                 ))}
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
-      <aside className="right">
-        <div className="right-inner">
-          <div className="right-title">Day Detail</div>
+      <aside className="card mi-card mi-cols__side">
+        <h2 className="mi-h2">Day detail</h2>
 
-          {!selectedDay && <p className="muted">Select a day in the calendar to see its transactions.</p>}
+        {!selectedDay && <p className="mi-empty">Select a day in the calendar to see its transactions.</p>}
 
-          {selectedDay && summary && (
-            <>
-              <div className="tile-grid">
-                <div className="card stat-card">
-                  <div className="stat-card__label">Expenditure</div>
-                  <div className="stat-card__figure" style={{ color: "var(--color-loss)" }}>
-                    {formatAmount(selectedDay.expenditure_minor, summary.main_currency_code)}
-                  </div>
-                </div>
-                <div className="card stat-card">
-                  <div className="stat-card__label">Income</div>
-                  <div className="stat-card__figure" style={{ color: "var(--color-gain)" }}>
-                    {formatAmount(selectedDay.income_minor, summary.main_currency_code)}
-                  </div>
+        {selectedDay && summary && (
+          <>
+            <div className="tile-grid">
+              <div className="stat-card">
+                <div className="stat-card__label">Expenditure</div>
+                <div className="stat-card__figure" data-tone="expense">
+                  {formatMoney(selectedDay.expenditure_minor, summary.main_currency_code)}
                 </div>
               </div>
-
-              <div className="txn-group__head" style={{ padding: "16px 2px 10px" }}>
-                <span className="txn-group__date">{isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)}</span>
-                {selectedDay.sign !== "neutral" && (
-                  <span className="txn-group__pill" data-tone={selectedDay.sign === "gain" ? "positive" : "negative"}>
-                    {selectedDay.sign === "gain" ? "+" : ""}
-                    {formatAmount(selectedDay.net_minor, summary.main_currency_code)}
-                  </span>
-                )}
+              <div className="stat-card">
+                <div className="stat-card__label">Income</div>
+                <div className="stat-card__figure" data-tone="income">
+                  {formatMoney(selectedDay.income_minor, summary.main_currency_code)}
+                </div>
               </div>
+            </div>
 
-              <div className="card txn-card">
-                {isDayLoading && <p className="muted">Loading…</p>}
-                {dayTxns?.map((t) => (
-                  <div className="txn-row" key={t.id}>
-                    <span className="cat-badge">{(t.category_name ?? t.account_name).charAt(0).toUpperCase()}</span>
-                    <div className="txn-row__body">
-                      <div className="txn-row__top">
-                        <span className="txn-row__cat">{t.category_name ?? "Transfer"}</span>
-                        <span className="txn-row__time">{new Date(t.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                      </div>
-                      {t.note && <div className="txn-row__note">{t.note}</div>}
-                      <div className="chip-row">
-                        <span className="chip-acct">{t.account_name}</span>
-                      </div>
+            <div className="txn-group__head">
+              <span className="txn-group__date">{isToday(selectedDay.date) ? "Today" : dayLabel(selectedDay.date)}</span>
+              {selectedDay.sign !== "neutral" && (
+                <span className="txn-group__pill" data-tone={selectedDay.sign === "gain" ? "positive" : "negative"}>
+                  {selectedDay.sign === "gain" ? "+" : ""}
+                  {formatMoney(selectedDay.net_minor, summary.main_currency_code)}
+                </span>
+              )}
+            </div>
+
+            <div>
+              {isDayLoading && <p className="muted">Loading…</p>}
+              {dayTxns?.map((t) => (
+                <div className="txn-row" key={t.id}>
+                  <span className="cat-badge">{t.category_emoji || (t.category_name ?? t.account_name).charAt(0).toUpperCase()}</span>
+                  <div className="txn-row__body">
+                    <div className="txn-row__top">
+                      <span className="txn-row__cat">{t.category_name ?? "Transfer"}</span>
+                      <span className="txn-row__time">{new Date(t.occurred_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
-                    <div className="txn-row__end">
-                      <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
-                        {t.type === "expense" ? "-" : "+"}
-                        {formatMoney(t.amount, t.currency_code)}
-                      </span>
+                    {t.note && <div className="txn-row__note">{t.note}</div>}
+                    <div className="chip-row">
+                      <span className="chip-acct">{t.account_name}</span>
                     </div>
                   </div>
-                ))}
-                {dayTxns?.length === 0 && <p className="muted">No transactions this day.</p>}
-              </div>
-            </>
-          )}
-        </div>
+                  <div className="txn-row__end">
+                    <span className={`amount amount--${t.type === "expense" ? "neg" : "pos"}`}>
+                      {t.type === "expense" ? "-" : "+"}
+                      {formatMoney(t.amount, t.currency_code)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {dayTxns?.length === 0 && <p className="mi-empty">No transactions this day.</p>}
+            </div>
+          </>
+        )}
       </aside>
     </div>
   );

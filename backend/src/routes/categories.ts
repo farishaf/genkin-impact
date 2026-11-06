@@ -45,8 +45,11 @@ categoriesRouter.post("/", requireAuth, validateBody(createCategorySchema), asyn
   try {
     const { name, emoji, kind } = req.body as z.infer<typeof createCategorySchema>;
     const result = await pool.query(
-      `INSERT INTO categories (id, user_id, parent_id, name, emoji, kind, is_system)
-       VALUES ($1, $2, NULL, $3, $4, $5, false) RETURNING id, name, emoji, kind, sort_order, is_system`,
+      `INSERT INTO categories (id, user_id, parent_id, name, emoji, kind, sort_order, is_system)
+       VALUES ($1, $2, NULL, $3, $4, $5,
+         (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories WHERE user_id = $2 AND kind = $5),
+         false)
+       RETURNING id, name, emoji, kind, sort_order, is_system`,
       [newId(), req.userId, name, emoji ?? null, kind]
     );
     res.status(201).json({ category: result.rows[0] });

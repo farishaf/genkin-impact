@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { api, ApiError } from "../lib/api";
 import { EditIcon, DeleteIcon } from "./TxnIcons";
 import { Button } from "./Button";
@@ -21,6 +22,7 @@ export function CategoryManager() {
   const [newIncomeName, setNewIncomeName] = useState("");
   const [newIncomeEmoji, setNewIncomeEmoji] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pickerOpenFor, setPickerOpenFor] = useState<"expense" | "income" | null>(null);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -55,8 +57,9 @@ export function CategoryManager() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Something went wrong."),
   });
 
-  function renderSection(kind: "expense" | "income", label: string) {
+  function renderSection(kind: "expense" | "income", label: string, singular: string) {
     const items = (categories ?? []).filter((c) => c.kind === kind);
+    const emoji = kind === "expense" ? newExpenseEmoji : newIncomeEmoji;
     return (
       <div className="category-manager__section">
         <h3>{label}</h3>
@@ -115,19 +118,48 @@ export function CategoryManager() {
           onSubmit={(e) => {
             e.preventDefault();
             const name = kind === "expense" ? newExpenseName : newIncomeName;
-            const emoji = kind === "expense" ? newExpenseEmoji : newIncomeEmoji;
             if (!name.trim()) return;
             createCategory.mutate({ name: name.trim(), emoji: emoji.trim() || undefined, kind });
           }}
         >
+          <div className="category-manager__emoji-picker">
+            <button
+              type="button"
+              className="category-manager__emoji-btn"
+              aria-label={emoji ? `Change icon, currently ${emoji}` : "Pick an icon (optional)"}
+              onClick={() => setPickerOpenFor(pickerOpenFor === kind ? null : kind)}
+            >
+              {emoji || <span className="category-manager__emoji-btn-hint">🏷</span>}
+            </button>
+            {emoji && (
+              <button
+                type="button"
+                className="category-manager__emoji-clear"
+                aria-label="Remove icon"
+                onClick={() => (kind === "expense" ? setNewExpenseEmoji("") : setNewIncomeEmoji(""))}
+              >
+                ×
+              </button>
+            )}
+            {pickerOpenFor === kind && (
+              <div className="category-manager__emoji-popover">
+                <EmojiPicker
+                  open
+                  width="100%"
+                  height={320}
+                  skinTonesDisabled
+                  previewConfig={{ showPreview: false }}
+                  onEmojiClick={(data: EmojiClickData) => {
+                    if (kind === "expense") setNewExpenseEmoji(data.emoji);
+                    else setNewIncomeEmoji(data.emoji);
+                    setPickerOpenFor(null);
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <input
-            name="emoji"
-            placeholder="🏷"
-            value={kind === "expense" ? newExpenseEmoji : newIncomeEmoji}
-            onChange={(e) => (kind === "expense" ? setNewExpenseEmoji(e.target.value) : setNewIncomeEmoji(e.target.value))}
-          />
-          <input
-            placeholder={`New ${label.toLowerCase().slice(0, -1)} category`}
+            placeholder={`New ${singular} category`}
             value={kind === "expense" ? newExpenseName : newIncomeName}
             onChange={(e) => (kind === "expense" ? setNewExpenseName(e.target.value) : setNewIncomeName(e.target.value))}
           />
@@ -142,8 +174,8 @@ export function CategoryManager() {
   return (
     <div>
       {error && <p className="field-error">{error}</p>}
-      {renderSection("expense", "Expenses")}
-      {renderSection("income", "Income")}
+      {renderSection("expense", "Expenses", "expense")}
+      {renderSection("income", "Income", "income")}
     </div>
   );
 }
