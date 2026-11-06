@@ -11,7 +11,7 @@ const fmtMinutes = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} 
 
 function totalsLabel(segments: Segment[] = []) {
   const t = runTotals(segments);
-  return [t.km ? `${t.km} km` : "", t.minutes ? fmtMinutes(t.minutes) : ""].filter(Boolean).join(" · ");
+  return [t.km ? `${t.km} km` : "", t.minutes ? fmtMinutes(t.minutes) : ""].filter(Boolean).join(", ");
 }
 
 // ---------- running course (movements and rounds) ----------
@@ -90,7 +90,7 @@ function MovementCard({
           {(Object.keys(STEP_LABEL) as StepKind[]).map((k) => <option key={k} value={k}>{STEP_LABEL[k]}</option>)}
         </select>
         <button type="button" className="mi-move__sum" aria-expanded={open} aria-label={open ? "Collapse" : "Expand"} onClick={onToggle}>
-          <span>{[goalLabel(step), intensity === "none" ? "" : intensityLabel(step)].filter(Boolean).join(" · ")}</span>
+          <span>{[goalLabel(step), intensity === "none" ? "" : intensityLabel(step)].filter(Boolean).join(", ")}</span>
           <Icon name={open ? "up" : "down"} />
         </button>
         {open && (
@@ -143,7 +143,7 @@ function MovementCard({
               {intensity === "pace" && (
                 <>
                   <input value={step.pace} placeholder="4:30" aria-label="Fastest pace" onChange={(e) => onChange({ pace: e.target.value })} />
-                  <span>–</span>
+                  <span>to</span>
                   <input value={step.paceTo ?? ""} placeholder="4:45" aria-label="Slowest pace" onChange={(e) => onChange({ paceTo: e.target.value })} />
                   <span>/km</span>
                 </>
@@ -151,7 +151,7 @@ function MovementCard({
               {intensity === "hr" && (
                 <>
                   <input value={step.hrLow ?? ""} inputMode="numeric" placeholder="140" aria-label="Lowest heart rate" onChange={(e) => onChange({ hrLow: e.target.value })} />
-                  <span>–</span>
+                  <span>to</span>
                   <input value={step.hrHigh ?? ""} inputMode="numeric" placeholder="155" aria-label="Highest heart rate" onChange={(e) => onChange({ hrHigh: e.target.value })} />
                   <span>bpm</span>
                 </>
@@ -159,7 +159,7 @@ function MovementCard({
               {intensity === "none" && <span className="mi-move__none">Run by feel</span>}
             </div>
           </div>
-          <input className="mi-move__note" value={step.note} placeholder="Note — effort, terrain, cue…" aria-label="Note" onChange={(e) => onChange({ note: e.target.value })} />
+          <input className="mi-move__note" value={step.note} placeholder="Note: effort, terrain, cue…" aria-label="Note" onChange={(e) => onChange({ note: e.target.value })} />
         </div>
       ) : (
         step.note && <p className="mi-move__notesum">{step.note}</p>
@@ -358,7 +358,7 @@ export function EventEditor({
 
       {event.type === "run" && (
         <>
-          <p className="mi-editor__sum">{totalsLabel(segments) || "Add movements below — distance and time add up automatically."}</p>
+          <p className="mi-editor__sum">{totalsLabel(segments) || "Add movements below. Distance and time add up automatically."}</p>
           <input
             className="mi-editor__plain"
             value={event.details.detail ?? ""}
@@ -372,7 +372,7 @@ export function EventEditor({
 
       {event.type === "workout" && (
         <div className="mi-editor__row">
-          <span className="mi-muted">{[event.details.focus, `${stats.done}/${stats.total} sets`].filter(Boolean).join(" · ")}</span>
+          <span className="mi-muted">{[event.details.focus, `${stats.done}/${stats.total} sets`].filter(Boolean).join(", ")}</span>
           <div className="mi-top__spacer" />
           <Link to={`/mainichi/workout/${event.id}`} className="mi-pill">Open checklist <Icon name="chevron" /></Link>
         </div>
@@ -480,7 +480,7 @@ export function NewEventForm({
               </button>
             ))}
           </div>
-          <p className="mi-muted">{totalsLabel(RUN_PRESETS[preset].segments())} — every step stays editable after adding.</p>
+          <p className="mi-muted">{totalsLabel(RUN_PRESETS[preset].segments())}. Every step stays editable after adding.</p>
         </>
       )}
 
@@ -495,7 +495,7 @@ export function NewEventForm({
           }}
         >
           <option value="">Empty workout</option>
-          {routines.map((r) => <option key={r.id} value={r.id}>{r.title}{r.focus ? ` · ${r.focus}` : ""}</option>)}
+          {routines.map((r) => <option key={r.id} value={r.id}>{r.title}{r.focus ? `, ${r.focus}` : ""}</option>)}
         </select>
       )}
 

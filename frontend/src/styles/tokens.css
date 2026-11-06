@@ -1,275 +1,192 @@
-/* Luminous Ledger — dual-theme design tokens. Palette: navy ink + indigo panels + mint action.
+/* Hum for Mainichi: cream paper, blue-black ink, pear for the action, mint for growth.
  *
- * Two layers live here:
- *   1. The canonical system (--color-surface*, --color-on-surface*, --color-primary, --color-panel*, --glass-*).
- *      New work should use these. They have light and dark values.
- *   2. Legacy aliases (--color-paper*, --color-ink*, --color-accent, ...), kept in step with layer 1.
- *      Migrate a page to layer 1 when you redesign it; delete its aliases when nothing uses them.
+ * Roles
+ *   pear   (--color-accent)    the primary action and the one pear field. Nothing else.
+ *   blue   (--color-accent-2)  links, the focus ring, the type colour of a workout.
+ *   mint   (--color-mint)      done and growth: ticks, progress, a run.
+ *   coral  (--color-accent-3)  the one loud fill; money out reads as --color-expense.
  *
- * Contrast floor: every text token clears 4.5:1 on the surfaces it sits on; --color-control clears
- * 3:1 on surface-1 for input and checkbox edges.
+ * Money semantics are fixed: money in is green, money out is red, everywhere. Gain and loss follow the
+ * user's convention (data-convention on <html>), which is a separate pair at the bottom of this file.
  *
- * Dark values apply under prefers-color-scheme: dark AND [data-theme="dark"];
- * [data-theme="light"] wins back over the media query.
+ * Dark follows [data-theme="dark"] or the OS, and [data-theme="light"] wins back over the OS.
  */
 
 :root {
   color-scheme: light;
 
-  /* ---- surfaces: cool lavender page, pure white cards ---- */
-  --color-surface: oklch(96.5% 0.012 275);
-  --color-surface-1: oklch(100% 0 0);
-  --color-surface-2: oklch(95.5% 0.014 275);
-  --color-surface-3: oklch(91.5% 0.02 275);
-  --color-surface-4: oklch(87% 0.028 275);
-  --color-surface-full: oklch(100% 0 0);
+  /* ---- spacing: 4px steps ---- */
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px;
+  --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px;
 
-  /* ---- ink ---- */
-  --color-on-surface: oklch(20% 0.045 275);
-  --color-on-surface-2: oklch(38% 0.035 275);
-  --color-on-surface-muted: oklch(48% 0.03 275);
-  --color-line: oklch(89% 0.018 275);
-  --color-control: oklch(60% 0.03 275);
-
-  /* ---- brand. Mint means "act here / you are here"; primary-deep is its text-safe form. ---- */
-  --color-primary: oklch(78% 0.11 165);
-  --color-primary-ink: oklch(22% 0.05 275);
-  --color-primary-deep: oklch(42% 0.1 165);
-  --color-ink-solid: oklch(22% 0.05 275);
-  --color-ink-solid-ink: oklch(100% 0 0);
-
-  /* ---- dark panels: same navy in the light theme, lifted indigo in the dark theme ---- */
-  --color-panel: oklch(21% 0.045 275);
-  --color-panel-2: oklch(29% 0.055 275);
-  --color-panel-line: oklch(38% 0.055 275);
-  --color-on-panel: oklch(97% 0.01 275);
-  --color-on-panel-2: oklch(82% 0.04 275);
-  --color-expense-panel: oklch(80% 0.13 20);
-
-  /* ---- item types (calendar, tags, run steps) ---- */
-  --color-workout: oklch(50% 0.17 275);
-  --color-run: oklch(52% 0.13 165);
-  --color-event: oklch(58% 0.15 55);
-
-  /* ---- money semantics. Fixed: money in is green, money out is red, everywhere, always.
-         Not to be confused with gain/loss below, which follows the user's convention. ---- */
-  --color-income: oklch(45% 0.12 162);
-  --color-expense: oklch(50% 0.19 20);
-  --color-balance: oklch(45% 0.17 275);
-
-  /* ---- glass (recipe: opaque tinted pill, inset top-highlight + outer drop) ---- */
-  --glass-bg: oklch(100% 0 0 / 0.92);
-  --glass-blur: 16px;
-  --glass-border: oklch(20% 0.045 275 / 0.1);
-  --glass-highlight: oklch(100% 0 0 / 1);
-  --glass-shadow: 0 2px 8px oklch(20% 0.045 275 / 0.08), inset 0 1px 1px oklch(100% 0 0 / 1);
-  --shadow-card: 0 1px 2px oklch(20% 0.045 275 / 0.05), 0 8px 24px oklch(20% 0.045 275 / 0.05);
-
-  /* ---- type ---- */
-  --font-body: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --leading-tight: 1.2;
-  --leading-snug: 1.35;
-
-  --text-2xs: 0.75rem;
-  --text-xs: 0.8125rem;
-  --text-sm: 0.875rem;
-  --text-base: 0.9375rem;
-  --text-md: 1.0625rem;
-  --text-lg: 1.1875rem;
-  --text-xl: 1.375rem;
-  --text-figure: clamp(1.25rem, 1vw + 1rem, 1.5rem);
-  --text-headline: 1.375rem;
-  --text-display-s: clamp(1.75rem, 3vw + 1rem, 2.75rem);
-  --text-display: clamp(2.25rem, 6vw + 0.5rem, 4.5rem);
-
-  /* ---- space (8pt base per DESIGN.md) ---- */
-  --space-2xs: 0.25rem;
-  --space-xs: 0.5rem;
-  --space-sm: 0.75rem;
-  --space-md: 0.875rem;
-  --space-lg: 1.25rem;
-  --space-xl: 2rem;
-  --space-2xl: 3.25rem;
-  --space-3xl: 4.5rem;
-  --container-max: 1280px;
+  /* ---- type: one family, a 1.125 to 1.2 ratio, fixed sizes in the app ---- */
+  --font-display: "Chillax", ui-rounded, ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-display);
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem;
+  --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --leading-tight: 1.15; --leading-snug: 1.35; --leading-body: 1.5;
+  --tracking-display: -0.02em; --display-weight: 600; --body-weight: 500;
 
   /* ---- shape ---- */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --radius-pill: 999px;
+  --radius-sm: 10px; --radius-input: 14px; --radius-stock: 16px; --radius-card: 24px; --radius-pill: 999px;
+  --control-h: 40px; --control-h-sm: 32px; --hit: 44px;
+  --container: 1240px; --gutter: 32px; --topbar-h: 64px; --tabbar-h: 0px; --side-w: 248px;
 
   /* ---- motion ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-short: 150ms;
-  --dur-med: 320ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
 
-  /* ---- legacy aliases ---- */
-  --color-paper: oklch(100% 0 0);
-  --color-paper-2: oklch(98% 0.006 275);
-  --color-paper-3: oklch(95.5% 0.014 275);
+  /* ---- layers ---- */
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300;
+  --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
 
-  --color-rule: oklch(89% 0.018 275);
-  --color-ink: oklch(20% 0.045 275);
-  --color-ink-2: oklch(38% 0.035 275);
-  --color-muted: oklch(48% 0.03 275);
+  /* ---- paper and ink ---- */
+  --color-paper: oklch(97% 0.012 95);
+  --color-paper-2: oklch(94.5% 0.018 95);
+  --color-paper-3: oklch(91% 0.022 95);
+  --color-card: oklch(98.8% 0.007 95);
+  --color-rule: oklch(87% 0.016 95);
+  --color-ink: oklch(20% 0.014 255);
+  --color-ink-2: oklch(29% 0.014 255);
+  --color-muted: oklch(47% 0.014 255);
+  --color-on-surface-muted: var(--color-muted);
+  --color-control: oklch(52% 0.014 255);
+  --color-edge: oklch(83% 0.04 88);
+  --color-scrim: oklch(20% 0.014 255 / 0.4);
 
-  --color-accent-base: oklch(22% 0.05 275);
-  --color-accent: var(--color-accent-override, var(--color-accent-base));
-  --color-accent-ink: oklch(100% 0 0);
+  /* ---- the four accents ---- */
+  --color-accent: oklch(87% 0.175 96);
+  --color-accent-ink: oklch(20% 0.014 255);
+  --color-accent-deep: color-mix(in oklab, var(--color-accent) 80%, var(--color-ink));
+  --color-accent-2: oklch(50% 0.17 250);
+  --color-accent-3: oklch(70% 0.2 22);
+  --color-mint: oklch(82% 0.15 152);
+  --color-mint-deep: oklch(45% 0.12 155);
+  --color-on-mint: oklch(20% 0.014 255);
+  --color-focus: oklch(50% 0.17 250);
 
-  /* Historical quirk, preserved deliberately: --color-positive is RED and --color-negative is
-     GREEN, because this app reads amounts under the eastern convention. Do not "fix" it here —
-     rename the call sites first. */
-  --color-positive: oklch(50% 0.19 20);
-  --color-negative: oklch(45% 0.12 162);
-  --color-info: oklch(45% 0.17 275);
-  --color-focus: var(--color-accent);
+  /* ---- an ink sheet: the one dark surface, for money ---- */
+  --color-sheet: oklch(21% 0.016 255);
+  --color-sheet-2: oklch(28% 0.018 255);
+  --color-sheet-rule: oklch(36% 0.018 255);
+  --color-on-sheet: oklch(96% 0.012 95);
+  --color-on-sheet-2: oklch(84% 0.014 95);
+  --color-expense-sheet: oklch(80% 0.14 27);
 
-  /* Convention-swappable pair. --_conv-red / --_conv-green are theme-dependent; the mapping from
-     those to gain/loss is convention-dependent. Both are set on :root, so var() resolves fine. */
-  --_conv-red: oklch(50% 0.19 20);
-  --_conv-green: oklch(45% 0.12 162);
+  /* ---- item types (calendar, tags, run steps) ---- */
+  --color-workout: oklch(50% 0.17 250);
+  --color-run: oklch(47% 0.12 155);
+  --color-event: oklch(52% 0.1 62);
+
+  /* ---- money in and out ---- */
+  --color-income: oklch(45% 0.12 155);
+  --color-expense: oklch(50% 0.19 27);
+  --color-balance: oklch(50% 0.17 250);
+  --color-error: oklch(50% 0.19 27);
+
+  /* ---- gain and loss, the user's convention. Eastern (default): a net gain reads red. ---- */
+  --_conv-red: oklch(50% 0.19 27);
+  --_conv-green: oklch(45% 0.12 155);
   --color-gain: var(--_conv-red);
   --color-loss: var(--_conv-green);
+
+  /* ---- depth ---- */
+  --shadow-card: 0 1px 2px oklch(20% 0.014 255 / 0.06), 0 12px 28px -14px oklch(20% 0.014 255 / 0.22);
+  --shadow-pop: 0 2px 6px oklch(20% 0.014 255 / 0.1), 0 24px 48px -18px oklch(20% 0.014 255 / 0.34);
+  --shadow-lift: 0 2px 4px oklch(20% 0.014 255 / 0.12);
 }
 
-/* Eastern (default): net income > expenditure = gain (red). Western inverts it. */
+/* Western convention: a net gain reads green. */
 :root[data-convention="western"] {
   --color-gain: var(--_conv-green);
   --color-loss: var(--_conv-red);
 }
 
-/* ---- dark ---- */
+/* ---- dark: re-derived, hue held, elevation is lightness ---- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
+    --color-paper: oklch(17% 0.012 255);
+    --color-paper-2: oklch(21% 0.014 255);
+    --color-paper-3: oklch(25.5% 0.016 255);
+    --color-card: oklch(24% 0.014 255);
+    --color-rule: oklch(32% 0.016 255);
+    --color-ink: oklch(94% 0.012 95);
+    --color-ink-2: oklch(86% 0.012 95);
+    --color-muted: oklch(73% 0.014 95);
+    --color-control: oklch(62% 0.014 255);
+    --color-edge: oklch(13% 0.012 255);
+    --color-scrim: oklch(8% 0.012 255 / 0.6);
 
-    --color-surface: oklch(16% 0.03 275);
-    --color-surface-1: oklch(21% 0.035 275);
-    --color-surface-2: oklch(25.5% 0.04 275);
-    --color-surface-3: oklch(30% 0.04 275);
-    --color-surface-4: oklch(35% 0.045 275);
-    --color-surface-full: oklch(12% 0.03 275);
+    --color-accent: oklch(85% 0.15 96);
+    --color-accent-2: oklch(76% 0.12 250);
+    --color-accent-3: oklch(76% 0.15 22);
+    --color-mint: oklch(80% 0.14 152);
+    --color-mint-deep: oklch(80% 0.14 152);
+    --color-focus: oklch(76% 0.12 250);
 
-    --color-on-surface: oklch(97% 0.008 275);
-    --color-on-surface-2: oklch(85% 0.02 275);
-    --color-on-surface-muted: oklch(75% 0.03 275);
-    --color-line: oklch(33% 0.04 275);
-    --color-control: oklch(58% 0.04 275);
+    --color-sheet: oklch(26% 0.02 255);
+    --color-sheet-2: oklch(32% 0.02 255);
+    --color-sheet-rule: oklch(40% 0.02 255);
 
-    --color-primary: oklch(78% 0.11 165);
-    --color-primary-ink: oklch(20% 0.05 275);
-    --color-primary-deep: oklch(80% 0.1 165);
-    --color-ink-solid: oklch(97% 0.008 275);
-    --color-ink-solid-ink: oklch(20% 0.05 275);
+    --color-workout: oklch(76% 0.12 250);
+    --color-run: oklch(80% 0.14 152);
+    --color-event: oklch(80% 0.1 70);
+    --color-income: oklch(80% 0.14 152);
+    --color-expense: oklch(76% 0.15 27);
+    --color-balance: oklch(76% 0.12 250);
+    --color-error: oklch(76% 0.15 27);
+    --_conv-red: oklch(76% 0.15 27);
+    --_conv-green: oklch(80% 0.14 152);
 
-    --color-panel: oklch(28% 0.075 275);
-    --color-panel-2: oklch(35% 0.08 275);
-    --color-panel-line: oklch(44% 0.08 275);
-    --color-on-panel: oklch(98% 0.008 275);
-    --color-on-panel-2: oklch(86% 0.04 275);
-    --color-expense-panel: oklch(82% 0.12 20);
-
-    --color-workout: oklch(76% 0.11 280);
-    --color-run: oklch(82% 0.13 165);
-    --color-event: oklch(82% 0.13 65);
-
-    --color-income: oklch(84% 0.14 162);
-    --color-expense: oklch(76% 0.15 20);
-    --color-balance: oklch(78% 0.11 280);
-
-    --glass-bg: oklch(21% 0.035 275 / 0.92);
-    --glass-border: oklch(100% 0 0 / 0.12);
-    --glass-highlight: oklch(100% 0 0 / 0.07);
-    --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.4), inset 0 1px 1px oklch(100% 0 0 / 0.07);
-    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3);
-
-    --color-paper: oklch(16% 0.03 275);
-    --color-paper-2: oklch(21% 0.035 275);
-    --color-paper-3: oklch(25.5% 0.04 275);
-
-    --color-rule: oklch(33% 0.04 275);
-    --color-ink: oklch(97% 0.008 275);
-    --color-ink-2: oklch(85% 0.02 275);
-    --color-muted: oklch(75% 0.03 275);
-
-    --color-accent-base: oklch(97% 0.008 275);
-    --color-accent: var(--color-accent-override, var(--color-accent-base));
-    --color-accent-ink: oklch(20% 0.05 275);
-
-    --color-positive: oklch(76% 0.15 20);
-    --color-negative: oklch(84% 0.14 162);
-    --color-info: oklch(78% 0.11 280);
-
-    --_conv-red: oklch(76% 0.15 20);
-    --_conv-green: oklch(84% 0.14 162);
+    --shadow-card: 0 0 0 1px oklch(32% 0.016 255);
+    --shadow-pop: 0 0 0 1px oklch(40% 0.016 255);
+    --shadow-lift: 0 0 0 1px oklch(40% 0.016 255);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --color-paper: oklch(17% 0.012 255);
+  --color-paper-2: oklch(21% 0.014 255);
+  --color-paper-3: oklch(25.5% 0.016 255);
+  --color-card: oklch(24% 0.014 255);
+  --color-rule: oklch(32% 0.016 255);
+  --color-ink: oklch(94% 0.012 95);
+  --color-ink-2: oklch(86% 0.012 95);
+  --color-muted: oklch(73% 0.014 95);
+  --color-control: oklch(62% 0.014 255);
+  --color-edge: oklch(13% 0.012 255);
+  --color-scrim: oklch(8% 0.012 255 / 0.6);
 
-  --color-surface: oklch(16% 0.03 275);
-  --color-surface-1: oklch(21% 0.035 275);
-  --color-surface-2: oklch(25.5% 0.04 275);
-  --color-surface-3: oklch(30% 0.04 275);
-  --color-surface-4: oklch(35% 0.045 275);
-  --color-surface-full: oklch(12% 0.03 275);
+  --color-accent: oklch(85% 0.15 96);
+  --color-accent-2: oklch(76% 0.12 250);
+  --color-accent-3: oklch(76% 0.15 22);
+  --color-mint: oklch(80% 0.14 152);
+  --color-mint-deep: oklch(80% 0.14 152);
+  --color-focus: oklch(76% 0.12 250);
 
-  --color-on-surface: oklch(97% 0.008 275);
-  --color-on-surface-2: oklch(85% 0.02 275);
-  --color-on-surface-muted: oklch(75% 0.03 275);
-  --color-line: oklch(33% 0.04 275);
-  --color-control: oklch(58% 0.04 275);
+  --color-sheet: oklch(26% 0.02 255);
+  --color-sheet-2: oklch(32% 0.02 255);
+  --color-sheet-rule: oklch(40% 0.02 255);
 
-  --color-primary: oklch(78% 0.11 165);
-  --color-primary-ink: oklch(20% 0.05 275);
-  --color-primary-deep: oklch(80% 0.1 165);
-  --color-ink-solid: oklch(97% 0.008 275);
-  --color-ink-solid-ink: oklch(20% 0.05 275);
+  --color-workout: oklch(76% 0.12 250);
+  --color-run: oklch(80% 0.14 152);
+  --color-event: oklch(80% 0.1 70);
+  --color-income: oklch(80% 0.14 152);
+  --color-expense: oklch(76% 0.15 27);
+  --color-balance: oklch(76% 0.12 250);
+  --color-error: oklch(76% 0.15 27);
+  --_conv-red: oklch(76% 0.15 27);
+  --_conv-green: oklch(80% 0.14 152);
 
-  --color-panel: oklch(28% 0.075 275);
-  --color-panel-2: oklch(35% 0.08 275);
-  --color-panel-line: oklch(44% 0.08 275);
-  --color-on-panel: oklch(98% 0.008 275);
-  --color-on-panel-2: oklch(86% 0.04 275);
-  --color-expense-panel: oklch(82% 0.12 20);
-
-  --color-workout: oklch(76% 0.11 280);
-  --color-run: oklch(82% 0.13 165);
-  --color-event: oklch(82% 0.13 65);
-
-  --color-income: oklch(84% 0.14 162);
-  --color-expense: oklch(76% 0.15 20);
-  --color-balance: oklch(78% 0.11 280);
-
-  --glass-bg: oklch(21% 0.035 275 / 0.92);
-  --glass-border: oklch(100% 0 0 / 0.12);
-  --glass-highlight: oklch(100% 0 0 / 0.07);
-  --glass-shadow: 0 2px 8px oklch(0% 0 0 / 0.4), inset 0 1px 1px oklch(100% 0 0 / 0.07);
-  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3);
-
-  --color-paper: oklch(16% 0.03 275);
-  --color-paper-2: oklch(21% 0.035 275);
-  --color-paper-3: oklch(25.5% 0.04 275);
-
-  --color-rule: oklch(33% 0.04 275);
-  --color-ink: oklch(97% 0.008 275);
-  --color-ink-2: oklch(85% 0.02 275);
-  --color-muted: oklch(75% 0.03 275);
-
-  --color-accent-base: oklch(97% 0.008 275);
-  --color-accent: var(--color-accent-override, var(--color-accent-base));
-  --color-accent-ink: oklch(20% 0.05 275);
-
-  --color-positive: oklch(76% 0.15 20);
-  --color-negative: oklch(84% 0.14 162);
-  --color-info: oklch(78% 0.11 280);
-
-  --_conv-red: oklch(76% 0.15 20);
-  --_conv-green: oklch(84% 0.14 162);
+  --shadow-card: 0 0 0 1px oklch(32% 0.016 255);
+  --shadow-pop: 0 0 0 1px oklch(40% 0.016 255);
+  --shadow-lift: 0 0 0 1px oklch(40% 0.016 255);
 }
+
+@media (max-width: 60rem) { :root { --gutter: 24px; } }
+@media (max-width: 40rem) { :root { --gutter: 16px; --tabbar-h: 76px; } }

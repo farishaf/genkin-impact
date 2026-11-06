@@ -171,7 +171,7 @@ export function runSegments(e: PlannerEvent): Segment[] {
 export const newStep = (kind: StepKind = "run"): RunStep =>
   kind === "run" ? step("run", "1", "km", "6:00", "6:30") : step(kind, kind === "recovery" ? "2" : "10", "min");
 
-/** "07:00 · 5 km · 7:00 /km" for runs, "Push · 3/20 sets" for workouts. */
+/** "07:00, 5 km, 7:00 /km" for runs, "Push, 3/20 sets" for workouts. */
 export function eventMeta(e: PlannerEvent) {
   const parts: string[] = [];
   if (e.time) parts.push(e.time);
@@ -186,7 +186,7 @@ export function eventMeta(e: PlannerEvent) {
     if (e.details.focus) parts.push(e.details.focus);
     parts.push(`${done}/${total} sets`);
   }
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 // ---------- autosave ----------

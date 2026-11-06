@@ -137,13 +137,13 @@ export function AnalyticsPage() {
         {selectedDay && summary && (
           <>
             <div className="tile-grid">
-              <div className="stat-card">
+              <div className="mi-stat">
                 <div className="stat-card__label">Expenditure</div>
                 <div className="stat-card__figure" data-tone="expense">
                   {formatMoney(selectedDay.expenditure_minor, summary.main_currency_code)}
                 </div>
               </div>
-              <div className="stat-card">
+              <div className="mi-stat">
                 <div className="stat-card__label">Income</div>
                 <div className="stat-card__figure" data-tone="income">
                   {formatMoney(selectedDay.income_minor, summary.main_currency_code)}

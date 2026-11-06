@@ -129,7 +129,7 @@ export function CategoryManager() {
               aria-label={emoji ? `Change icon, currently ${emoji}` : "Pick an icon (optional)"}
               onClick={() => setPickerOpenFor(pickerOpenFor === kind ? null : kind)}
             >
-              {emoji || <span className="category-manager__emoji-btn-hint">🏷</span>}
+              {emoji || <svg className="category-manager__emoji-btn-hint" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12.5V4.5h8v8l-8 8-8-8 8-8Z" /><path d="M16 8.5h.01" /></svg>}
             </button>
             {emoji && (
               <button

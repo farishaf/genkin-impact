@@ -96,9 +96,9 @@ export function EventRow({
     <div className={`mi-event mi-type--${event.type}${event.done ? " mi-event--done" : ""}`}>
       <button type="button" className="mi-event__body" onClick={open}>
         <span className="mi-event__kicker">
-          {TYPE_LABEL[event.type]}
-          {event.time ? ` · ${event.time}` : ""}
-          {event.done ? " · Done" : ""}
+          <span>{TYPE_LABEL[event.type]}</span>
+          {event.time && <span>{event.time}</span>}
+          {event.done && <span>Done</span>}
         </span>
         <span className="mi-event__title">{event.title}</span>
         {meta && <span className="mi-event__meta">{meta}</span>}
@@ -126,6 +126,13 @@ const ICONS = {
   down: "M6 9l6 6 6-6",
   grip: "M4 9h16M4 15h16",
   trash: "M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5",
+  sun: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4",
+  moon: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z",
+  logout: "M10 4.5H6.5a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1H10M15 8l4 4-4 4M19 12H9",
+  receipt: "M6 3.5h12v17l-3-2-3 2-3-2-3 2v-17ZM9 8.5h6M9 12.5h6",
+  transfer: "M4 8h13l-3-3M20 16H7l3 3",
+  dumbbell: "M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11",
+  timer: "M12 8v4l2.5 1.5M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM9.5 2.5h5",
 };
 
 export function Icon({ name, className }: { name: keyof typeof ICONS; className?: string }) {
@@ -179,7 +186,7 @@ export function Drawer({ title, onClose, children }: { title: string; onClose: (
 export function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="mi-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
-      <div className="mi-progress__fill" style={{ width: total ? `${(done / total) * 100}%` : 0 }} />
+      <div className="mi-progress__fill" style={{ transform: `scaleX(${total ? done / total : 0})` }} />
     </div>
   );
 }

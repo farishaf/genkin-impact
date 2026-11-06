@@ -44,13 +44,13 @@ export function OnboardingPage() {
         <h1 className="auth-title">Genkin-Impact</h1>
         {step === 1 && (
           <>
-            <p className="auth-sub">Step 1 of 2 — pick your main currency.</p>
+            <p className="auth-sub">Step 1 of 2: pick your main currency.</p>
             <label className="field">
               <span>Main currency</span>
               <select value={mainCurrency} onChange={(e) => setMainCurrency(e.target.value)}>
                 {(currencies ?? []).map((c) => (
                   <option key={c.code} value={c.code}>
-                    {c.code} — {c.name}
+                    {c.code} ({c.name})
                   </option>
                 ))}
               </select>
@@ -64,7 +64,7 @@ export function OnboardingPage() {
         )}
         {step === 2 && (
           <>
-            <p className="auth-sub">Step 2 of 2 — add your first account.</p>
+            <p className="auth-sub">Step 2 of 2: add your first account.</p>
             <AddAccountForm onCreated={() => navigate("/mainichi")} defaultCurrency={mainCurrency} />
           </>
         )}

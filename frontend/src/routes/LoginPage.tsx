@@ -1,7 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import { LoginForm } from "../components/LoginForm";
 import { RegisterForm } from "../components/RegisterForm";
-import "../styles/mainichi.css";
 
 const MONTH_INITIALS = "JFMAMJJASOND";
 const DAY_MS = 86_400_000;
@@ -53,7 +52,7 @@ export function LoginPage({ mode = "login" }: { mode?: "login" | "register" }) {
             <div>
               <p className="mi-login__date">{today.toLocaleDateString("en-GB", { month: "long" })}</p>
               <p className="mi-login__count">
-                {today.toLocaleDateString("en-GB", { weekday: "long" })} · Day {dayOfYear} of {daysInYear}
+                {today.toLocaleDateString("en-GB", { weekday: "long" })}, day {dayOfYear} of {daysInYear}
               </p>
             </div>
           </div>

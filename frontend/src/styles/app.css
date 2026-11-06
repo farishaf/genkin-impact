@@ -1,0 +1,12 @@
+/* Hallmark · shape: app screen · genre: playful · theme: Hum (deal 1/3, seed personal-daily-planner-todos-ffc7·50d3c026·2026-11-06·r0) · redesign: full
+ * nav: left sidebar, Today and Calendar, an expandable Money group of five pages, account menu at its foot; phones keep a slim top bar and a bottom bar · signature: the day sheet, a week strip that picks the day above a to-do list whose ticks press like card stock · states: loading, empty, error, full
+ * axes: light/rounded-sans/chromatic-yellow · posture: full-palette · contrast: pass · modes: light+dark · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: P, the cream-and-pear Hum look is borrowed and risks reading as a kids' app; held back by keeping paper, one ink sheet for money and a 40px control height so it stays a tool */
+/* Hallmark · answered F4 · .btn and .btn-primary share one card-stock recipe, and the pear primary is the only filled button on a screen; chosen tabs and toggles are ink pills by the theme */
+/* Hallmark · answered F7 · fields are bordered 14px boxes and wells are borderless 24px tints, so the repeated container recipe is one per role in this app */
+/* Hallmark · dismissed 41 · the flagged dark surface is the dark-mode value of the well tokens, and text there inherits the light ink token */
+/* Hallmark · dismissed 49 · the long refund label is the transaction row's accessible name; the visible row shows category, note and amount without wrapping */
+/* Hallmark · dismissed 70 · Mark done toggles an event through the update mutation, a real request, so no success is faked */
+@import url("./tokens.css");
+@import url("./base.css");
+@import url("./mainichi.css");

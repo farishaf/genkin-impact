@@ -53,7 +53,7 @@ function ExerciseList({
 
   return (
     <>
-      {exercises.length === 0 && <p className="muted mi-pad">No exercises yet — add one below.</p>}
+      {exercises.length === 0 && <p className="muted mi-pad">No exercises yet. Add one below.</p>}
       {exercises.map((x, i) => (
         <section key={x.id} className="card mi-card mi-ex">
           <div className="mi-ex__head">
@@ -99,7 +99,7 @@ function ExerciseList({
                   className="mi-input mi-sets__in"
                   value={s.kg}
                   inputMode="decimal"
-                  placeholder="–"
+                  placeholder="0"
                   aria-label={`${x.name} set ${si + 1} kg`}
                   onChange={(e) => updSets(x.id, (ss) => ss.map((y) => (y.id === s.id ? { ...y, kg: e.target.value } : y)))}
                 />
@@ -209,9 +209,6 @@ export function WorkoutEventPage() {
       <header className="card mi-card mi-whead">
         <div className="mi-whead__top">
           <div className="mi-dayhead__titles">
-            <span className="mi-kicker mi-type--workout mi-kicker--type">
-              Workout · {fromKey(event.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
-            </span>
             <input
               className="mi-title"
               value={event.title}
@@ -222,7 +219,7 @@ export function WorkoutEventPage() {
               }}
             />
             <span className="mi-muted">
-              {[event.details.focus, `${exercises.length} movement${exercises.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")}
+              {[`Workout on ${fromKey(event.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`, event.details.focus, `${exercises.length} movement${exercises.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")}
             </span>
           </div>
           <div className="mi-dochead__actions">
@@ -304,7 +301,6 @@ export function RoutinePage() {
     <div className="mi-narrow">
       <BackButton />
       <header className="card mi-card mi-whead">
-        <span className="mi-kicker mi-type--workout mi-kicker--type">Routine template</span>
         <input
           className="mi-title"
           value={routine.title}
@@ -314,6 +310,7 @@ export function RoutinePage() {
             edit((r) => ({ ...r, title }));
           }}
         />
+        <span className="mi-muted">Routine template</span>
         <input
           className="mi-input mi-subtitle"
           value={routine.focus}

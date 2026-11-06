@@ -28,7 +28,7 @@ export function ForgotPasswordPage() {
           <p>If an account exists for that email, a reset link is on its way.</p>
         ) : (
           <>
-            <p className="auth-sub">Enter your email and we'll send a reset link.</p>
+            <p className="auth-sub">Enter your email and we’ll send a reset link.</p>
             <form onSubmit={onSubmit}>
               <label className="field">
                 <span>Email</span>

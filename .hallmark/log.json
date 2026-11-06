@@ -1,32 +1,62 @@
 [
-  {
-    "date": "2026-11-02",
-    "macrostructure": "none (restyle of existing app, layouts unchanged)",
-    "theme": "studied-DNA (user reference image)",
-    "theme_axes": "light + dark / grotesk-sans (Helvetica Neue) / cool (indigo 275) + chromatic-green (mint 165)",
-    "nav": "unchanged, navy bar",
-    "footer": "none",
-    "enrichment": "none",
-    "brief": "Mainichi contrast pass: navy panels, white cards, mint actions, 4.5:1 text floor, larger base text"
-  },
-  {
-    "date": "2026-11-02",
-    "macrostructure": "Split Panel (app sign-in)",
-    "theme": "studied-DNA (Luminous Ledger)",
-    "theme_axes": "light + dark / grotesk-sans (Helvetica Neue) / chromatic-green (emerald 162)",
-    "nav": "none",
-    "footer": "none",
-    "enrichment": "CSS year-of-days dot grid from the real date",
-    "brief": "Mainichi /login redesign: today's date and year grid beside a sign-in form"
-  },
-  {
-    "date": "2026-08-07",
-    "macrostructure": "Marquee Hero",
-    "theme": "studied-DNA (Luminous Ledger)",
-    "theme_axes": "light + dark / grotesk-sans (Inter) / chromatic-green (emerald 162)",
-    "nav": "N1b SaaS three-section",
-    "footer": "Ft2 Inline single line",
-    "enrichment": "real product DOM panel, static IDR demo data",
-    "brief": "Genkin-Impact landing page at / — personal finance ledger, light+dark, glassmorphism"
-  }
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "Hum (deal 1/3)",
+  "axes": "light/rounded-sans/chromatic-yellow",
+  "hero": "none (app)",
+  "nav": "sticky top bar, three destinations, Money tab row, account popover; phone bottom bar",
+  "footer": "none",
+  "imagery": "none",
+  "photos": [],
+  "entry": "none",
+  "fingerprint": "app-screen/hum/topbar/day-sheet",
+  "sections": [
+   "Today day sheet",
+   "Calendar month",
+   "Workout and routine documents",
+   "Money overview",
+   "Transactions",
+   "Assets",
+   "Analytics",
+   "Plans",
+   "Sign-in"
+  ],
+  "signature": "the day sheet: week strip above a to-do list whose ticks press like card stock",
+  "waived": [],
+  "prompt": "daily planner with integrated personal finance for one person",
+  "date": "2026-11-06"
+ },
+ {
+  "date": "2026-11-02",
+  "macrostructure": "none (restyle of existing app, layouts unchanged)",
+  "theme": "studied-DNA (user reference image)",
+  "theme_axes": "light + dark / grotesk-sans (Helvetica Neue) / cool (indigo 275) + chromatic-green (mint 165)",
+  "nav": "unchanged, navy bar",
+  "footer": "none",
+  "enrichment": "none",
+  "brief": "Mainichi contrast pass: navy panels, white cards, mint actions, 4.5:1 text floor, larger base text"
+ },
+ {
+  "date": "2026-11-02",
+  "macrostructure": "Split Panel (app sign-in)",
+  "theme": "studied-DNA (Luminous Ledger)",
+  "theme_axes": "light + dark / grotesk-sans (Helvetica Neue) / chromatic-green (emerald 162)",
+  "nav": "none",
+  "footer": "none",
+  "enrichment": "CSS year-of-days dot grid from the real date",
+  "brief": "Mainichi /login redesign: today's date and year grid beside a sign-in form"
+ },
+ {
+  "date": "2026-08-07",
+  "macrostructure": "Marquee Hero",
+  "theme": "studied-DNA (Luminous Ledger)",
+  "theme_axes": "light + dark / grotesk-sans (Inter) / chromatic-green (emerald 162)",
+  "nav": "N1b SaaS three-section",
+  "footer": "Ft2 Inline single line",
+  "enrichment": "real product DOM panel, static IDR demo data",
+  "brief": "Genkin-Impact landing page at / — personal finance ledger, light+dark, glassmorphism"
+ }
 ]

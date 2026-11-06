@@ -911,10 +911,6 @@ export function TransactionsPage() {
           <div className="summary-grid">
             <div className="card stat-card">
               <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-income)" }}
-                />
                 <span className="stat-card__label">Income</span>
               </div>
               <div className="stat-card__figure" data-tone="income">
@@ -923,10 +919,6 @@ export function TransactionsPage() {
             </div>
             <div className="card stat-card">
               <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-expense)" }}
-                />
                 <span className="stat-card__label">Expenditure</span>
               </div>
               <div className="stat-card__figure" data-tone="expense">
@@ -935,10 +927,6 @@ export function TransactionsPage() {
             </div>
             <div className="card stat-card">
               <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-balance)" }}
-                />
                 <span className="stat-card__label">Balance</span>
               </div>
               <div className="stat-card__figure" data-tone="balance">
@@ -947,10 +935,6 @@ export function TransactionsPage() {
             </div>
             <div className="card stat-card">
               <div className="stat-card__head">
-                <span
-                  className="dot"
-                  style={{ background: "var(--color-on-surface-muted)" }}
-                />
                 <span className="stat-card__label">Transactions</span>
               </div>
               <div className="stat-card__figure">{summary.count}</div>
@@ -994,7 +978,7 @@ export function TransactionsPage() {
                           </sup>
                         )}
                       </td>
-                      <td>{t.member_name ?? "—"}</td>
+                      <td>{t.member_name ?? "None"}</td>
                       <td>{t.account_name}</td>
                       <td className="txn-table__note">{t.note ?? ""}</td>
                       <td

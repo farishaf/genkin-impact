@@ -5,8 +5,9 @@ import {
   useCreateRoutine, useEvents, useRoutines, useUpdateEvent,
   type EventType, type PlannerEvent,
 } from "../../lib/planner";
-import { Drawer, EventRow, Icon } from "./parts";
-import { EventEditor, NewEventForm } from "./EventPanel";
+import { EventRow, Icon } from "./parts";
+import { EventDrawer } from "./EventDrawer";
+import { useOpenEvent } from "./useOpenEvent";
 
 const FILTERS: ("all" | EventType)[] = ["all", "workout", "run", "event"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -49,16 +50,11 @@ export function CalendarPage() {
   const editId = params.get("edit");
   const { data: next4Weeks = [] } = useEvents(todayKey(), toKey(addDays(new Date(), 28)));
   const upcomingRuns = next4Weeks.filter((e) => e.type === "run" && !e.done).slice(0, 4);
-  // Keep the open item while a refetch (new month after "Move to", or a just-created item) has no row for it yet.
-  const [lastEdit, setLastEdit] = useState<PlannerEvent>();
-  const found = editId ? [...events, ...next4Weeks].find((e) => e.id === editId) : undefined;
-  if (found && found !== lastEdit) setLastEdit(found);
-  const editing = found ?? (lastEdit?.id === editId ? lastEdit : undefined);
+  const { event: editing, remember } = useOpenEvent(editId, [events, next4Weeks]);
   const closeDrawer = () => {
     setAdding(false);
     update({ edit: null });
   };
-  const shortDate = (k: string) => fromKey(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
   async function newRoutine() {
     const routine = await createRoutine.mutateAsync({ title: "New routine" });
@@ -70,7 +66,7 @@ export function CalendarPage() {
   const summary = [
     runKm(inMonth) ? `${fmtKm(runKm(inMonth))} km planned` : "",
     workouts.length ? `${workouts.filter((e) => e.done).length}/${workouts.length} workouts done` : "",
-  ].filter(Boolean).join(" · ");
+  ].filter(Boolean).join(", ");
 
   return (
     <div className="mi-calpage">
@@ -132,7 +128,7 @@ export function CalendarPage() {
                             <span className="mi-tag__text">
                               {e.time && e.type === "event" ? `${e.time} ` : ""}
                               {e.title}
-                              {e.type === "run" && e.details.km ? ` · ${e.details.km}k` : ""}
+                              {e.type === "run" && e.details.km ? ` ${e.details.km}k` : ""}
                             </span>
                           </span>
                         ))}
@@ -148,7 +144,7 @@ export function CalendarPage() {
                       <span>{fmtKm(doneKm)} done</span>
                     </>
                   ) : (
-                    <span>–</span>
+                    <span>0</span>
                   )}
                 </span>
               </div>
@@ -161,8 +157,8 @@ export function CalendarPage() {
         <section className="card mi-card mi-daypanel">
           <div className="mi-cardhead">
             <div className="mi-dayhead__titles">
-              <span className="mi-kicker">{sel === todayKey() ? "Today" : fromKey(sel).toLocaleDateString("en-GB", { weekday: "long" })}</span>
               <h2 className="mi-h2 mi-h2--lg">{fromKey(sel).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</h2>
+              <span className="mi-muted">{sel === todayKey() ? "Today" : fromKey(sel).toLocaleDateString("en-GB", { weekday: "long" })}</span>
             </div>
             <button type="button" className="mi-pill" onClick={() => setAdding(true)}>+ Add here</button>
           </div>
@@ -181,7 +177,7 @@ export function CalendarPage() {
               ))}
             </div>
           )}
-          <Link to={sel === todayKey() ? "/mainichi" : `/mainichi?date=${sel}`} className="mi-link">To-dos for this day ›</Link>
+          <Link to={sel === todayKey() ? "/mainichi" : `/mainichi?date=${sel}`} className="mi-link">To-dos for this day</Link>
         </section>
 
         <section className="card mi-card">
@@ -195,10 +191,10 @@ export function CalendarPage() {
             <div className="mi-list">
               {routines.map((r) => (
                 <Link key={r.id} to={`/mainichi/routines/${r.id}`} className="mi-pagerow">
-                  <span className="mi-tile">🏋️</span>
+                  <span className="mi-tile"><Icon name="dumbbell" /></span>
                   <span className="mi-pagerow__text">
                     <span className="mi-pagerow__title">{r.title}</span>
-                    <span className="mi-pagerow__sub">{[r.focus, `${r.exercises.length} exercises`].filter(Boolean).join(" · ")}</span>
+                    <span className="mi-pagerow__sub">{[r.focus, `${r.exercises.length} exercises`].filter(Boolean).join(", ")}</span>
                   </span>
                 </Link>
               ))}
@@ -212,11 +208,11 @@ export function CalendarPage() {
             <div className="mi-list">
               {upcomingRuns.map((e) => (
                 <button key={e.id} type="button" className="mi-pagerow" onClick={() => update({ date: e.date, edit: e.id })}>
-                  <span className="mi-tile">🏃</span>
+                  <span className="mi-tile"><Icon name="timer" /></span>
                   <span className="mi-pagerow__text">
                     <span className="mi-pagerow__title">{e.title}</span>
                     <span className="mi-pagerow__sub">
-                      {fromKey(e.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · {eventMeta(e)}
+                      {fromKey(e.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, {eventMeta(e)}
                     </span>
                   </span>
                 </button>
@@ -228,31 +224,20 @@ export function CalendarPage() {
       </div>
 
       {(adding || editing) && (
-        <Drawer
-          title={editing ? shortDate(editing.date) : `New item · ${shortDate(sel)}`}
+        <EventDrawer
+          event={editing}
+          create={{
+            date: sel,
+            routines,
+            // adding stays on until the drawer closes so it never unmounts between form and editor.
+            onCreated: (e) => {
+              remember(e);
+              update({ edit: e.id });
+            },
+          }}
           onClose={closeDrawer}
-        >
-          {!editing ? (
-            <NewEventForm
-              key={sel}
-              date={sel}
-              routines={routines}
-              onCancel={() => setAdding(false)}
-              onCreated={(e) => {
-                // adding stays on until the drawer closes so it never unmounts between form and editor.
-                setLastEdit(e);
-                update({ edit: e.id });
-              }}
-            />
-          ) : (
-            <EventEditor
-              key={editing!.id}
-              event={editing!}
-              onClose={closeDrawer}
-              onMoved={(date) => update({ date, month: null })}
-            />
-          )}
-        </Drawer>
+          onMoved={(date) => update({ date, month: null })}
+        />
       )}
     </div>
   );

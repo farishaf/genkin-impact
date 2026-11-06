@@ -79,7 +79,7 @@ function AddSavingsGoalForm({ onCreated }: { onCreated: () => void }) {
       <label className="field">
         <span>Track against an account (optional)</span>
         <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          <option value="">Manual — I'll log contributions myself</option>
+          <option value="">Manual: I’ll log contributions myself</option>
           {(accounts ?? []).map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -97,7 +97,7 @@ function AddSavingsGoalForm({ onCreated }: { onCreated: () => void }) {
           <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)}>
             {(currencies ?? []).map((c) => (
               <option key={c.code} value={c.code}>
-                {c.code} — {c.name}
+                {c.code} ({c.name})
               </option>
             ))}
           </select>
@@ -166,7 +166,7 @@ function SavingsGoalCard({ goal }: { goal: SavingsGoal }) {
           </div>
           <div className="plan-card__meta">
             {goal.account_id ? `Linked to ${goal.account_name}` : "Manual"}
-            {goal.target_date ? ` · due ${goal.target_date}` : ""}
+            {goal.target_date ? `, due ${goal.target_date}` : ""}
           </div>
         </div>
         <button className="btn-outline btn-outline--sm" type="button" onClick={() => archive.mutate()}>

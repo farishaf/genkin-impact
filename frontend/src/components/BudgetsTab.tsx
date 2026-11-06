@@ -101,7 +101,7 @@ function AddBudgetForm({ onCreated }: { onCreated: () => void }) {
         <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)}>
           {(currencies ?? []).map((c) => (
             <option key={c.code} value={c.code}>
-              {c.code} — {c.name}
+              {c.code} ({c.name})
             </option>
           ))}
         </select>
@@ -142,7 +142,7 @@ function BudgetCard({ budget }: { budget: Budget }) {
         <div>
           <div className="plan-card__name">{budget.name}</div>
           <div className="plan-card__meta">
-            {budget.category_name ?? "Overall"} · {budget.period}
+            {budget.category_name ?? "Overall"}, {budget.period}
           </div>
         </div>
         <button className="btn-outline btn-outline--sm" type="button" onClick={() => archive.mutate()}>

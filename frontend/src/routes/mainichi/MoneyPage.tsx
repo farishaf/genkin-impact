@@ -97,7 +97,7 @@ function PurchaseForm({ accounts, categories }: { accounts: Account[]; categorie
         <input className="mi-receipt__store" value={store} placeholder="Store, e.g. Superindo" aria-label="Store" maxLength={120} onChange={(e) => setStore(e.target.value)} />
         <input type="date" className="mi-receipt__date" value={date} aria-label="Date" onChange={(e) => setDate(e.target.value || todayKey())} />
         <select className="mi-receipt__acct" value={accountId} aria-label="Paid from" onChange={(e) => setAccountId(e.target.value)}>
-          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.currency_code}</option>)}
+          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency_code})</option>)}
         </select>
       </div>
 
@@ -193,14 +193,14 @@ export function MoneyPage() {
   return (
     <div className="mi-cols mi-money">
       <div className="mi-cols__main mi-money__main">
-        <section className="card mi-card mi-card--panel">
+        <section className="mi-sheet mi-monthsheet" aria-label="Spending this month">
           <div className="mi-dayhead">
             <div className="mi-dayhead__titles">
-              <span className="mi-kicker mi-kicker--money">Spending · {monthName}</span>
+              <span className="mi-monthsheet__name">Spending in {monthName}</span>
               <span className="mi-money__total">
-                {summary.data ? formatMoney(summary.data.expenditure_minor, summary.data.main_currency_code) : notSetUp ? "—" : "…"}
+                {summary.data ? formatMoney(summary.data.expenditure_minor, summary.data.main_currency_code) : notSetUp ? "Not set up yet" : "…"}
               </span>
-              <span className="mi-muted">
+              <span className="mi-monthsheet__name">
                 {summary.data ? `${summary.data.count} expense${summary.data.count === 1 ? "" : "s"} this month` : ""}
               </span>
             </div>
@@ -217,7 +217,7 @@ export function MoneyPage() {
           {notSetUp || (accounts.data && accounts.data.length === 0) ? (
             <p className="mi-empty">
               Set up your money first (main currency and at least one account).{" "}
-              <Link to={notSetUp ? "/onboarding" : "/mainichi/money/assets"} className="mi-link">Set up ›</Link>
+              <Link to={notSetUp ? "/onboarding" : "/mainichi/money/assets"} className="mi-link">Set up</Link>
             </p>
           ) : accounts.data && categories.data ? (
             <PurchaseForm accounts={accounts.data} categories={categories.data} />
@@ -236,11 +236,11 @@ export function MoneyPage() {
           <div className="mi-list mi-list--tight">
             {recent.data.map((t) => (
               <div key={t.id} className="mi-pagerow mi-txn">
-                <span className="mi-tile">{t.category_emoji || "🧾"}</span>
+                <span className="mi-tile">{t.category_emoji || <Icon name="receipt" />}</span>
                 <span className="mi-pagerow__text">
                   <span className="mi-pagerow__title">{t.note || t.category_name || "Expense"}</span>
                   <span className="mi-pagerow__sub">
-                    {new Date(t.occurred_at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {t.account_name}
+                    {new Date(t.occurred_at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}, {t.account_name}
                   </span>
                 </span>
                 <span className="mi-txn__amt">−{formatMoney(t.amount, t.currency_code)}</span>

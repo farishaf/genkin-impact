@@ -110,7 +110,7 @@ export function TransactionsReportPanel({
         <div className="outlier-card">
           <span className="outlier-card__label">Largest transaction</span>
           <span className="outlier-card__value">
-            {data.outlier.label} — {formatMoney(data.outlier.amount_minor, data.outlier.currency_code)}
+            {data.outlier.label}: {formatMoney(data.outlier.amount_minor, data.outlier.currency_code)}
           </span>
         </div>
       )}

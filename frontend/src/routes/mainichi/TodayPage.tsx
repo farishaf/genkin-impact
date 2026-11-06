@@ -10,6 +10,8 @@ import {
   type Page, type Todo,
 } from "../../lib/planner";
 import { Checklist, Drawer, EventRow, Icon } from "./parts";
+import { EventDrawer } from "./EventDrawer";
+import { useOpenEvent } from "./useOpenEvent";
 
 function dayKicker(date: string) {
   const diff = Math.round((fromKey(date).getTime() - fromKey(todayKey()).getTime()) / 864e5);
@@ -17,6 +19,13 @@ function dayKicker(date: string) {
   if (diff === 1) return "Tomorrow";
   if (diff === -1) return "Yesterday";
   return fromKey(date).toLocaleDateString("en-GB", { weekday: "long" });
+}
+
+const RELATIVE_DAYS = ["Today", "Tomorrow", "Yesterday"];
+
+function spentLabel(date: string) {
+  const rel = dayKicker(date);
+  return RELATIVE_DAYS.includes(rel) ? `Spent ${rel.toLowerCase()}` : `Spent on ${rel}`;
 }
 
 function pageSub(p: Page) {
@@ -53,10 +62,10 @@ function DaySpending({ date }: { date: string }) {
   });
 
   return (
-    <section className="card mi-card mi-card--panel mi-cols__side mi-dayspend">
+    <section className="mi-sheet mi-dayspend" aria-label="Money for the day">
       <div className="mi-dayhead">
         <div className="mi-dayhead__titles">
-          <span className="mi-kicker mi-kicker--money">Spent · {dayKicker(date)}</span>
+          <span className="mi-spend__label">{spentLabel(date)}</span>
           <span className="mi-money__total">{spent.data ? formatMoney(spent.data.expenditure_minor, spent.data.main_currency_code) : "—"}</span>
         </div>
         <button type="button" className="mi-solid" onClick={() => setAdding(true)}>
@@ -71,11 +80,11 @@ function DaySpending({ date }: { date: string }) {
         <div className="mi-list mi-list--tight">
           {txns.data.map((t) => (
             <div key={t.id} className="mi-pagerow mi-txn">
-              <span className="mi-tile">{t.category_emoji || (t.type === "transfer" ? "↔" : "🧾")}</span>
+              <span className="mi-tile">{t.category_emoji || <Icon name={t.type === "transfer" ? "transfer" : "receipt"} />}</span>
               <span className="mi-pagerow__text">
                 <span className="mi-pagerow__title">{t.note || t.category_name || (t.type === "transfer" ? "Transfer" : "Expense")}</span>
                 <span className="mi-pagerow__sub">
-                  {new Date(t.occurred_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · {t.account_name}
+                  {new Date(t.occurred_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}, {t.account_name}
                 </span>
               </span>
               <span className={`mi-txn__amt mi-txn__amt--${t.type}`}>
@@ -114,6 +123,20 @@ export function TodayPage() {
   const deletePage = useDeletePage();
   const updateEvent = useUpdateEvent();
 
+  // The open item lives in the URL (?edit=<id>), like on Calendar, so a refresh or the back button keeps it.
+  const editId = params.get("edit");
+  const { event: editing } = useOpenEvent(editId, [events]);
+  const setEdit = (id: string | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (id) next.set("edit", id);
+        else next.delete("edit");
+        return next;
+      },
+      { replace: true },
+    );
+
   const setTodos = (todos: Todo[], delay?: number) => editDay((d) => ({ ...d, todos }), delay);
 
   async function openAsPage(todo: Todo) {
@@ -131,26 +154,26 @@ export function TodayPage() {
     if (window.confirm(`Delete "${p.title || "Untitled"}"? This can't be undone.`)) deletePage.mutate(p.id);
   }
 
+  const rel = dayKicker(date);
   return (
-    <div className="mi-cols">
-    <section className="card mi-card mi-cols__main mi-today">
-      <div className="mi-dayhead">
-        <div className="mi-dayhead__titles">
-          <span className="mi-kicker">{dayKicker(date)}</span>
-          <h1 className="mi-h1">{fromKey(date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h1>
-        </div>
-        {date !== todayKey() && (
-          <button type="button" className="mi-pill" onClick={() => setDate(todayKey())}>
-            Today
+    <div className="mi-today">
+      <header className="mi-today__head">
+        <h1 className="mi-h1 mi-today__title">{fromKey(date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h1>
+        {RELATIVE_DAYS.includes(rel) && <span className={`mi-today__rel${date === todayKey() ? " mi-today__rel--now" : ""}`}>{rel}</span>}
+        <div className="mi-today__nav">
+          {date !== todayKey() && (
+            <button type="button" className="mi-pill" onClick={() => setDate(todayKey())}>
+              Today
+            </button>
+          )}
+          <button type="button" className="mi-iconbtn" aria-label="Previous day" onClick={() => setDate(toKey(addDays(fromKey(date), -1)))}>
+            <Icon name="back" />
           </button>
-        )}
-        <button type="button" className="mi-iconbtn" aria-label="Previous day" onClick={() => setDate(toKey(addDays(fromKey(date), -1)))}>
-          <Icon name="back" />
-        </button>
-        <button type="button" className="mi-iconbtn" aria-label="Next day" onClick={() => setDate(toKey(addDays(fromKey(date), 1)))}>
-          <Icon name="chevron" />
-        </button>
-      </div>
+          <button type="button" className="mi-iconbtn" aria-label="Next day" onClick={() => setDate(toKey(addDays(fromKey(date), 1)))}>
+            <Icon name="chevron" />
+          </button>
+        </div>
+      </header>
 
       <div className="mi-week" role="group" aria-label="Pick a day">
         {week.map((k) => {
@@ -176,7 +199,7 @@ export function TodayPage() {
       </div>
 
       <div className="mi-today__grid">
-        <div className="mi-today__col">
+        <section className="mi-today__col" aria-label="To-do and notes">
           <div className="mi-sechead">
             <h2 className="mi-h2">To-do</h2>
             {day && day.todos.length > 0 && <span className="mi-count">{day.todos.filter((t) => t.done).length}/{day.todos.length}</span>}
@@ -225,64 +248,70 @@ export function TodayPage() {
               editDay((d) => ({ ...d, notes }));
             }}
           />
-        </div>
+        </section>
 
         <div className="mi-today__col">
-          <div className="mi-sechead">
-            <h2 className="mi-h2">From calendar</h2>
-            <Link to={`/mainichi/calendar?date=${date}`} className="mi-textbtn">Open</Link>
-          </div>
-          {dayEvents.length === 0 ? (
-            <p className="mi-empty">Rest day — nothing on the calendar.</p>
-          ) : (
-            <div className="mi-list">
-              {dayEvents.map((e) => (
-                <EventRow
-                  key={e.id}
-                  event={e}
-                  onToggle={() => updateEvent.mutate({ id: e.id, done: !e.done })}
-                  onEdit={() => navigate(`/mainichi/calendar?date=${e.date}&edit=${e.id}`)}
-                />
-              ))}
+          <section className="mi-today__col" aria-label="From the calendar">
+            <div className="mi-sechead">
+              <h2 className="mi-h2">From calendar</h2>
+              <Link to={`/mainichi/calendar?date=${date}`} className="mi-textbtn">Open</Link>
             </div>
-          )}
+            {dayEvents.length === 0 ? (
+              <p className="mi-empty">Rest day, nothing on the calendar.</p>
+            ) : (
+              <div className="mi-list">
+                {dayEvents.map((e) => (
+                  <EventRow
+                    key={e.id}
+                    event={e}
+                    onToggle={() => updateEvent.mutate({ id: e.id, done: !e.done })}
+                    onEdit={() => setEdit(e.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
-          <div className="mi-sechead mi-sechead--spaced">
-            <h2 className="mi-h2">Pages</h2>
-            <button type="button" className="mi-textbtn" onClick={newPage} disabled={createPage.isPending}>+ New</button>
-          </div>
-          {pages.length === 0 ? (
-            <p className="mi-empty">No pages yet.</p>
-          ) : (
-            <div className="mi-list mi-list--tight">
-              {pages.map((p) => (
-                <div key={p.id} className="mi-pageitem">
-                  <Link to={`/mainichi/pages/${p.id}`} className="mi-pagerow">
-                    <span className="mi-tile">{p.icon}</span>
-                    <span className="mi-pagerow__text">
-                      <span className="mi-pagerow__title">{p.title || "Untitled"}</span>
-                      <span className="mi-pagerow__sub">{pageSub(p)}</span>
-                    </span>
-                    <Icon name="chevron" className="mi-pagerow__go" />
-                  </Link>
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn--danger mi-check__del"
-                    aria-label={`Delete page "${p.title || "Untitled"}"`}
-                    onClick={() => removePage(p)}
-                    disabled={deletePage.isPending}
-                  >
-                    <Icon name="trash" />
-                  </button>
-                </div>
-              ))}
+          <DaySpending date={date} />
+
+          <section className="mi-today__col" aria-label="Pages">
+            <div className="mi-sechead">
+              <h2 className="mi-h2">Pages</h2>
+              <button type="button" className="mi-textbtn" onClick={newPage} disabled={createPage.isPending}>+ New</button>
             </div>
-          )}
-          {deletePage.error && <p className="field-error">{deletePage.error.message}</p>}
+            {pages.length === 0 ? (
+              <p className="mi-empty">No pages yet.</p>
+            ) : (
+              <div className="mi-list mi-list--tight">
+                {pages.map((p) => (
+                  <div key={p.id} className="mi-pageitem">
+                    <Link to={`/mainichi/pages/${p.id}`} className="mi-pagerow">
+                      <span className="mi-tile">{p.icon}</span>
+                      <span className="mi-pagerow__text">
+                        <span className="mi-pagerow__title">{p.title || "Untitled"}</span>
+                        <span className="mi-pagerow__sub">{pageSub(p)}</span>
+                      </span>
+                      <Icon name="chevron" className="mi-pagerow__go" />
+                    </Link>
+                    <button
+                      type="button"
+                      className="icon-btn icon-btn--danger mi-check__del"
+                      aria-label={`Delete page "${p.title || "Untitled"}"`}
+                      onClick={() => removePage(p)}
+                      disabled={deletePage.isPending}
+                    >
+                      <Icon name="trash" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {deletePage.error && <p className="field-error">{deletePage.error.message}</p>}
+          </section>
         </div>
       </div>
-    </section>
-    <DaySpending date={date} />
+
+      {editing && <EventDrawer event={editing} onClose={() => setEdit(null)} />}
     </div>
   );
 }

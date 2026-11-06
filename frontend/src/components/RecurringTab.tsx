@@ -195,7 +195,7 @@ function RecurringRuleCard({ rule }: { rule: RecurringRule }) {
         <div>
           <div className="plan-card__name">{rule.name}</div>
           <div className="plan-card__meta">
-            {rule.txn_type === "transfer" ? `${rule.account_name} → ${rule.to_account_name}` : `${rule.account_name} · ${rule.category_name}`}
+            {rule.txn_type === "transfer" ? `${rule.account_name} → ${rule.to_account_name}` : `${rule.account_name}, ${rule.category_name}`}
           </div>
         </div>
         <button className="btn-outline btn-outline--sm" type="button" onClick={() => toggleActive.mutate()}>
@@ -206,7 +206,7 @@ function RecurringRuleCard({ rule }: { rule: RecurringRule }) {
         <span>{formatMoney(rule.amount, rule.currency_code)}</span>
         <span className="muted-inline">
           every {rule.interval_count > 1 ? `${rule.interval_count} ` : ""}
-          {rule.frequency} · next {new Date(rule.next_run_at).toLocaleDateString()}
+          {rule.frequency}, next {new Date(rule.next_run_at).toLocaleDateString()}
         </span>
       </div>
       {rule.pending_transaction && (

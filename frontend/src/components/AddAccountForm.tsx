@@ -75,7 +75,7 @@ export function AddAccountForm({
         <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)}>
           {(currencies ?? []).map((c) => (
             <option key={c.code} value={c.code}>
-              {c.code} — {c.name}
+              {c.code} ({c.name})
             </option>
           ))}
         </select>
