@@ -27,6 +27,11 @@ DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="docker-compose-deploy-${ENV}-${SERVICE}.yml"
 [ -f "$DEPLOY_DIR/$COMPOSE_FILE" ] || { echo "No such compose file: $COMPOSE_FILE"; exit 1; }
 
+# match the project name the deploy scripts use, or compose finds no containers
+# shellcheck disable=SC1091
+source "$DEPLOY_DIR/.env"
+export COMPOSE_PROJECT_NAME="${PROJECT_NAME}-${ENV}"
+
 cd "$DEPLOY_DIR"
 if [ "${#EXTRA_ARGS[@]}" -eq 0 ]; then
   docker compose -f "$COMPOSE_FILE" logs -f --tail=200 "$SERVICE"
