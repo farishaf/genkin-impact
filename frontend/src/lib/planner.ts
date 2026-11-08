@@ -7,7 +7,8 @@ import { queryClient } from "./queryClient";
 
 export type EventType = "workout" | "run" | "event";
 export interface WorkoutSet { id: string; reps: string; kg: string; done: boolean }
-export interface Exercise { id: string; name: string; note: string; sets: WorkoutSet[] }
+/** `measure: "time"` makes each set's `reps` a count of seconds (a plank, a hang). Absent means reps. */
+export interface Exercise { id: string; name: string; note: string; sets: WorkoutSet[]; measure?: "reps" | "time" }
 export interface CheckItem { id: string; text: string; done: boolean }
 export interface Todo extends CheckItem { page_id: string | null }
 
@@ -39,6 +40,9 @@ export interface EventDetails {
   routine_id?: string | null;
   focus?: string;
   exercises?: Exercise[];
+  /** Logged when a run is marked done: elevation gain (m) and average heart rate (bpm). */
+  elevation?: string;
+  avgHr?: string;
 }
 export interface PlannerEvent {
   id: string;
@@ -99,11 +103,16 @@ function stepPace(s: RunStep) {
   return lo && hi ? (lo + hi) / 2 : lo ?? hi;
 }
 
-/** Distance and duration of a structured run. Time-based steps count toward km only when they have a pace. */
+/**
+ * Distance and duration of a structured run. Time-based steps count toward km only when they have a pace.
+ * `pace` (min/km) averages only the steps whose distance and time are both known, so an untimed warm-up doesn't skew it.
+ */
 export function runTotals(segments: Segment[] = []) {
   let km = 0;
   let minutes = 0;
   let timed = true;
+  let pacedKm = 0;
+  let pacedMin = 0;
   for (const seg of segments) {
     for (const s of seg.steps) {
       const amount = parseFloat(s.amount.replace(",", ".")) || 0;
@@ -113,9 +122,64 @@ export function runTotals(segments: Segment[] = []) {
       km += stepKm * seg.rounds;
       if (Number.isNaN(stepMin)) timed = false;
       else minutes += stepMin * seg.rounds;
+      if (stepKm > 0 && !Number.isNaN(stepMin)) {
+        pacedKm += stepKm * seg.rounds;
+        pacedMin += stepMin * seg.rounds;
+      }
     }
   }
-  return { km: Math.round(km * 100) / 100, minutes: timed ? Math.round(minutes) : null };
+  return { km: Math.round(km * 100) / 100, minutes: timed ? Math.round(minutes) : null, pace: pacedKm ? pacedMin / pacedKm : null, pacedKm, pacedMin };
+}
+
+/** 47 → "47 min", 95 → "1 h 35 min". */
+export const formatDuration = (min: number) =>
+  min >= 60 ? `${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, "0")} min` : `${Math.round(min)} min`;
+
+/** 5.75 (min/km) → "5:45 /km". */
+export function formatPace(minPerKm: number) {
+  const s = Math.round(minPerKm * 60);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} /km`;
+}
+
+const num = (v?: string) => {
+  const n = parseFloat((v ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/** Totals for the runs in a list of events (one week): done vs planned, planned km and pace of the done ones, logged elevation and heart rate. */
+export function weekRunStats(events: PlannerEvent[]) {
+  const runs = events.filter((e) => e.type === "run");
+  const done = runs.filter((e) => e.done);
+  let km = 0;
+  let elevation = 0;
+  let hrSum = 0;
+  let hrWeight = 0;
+  let pacedKm = 0;
+  let pacedMin = 0;
+  for (const r of done) {
+    const t = runTotals(runSegments(r));
+    km += t.km;
+    pacedKm += t.pacedKm;
+    pacedMin += t.pacedMin;
+    elevation += num(r.details.elevation) ?? 0;
+    const hr = num(r.details.avgHr);
+    // Weighted by planned minutes so a long run counts more than a short one.
+    // ponytail: 30 min stands in when the plan has no time; log the actual duration if that skews it.
+    if (hr) {
+      const w = t.minutes || 30;
+      hrSum += hr * w;
+      hrWeight += w;
+    }
+  }
+  return {
+    done: done.length,
+    planned: runs.length,
+    km: Math.round(km * 10) / 10,
+    elevation: Math.round(elevation),
+    avgHr: hrWeight ? Math.round(hrSum / hrWeight) : null,
+    /** min/km over the paced parts of the done runs, weighted by distance. */
+    pace: pacedKm ? pacedMin / pacedKm : null,
+  };
 }
 
 const UNIT_LABEL: Record<StepUnit, string> = { km: "km", m: "m", min: "min", s: "s" };

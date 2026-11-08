@@ -7,6 +7,7 @@ import {
 } from "../../lib/planner";
 import { EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
+import { RunDetail, RunWeek } from "./RunDetail";
 import { useOpenEvent } from "./useOpenEvent";
 import { useEnter } from "../../lib/motion";
 
@@ -53,6 +54,13 @@ export function CalendarPage() {
   const { data: next4Weeks = [] } = useEvents(todayKey(), toKey(addDays(new Date(), 28)));
   const upcomingRuns = next4Weeks.filter((e) => e.type === "run" && !e.done).slice(0, 4);
   const { event: editing, remember } = useOpenEvent(editId, [events, next4Weeks]);
+  // A run opens read-only first (?run=<id>): the estimate and the result log. Edit plan swaps to the editor.
+  const { event: viewingRun } = useOpenEvent(params.get("run"), [events, next4Weeks]);
+  // A week's run summary (?week=<Monday>), opened from the Run km column.
+  const weekParam = params.get("week");
+  const weekOpen = isValidKey(weekParam) ? weekParam : null;
+  const weekEnd = weekOpen ? toKey(addDays(fromKey(weekOpen), 6)) : "";
+  const weekEvents = events.filter((e) => weekOpen && e.date >= weekOpen && e.date <= weekEnd);
   const closeDrawer = () => {
     setAdding(false);
     update({ edit: null });
@@ -139,16 +147,21 @@ export function CalendarPage() {
                     </button>
                   );
                 })}
-                <span className="mi-month__km">
-                  {km ? (
-                    <>
-                      <strong>{fmtKm(km)}</strong>
-                      <span>{fmtKm(doneKm)} done</span>
-                    </>
-                  ) : (
+                {km ? (
+                  <button
+                    type="button"
+                    className="mi-month__km mi-month__km--btn"
+                    aria-label={`Runs in the week of ${fromKey(wk[0]).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}: ${fmtKm(km)} km planned, ${fmtKm(doneKm)} done`}
+                    onClick={() => update({ week: wk[0] })}
+                  >
+                    <strong>{fmtKm(km)}</strong>
+                    <span>{fmtKm(doneKm)} done</span>
+                  </button>
+                ) : (
+                  <span className="mi-month__km">
                     <span>0</span>
-                  )}
-                </span>
+                  </span>
+                )}
               </div>
             );
           })}
@@ -162,6 +175,8 @@ export function CalendarPage() {
               <h2 className="mi-h2 mi-h2--lg">{fromKey(sel).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</h2>
               <span className="mi-muted">{sel === todayKey() ? "Today" : fromKey(sel).toLocaleDateString("en-GB", { weekday: "long" })}</span>
             </div>
+            {/* Phones hide the Run km column, so the week summary gets its own way in. */}
+            <button type="button" className="mi-textbtn mi-weekbtn" onClick={() => update({ week: toKey(weekStart(fromKey(sel))) })}>Run week</button>
             <button type="button" className="mi-pill" onClick={() => setAdding(true)}>+ Add here</button>
           </div>
           {selEvents.length === 0 ? (
@@ -173,8 +188,9 @@ export function CalendarPage() {
                   key={e.id}
                   event={e}
                   editWorkouts
-                  onToggle={() => updateEvent.mutate({ id: e.id, done: !e.done })}
-                  onEdit={() => update({ edit: e.id })}
+                  // Ticking a run opens its detail, where elevation and heart rate get logged with Mark done.
+                  onToggle={() => (e.type === "run" && !e.done ? update({ run: e.id }) : updateEvent.mutate({ id: e.id, done: !e.done }))}
+                  onEdit={() => update(e.type === "run" ? { run: e.id } : { edit: e.id })}
                 />
               ))}
             </div>
@@ -209,7 +225,7 @@ export function CalendarPage() {
             <h2 className="mi-h2">Upcoming runs</h2>
             <div className="mi-list">
               {upcomingRuns.map((e) => (
-                <button key={e.id} type="button" className="mi-pagerow" onClick={() => update({ date: e.date, edit: e.id })}>
+                <button key={e.id} type="button" className="mi-pagerow" onClick={() => update({ date: e.date, run: e.id })}>
                   <span className="mi-tile"><Icon name="timer" /></span>
                   <span className="mi-pagerow__text">
                     <span className="mi-pagerow__title">{e.title}</span>
@@ -225,6 +241,12 @@ export function CalendarPage() {
       </div>
       </div>
 
+      {weekOpen && !viewingRun && !editing && (
+        <RunWeek start={weekOpen} events={weekEvents} onClose={() => update({ week: null })} onOpenRun={(id) => update({ week: null, run: id })} />
+      )}
+      {viewingRun && !editing && (
+        <RunDetail key={viewingRun.id} event={viewingRun} onClose={() => update({ run: null })} onEdit={() => update({ run: null, edit: viewingRun.id })} />
+      )}
       {(adding || editing) && (
         <EventDrawer
           event={editing}

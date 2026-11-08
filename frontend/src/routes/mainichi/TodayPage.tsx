@@ -11,6 +11,7 @@ import {
 } from "../../lib/planner";
 import { Checklist, Drawer, EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
+import { RunDetail } from "./RunDetail";
 import { useOpenEvent } from "./useOpenEvent";
 import { useEnter } from "../../lib/motion";
 import { confirmDialog } from "../../components/ConfirmDialog";
@@ -130,16 +131,22 @@ export function TodayPage() {
   // The open item lives in the URL (?edit=<id>), like on Calendar, so a refresh or the back button keeps it.
   const editId = params.get("edit");
   const { event: editing } = useOpenEvent(editId, [events]);
-  const setEdit = (id: string | null) =>
+  const { event: viewingRun } = useOpenEvent(params.get("run"), [events]);
+  // One update per change: two setParams calls in a row can overwrite each other.
+  const setUrl = (patch: Record<string, string | null>) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (id) next.set("edit", id);
-        else next.delete("edit");
+        for (const [k, v] of Object.entries(patch)) {
+          if (v) next.set(k, v);
+          else next.delete(k);
+        }
         return next;
       },
       { replace: true },
     );
+  const setEdit = (id: string | null) => setUrl({ edit: id });
+  const openRun = (id: string | null) => setUrl({ run: id });
 
   const setTodos = (todos: Todo[], delay?: number) => editDay((d) => ({ ...d, todos }), delay);
 
@@ -270,8 +277,8 @@ export function TodayPage() {
                   <EventRow
                     key={e.id}
                     event={e}
-                    onToggle={() => updateEvent.mutate({ id: e.id, done: !e.done })}
-                    onEdit={() => setEdit(e.id)}
+                    onToggle={() => (e.type === "run" && !e.done ? openRun(e.id) : updateEvent.mutate({ id: e.id, done: !e.done }))}
+                    onEdit={() => (e.type === "run" ? openRun(e.id) : setEdit(e.id))}
                   />
                 ))}
               </div>
@@ -317,6 +324,9 @@ export function TodayPage() {
         </div>
       </div>
 
+      {viewingRun && !editing && (
+        <RunDetail key={viewingRun.id} event={viewingRun} onClose={() => openRun(null)} onEdit={() => setUrl({ run: null, edit: viewingRun.id })} />
+      )}
       {editing && <EventDrawer event={editing} onClose={() => setEdit(null)} />}
     </div>
   );

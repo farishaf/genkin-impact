@@ -50,14 +50,16 @@ function ExerciseList({
     // Known exercise: start from its sets in the library (routines); otherwise 3 × 10.
     const src = library.find((x) => x.name.toLowerCase() === name.toLowerCase());
     const sets = src?.sets.length ? src.sets : [0, 1, 2].map(() => ({ id: "", reps: "10", kg: "", done: false }));
-    onChange((xs) => [...xs, { id: newItemId(), name: src?.name ?? name, note: src?.note ?? "", sets: sets.map((s) => ({ ...s, id: newItemId(), done: false })) }], 150);
+    onChange((xs) => [...xs, { id: newItemId(), name: src?.name ?? name, note: src?.note ?? "", measure: src?.measure, sets: sets.map((s) => ({ ...s, id: newItemId(), done: false })) }], 150);
     setNewName("");
   }
 
   return (
     <div ref={listRef} className="mi-exlist">
       {exercises.length === 0 && <p className="muted mi-pad">No exercises yet. Add one below.</p>}
-      {exercises.map((x, i) => (
+      {exercises.map((x, i) => {
+        const timed = x.measure === "time";
+        return (
         <section key={x.id} className="card mi-card mi-ex" data-enter>
           <div className="mi-ex__head">
             <span className={`mi-ex__num${checkable && x.sets.length > 0 && x.sets.every((s) => s.done) ? " mi-ex__num--done" : ""}`}>{i + 1}</span>
@@ -84,7 +86,16 @@ function ExerciseList({
           <div className={`mi-sets${checkable ? " mi-sets--check" : ""}${editing ? " mi-sets--edit" : ""}`}>
             <div className="mi-sets__row mi-sets__row--head">
               <span>Set</span>
-              <span>Reps</span>
+              <span className="mi-caret mi-sets__measure">
+                <select
+                  value={timed ? "time" : "reps"}
+                  aria-label={`Count ${x.name || "exercise"} in`}
+                  onChange={(e) => updEx(x.id, { measure: e.target.value as Exercise["measure"] }, 150)}
+                >
+                  <option value="reps">Reps</option>
+                  <option value="time">Sec</option>
+                </select>
+              </span>
               <span>Kg</span>
               {checkable && <span>Done</span>}
               {editing && <span />}
@@ -95,7 +106,9 @@ function ExerciseList({
                 <input
                   className="mi-input mi-sets__in"
                   value={s.reps}
-                  aria-label={`${x.name} set ${si + 1} reps`}
+                  inputMode="numeric"
+                  placeholder={timed ? "30" : "10"}
+                  aria-label={`${x.name} set ${si + 1} ${timed ? "seconds" : "reps"}`}
                   onChange={(e) => updSets(x.id, (ss) => ss.map((y) => (y.id === s.id ? { ...y, reps: e.target.value } : y)))}
                 />
                 <input
@@ -136,7 +149,8 @@ function ExerciseList({
             + Add set
           </button>
         </section>
-      ))}
+        );
+      })}
 
       <div className="card mi-card mi-addex">
         <input

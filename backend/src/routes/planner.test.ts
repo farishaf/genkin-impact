@@ -136,6 +136,29 @@ describe("/planner/events", () => {
     expect(routineAfter.body.routine.exercises[0].sets[0].done).toBe(false);
   });
 
+  it("keeps a timed exercise timed, from routine into the workout", async () => {
+    const agent = await registerAndLogin();
+    const plank = { id: "p", name: "Plank", note: "", measure: "time", sets: [{ id: "s", reps: "45", kg: "", done: false }] };
+    const routine = await agent.post("/planner/routines").send({ title: "Core", exercises: [plank] });
+    expect(routine.body.routine.exercises[0].measure).toBe("time");
+
+    const created = await agent.post("/planner/events").send({ date: "2026-11-02", type: "workout", title: "Core", routine_id: routine.body.routine.id });
+    expect(created.body.events[0].details.exercises[0].measure).toBe("time");
+
+    const bad = await agent.post("/planner/routines").send({ title: "Core", exercises: [{ ...plank, measure: "minutes" }] });
+    expect(bad.status).toBe(400);
+  });
+
+  it("keeps a run's logged elevation and heart rate", async () => {
+    const agent = await registerAndLogin();
+    const created = await agent.post("/planner/events").send({ date: "2026-11-02", type: "run", title: "Hills" });
+    const id = created.body.events[0].id;
+    const done = await agent.patch(`/planner/events/${id}`).send({ done: true, details: { elevation: "240", avgHr: "152" } });
+    expect(done.status).toBe(200);
+    expect(done.body.event.done).toBe(true);
+    expect(done.body.event.details).toMatchObject({ elevation: "240", avgHr: "152" });
+  });
+
   it("validates the date range query", async () => {
     const agent = await registerAndLogin();
     expect((await agent.get("/planner/events?from=nope&to=2026-11-30")).status).toBe(400);

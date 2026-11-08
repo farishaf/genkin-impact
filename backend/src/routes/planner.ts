@@ -25,6 +25,8 @@ const exerciseSchema = z.object({
   name: z.string().max(120),
   note: z.string().max(1000),
   sets: z.array(setSchema).max(50),
+  // How each set's `reps` value counts: repetitions, or seconds for holds like a plank. Absent means reps.
+  measure: z.enum(["reps", "time"]).optional(),
 });
 const exercisesSchema = z.array(exerciseSchema).max(60);
 const checkItemSchema = z.object({ id: itemId, text: z.string().max(1000), done: z.boolean() });
@@ -54,6 +56,9 @@ const detailsSchema = z.object({
   routine_id: z.string().uuid().nullable().optional(),
   focus: z.string().max(80).optional(),
   exercises: exercisesSchema.optional(),
+  // Logged when a run is marked done: elevation gain in metres and average heart rate in bpm.
+  elevation: z.string().max(10).optional(),
+  avgHr: z.string().max(10).optional(),
 });
 
 /** UPDATE only the provided columns. Keys come from a zod schema's parsed output, never raw client input. */

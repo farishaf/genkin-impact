@@ -12,6 +12,19 @@ export class ApiError extends Error {
 
 const NEVER_RETRY_PATHS = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"];
 
+// The server rotates the refresh token on every refresh and revokes the old one. When the access token expires,
+// a page fires several requests at once; each used to refresh with the same cookie, all but the first failed,
+// and a failed /users/me logged you out. One shared refresh fixes that.
+let refreshing: Promise<boolean> | null = null;
+function refreshSession() {
+  refreshing ??= fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" })
+    .then((r) => r.ok, () => false)
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
 async function request<T>(path: string, init?: RequestInit, isRetry = false): Promise<T> {
   // FormData bodies must not get a Content-Type header — fetch sets the multipart boundary itself.
   const isFormData = init?.body instanceof FormData;
@@ -22,10 +35,9 @@ async function request<T>(path: string, init?: RequestInit, isRetry = false): Pr
   });
 
   if (res.status === 401 && !isRetry && !NEVER_RETRY_PATHS.some((p) => path.startsWith(p))) {
-    const refreshRes = await fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" }).catch(() => null);
-    if (refreshRes?.ok) {
-      return request<T>(path, init, true);
-    }
+    // Retry even when this refresh failed: another tab may have just rotated the cookie. A real logout 401s again and throws.
+    await refreshSession();
+    return request<T>(path, init, true);
   }
 
   if (res.status === 204) return undefined as T;

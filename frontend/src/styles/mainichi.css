@@ -307,6 +307,11 @@ a.mi-chip-btn { text-decoration: none; }
   border-left: 1px solid var(--color-rule); color: var(--color-ink-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums;
 }
 .mi-month__row--head .mi-month__km { border-left: 0; padding: var(--space-sm); }
+/* A week with runs opens its summary: the cell is a button that tints on hover. */
+.mi-month__km--btn { border-top: 0; border-right: 0; border-bottom: 0; background: transparent; font: inherit; text-align: right; cursor: pointer; transition: background-color var(--dur-micro) var(--ease-snap); }
+.mi-month__km--btn:hover { background: var(--color-paper-3); }
+.mi-month__km--btn:active { background: var(--color-rule); }
+.mi-textbtn.mi-weekbtn { display: none; }
 .mi-month__km strong { color: var(--color-ink); font-size: var(--text-lg); font-weight: var(--display-weight); }
 .mi-cell {
   display: flex; flex-direction: column; align-items: stretch; gap: var(--space-xs); min-height: 7rem; margin: var(--space-2xs); padding: var(--space-xs);
@@ -461,6 +466,10 @@ input.mi-ex__note { margin-left: var(--space-lg); }
 .mi-sets__row--head > :first-child, .mi-sets__n { text-align: center; }
 .mi-sets--check .mi-sets__row--head > :nth-child(4) { text-align: center; }
 .mi-sets__n { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+/* Reps or Sec: the column head is the switch, so it wears a caret and a hover tint instead of a separate control. */
+.mi-sets__measure { justify-self: start; margin-left: calc(-1 * var(--space-2xs)); border-radius: var(--radius-sm); }
+.mi-sets__measure select { padding-left: var(--space-2xs); color: var(--color-ink-2); font-weight: var(--display-weight); }
+.mi-sets__measure:hover { background: var(--color-paper-3); }
 .mi-sets__in { width: 100%; background: var(--color-card); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
 .mi-sets__row--done { background: color-mix(in oklab, var(--color-mint) 26%, var(--color-paper-2)); }
 .mi-tick {
@@ -498,6 +507,26 @@ input.mi-ex__note { margin-left: var(--space-lg); }
 .mi-desc:hover { border-color: transparent; }
 .mi-docsec { display: flex; flex-direction: column; gap: var(--space-sm); }
 .mi-docfoot { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-sm); border-top: 1px solid var(--color-rule); }
+
+/* ---------- run detail: estimate, plan, result log ---------- */
+.mi-label { margin: 0; color: var(--color-muted); font-size: var(--text-sm); font-weight: var(--display-weight); }
+/* Figures: label above, big tabular number below. Shared by the run detail and the week card. */
+.mi-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr)); gap: var(--space-xs); margin: 0; }
+.mi-figs--2x2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mi-figs > div { min-width: 0; padding: var(--space-sm); border-radius: var(--radius-stock); background: var(--color-paper-2); }
+.mi-figs dt { color: var(--color-muted); font-size: var(--text-sm); }
+.mi-figs dd { margin: var(--space-3xs) 0 0; font-size: var(--text-lg); font-weight: var(--display-weight); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mi-rundetail { display: flex; flex-direction: column; gap: var(--space-md); }
+.mi-rundetail__head { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+.mi-rundetail__head .mi-h2 { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.mi-chip--done { padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-pill); background: var(--color-mint); color: var(--color-on-mint); font-size: var(--text-xs); font-weight: var(--display-weight); }
+.mi-rundetail__hint { margin-top: calc(-1 * var(--space-xs)); }
+.mi-rundetail__plan { display: flex; flex-direction: column; gap: var(--space-2xs); }
+.mi-rundetail__plan ol { margin: 0; padding-left: var(--space-md); display: flex; flex-direction: column; gap: var(--space-3xs); font-size: var(--text-sm); }
+.mi-rundetail__log { display: flex; flex-direction: column; gap: var(--space-xs); padding-top: var(--space-md); border-top: 1px solid var(--color-rule); }
+.mi-rundetail__fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr)); gap: var(--space-xs); }
+.mi-rundetail__fields .field { margin-bottom: 0; }
+.mi-rundetail__actions { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
 
 /* ---------- right-docked drawer; a bottom sheet on phones ---------- */
 html:has(.mi-drawer[open]) { overflow: hidden; }
@@ -609,6 +638,7 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
   .mi-month__row { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .mi-month__row--head > span { padding: var(--space-xs) 0; text-align: center; }
   .mi-month__km { display: none; }
+  .mi-textbtn.mi-weekbtn { display: inline-flex; }
   .mi-cell { min-height: 3.5rem; margin: var(--space-3xs); padding: var(--space-2xs) 0; align-items: center; gap: var(--space-2xs); }
   .mi-cell__num { align-self: center; }
   .mi-cell__items { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: var(--space-2xs); }

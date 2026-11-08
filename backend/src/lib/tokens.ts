@@ -2,7 +2,8 @@ import jwt from "jsonwebtoken";
 import { randomBytes, createHash } from "node:crypto";
 
 export const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;
-export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// Sliding: every refresh issues a new token good for another 12 hours, so you're signed out after 12 hours away.
+export const REFRESH_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
 export function signAccessToken(userId: string, secret: string): string {
   return jwt.sign({ sub: userId }, secret, { expiresIn: ACCESS_TOKEN_TTL_MS / 1000 });
