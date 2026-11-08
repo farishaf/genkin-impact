@@ -7,8 +7,8 @@ import {
 } from "../../lib/planner";
 import { BackButton, Icon, Progress } from "./parts";
 
-// ponytail: fixed default rest; "+30s" covers longer rests. Make it a setting if it keeps getting bumped.
-const REST_SECONDS = 90;
+// ponytail: fixed default rest; "+10s" covers longer rests. Make it a setting if it keeps getting bumped.
+const REST_SECONDS = 30;
 
 type ChangeExercises = (fn: (xs: Exercise[]) => Exercise[], delay?: number) => void;
 
@@ -174,7 +174,7 @@ function RestTimer({ end, onChange }: { end: number; onChange: (end: number | nu
       <span className="mi-rest__label">{finished ? "Go!" : "Rest"}</span>
       <span className="mi-rest__time">{Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</span>
       <div className="mi-top__spacer" />
-      <button type="button" className="mi-pill" onClick={() => onChange(Math.max(end, Date.now()) + 30_000)}>+30s</button>
+      <button type="button" className="mi-pill" onClick={() => onChange(Math.max(end, Date.now()) + 10_000)}>+10s</button>
       <button type="button" className="mi-pill" onClick={() => onChange(null)}>Skip</button>
     </div>
   );

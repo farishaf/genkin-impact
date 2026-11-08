@@ -156,25 +156,30 @@ export function BackButton({ label = "Back" }: { label?: string }) {
 export function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const downOnBackdrop = useRef(false);
+  // Play the exit animation, then unmount. ponytail: only the drawer's own close paths (X, Esc, backdrop) animate;
+  // children calling onClose directly (delete, cancel) still close instantly.
+  const [closing, setClosing] = useState(false);
+  const close = () => setClosing(true);
   useEffect(() => {
     ref.current?.showModal();
   }, []);
   return (
     <dialog
       ref={ref}
-      className="mi-drawer"
+      className={`mi-drawer${closing ? " is-closing" : ""}`}
       aria-label={title}
       onCancel={(e) => {
         e.preventDefault();
-        onClose();
+        close();
       }}
+      onAnimationEnd={(e) => closing && e.target === ref.current && onClose()}
       // Close only on a press that starts and ends on the backdrop, so drags out of the sheet don't dismiss it.
       onPointerDown={(e) => (downOnBackdrop.current = e.target === ref.current)}
-      onClick={(e) => downOnBackdrop.current && e.target === ref.current && onClose()}
+      onClick={(e) => downOnBackdrop.current && e.target === ref.current && close()}
     >
       <div className="mi-drawer__head">
         <h2 className="mi-h2">{title}</h2>
-        <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+        <button type="button" className="icon-btn" aria-label="Close" onClick={close}>
           <Icon name="x" />
         </button>
       </div>

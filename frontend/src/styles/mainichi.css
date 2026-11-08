@@ -172,11 +172,11 @@
   background: var(--color-card); box-shadow: inset 0 0 0 2px var(--color-control), 0 2px 0 0 var(--color-edge);
   transition: translate var(--dur-micro) var(--ease-snap), box-shadow var(--dur-micro) var(--ease-snap), background-color var(--dur-micro) var(--ease-snap);
 }
-.mi-checkbox::after { content: ""; width: 7px; height: 12px; margin-top: calc(-1 * var(--space-3xs)); border: solid var(--color-on-mint); border-width: 0 3px 3px 0; border-radius: 1px; rotate: 45deg; opacity: 0; }
+.mi-checkbox::after { content: ""; width: 7px; height: 12px; margin-top: calc(-1 * var(--space-3xs)); border: solid var(--color-on-mint); border-width: 0 3px 3px 0; border-radius: 1px; rotate: 45deg; opacity: 0; scale: 0.4; transition: opacity var(--dur-micro) var(--ease-snap), scale var(--dur-short) var(--ease-spring); }
 .mi-checkbox:hover:not(:checked) { box-shadow: inset 0 0 0 2px var(--color-ink), 0 2px 0 0 var(--color-edge); }
 .mi-checkbox:active { translate: 0 2px; box-shadow: inset 0 0 0 2px var(--color-ink), 0 0 0 0 var(--color-edge); }
 .mi-checkbox:checked { background: var(--color-mint); translate: 0 2px; box-shadow: 0 0 0 0 var(--color-edge); }
-.mi-checkbox:checked::after { opacity: 1; }
+.mi-checkbox:checked::after { opacity: 1; scale: 1; }
 .mi-checkbox:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .mi-input { min-width: 0; padding: var(--space-xs); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; }
@@ -287,10 +287,10 @@
 .mi-chip-btn {
   display: inline-flex; align-items: center; gap: var(--space-xs); min-height: var(--control-h-sm); padding: 0 var(--space-md); border-radius: var(--radius-pill);
   background: var(--color-paper-3); color: var(--color-ink-2); font-size: var(--text-sm); font-weight: var(--display-weight); text-decoration: none;
-  transition: background-color var(--dur-micro) var(--ease-snap), color var(--dur-micro) var(--ease-snap);
+  transition: background-color var(--dur-micro) var(--ease-snap), color var(--dur-micro) var(--ease-snap), scale var(--dur-micro) var(--ease-snap);
 }
 .mi-chip-btn:hover { background: var(--color-rule); color: var(--color-ink); }
-.mi-chip-btn:active { background: var(--color-control); }
+.mi-chip-btn:active { background: var(--color-control); scale: 0.96; }
 .mi-chip-btn--on, .mi-chip-btn--on:hover { background: var(--color-ink); color: var(--color-paper); }
 a.mi-chip-btn { text-decoration: none; }
 
@@ -427,7 +427,8 @@ a.mi-chip-btn { text-decoration: none; }
 .mi-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
 .mi-form__actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-xs); }
 .mi-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2xs); margin-bottom: var(--space-sm); padding: var(--space-2xs); border-radius: var(--radius-pill); background: var(--color-paper-3); }
-.mi-seg__btn { display: flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: var(--control-h-sm); border-radius: var(--radius-pill); color: var(--color-ink-2); font-size: var(--text-sm); }
+.mi-seg__btn { display: flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: var(--control-h-sm); border-radius: var(--radius-pill); color: var(--color-ink-2); font-size: var(--text-sm); transition: background-color var(--dur-short) var(--ease-snap), color var(--dur-short) var(--ease-snap), scale var(--dur-micro) var(--ease-snap); }
+.mi-seg__btn:active { scale: 0.96; }
 .mi-seg__btn--on { background: var(--color-ink); color: var(--color-paper); font-weight: var(--display-weight); }
 
 /* ---------- workout ---------- */
@@ -496,15 +497,27 @@ input.mi-ex__note { margin-left: var(--space-lg); }
 .mi-docsec { display: flex; flex-direction: column; gap: var(--space-sm); }
 .mi-docfoot { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-sm); border-top: 1px solid var(--color-rule); }
 
-/* ---------- right-docked drawer ---------- */
+/* ---------- right-docked drawer; a bottom sheet on phones ---------- */
 html:has(.mi-drawer[open]) { overflow: hidden; }
 .mi-drawer {
   margin: 0 0 0 auto; padding: 0; border: 0; width: 100%; max-width: 30rem; height: 100dvh; max-height: none; overflow: hidden;
   background: var(--color-card); color: var(--color-ink); box-shadow: var(--shadow-pop);
 }
 .mi-drawer[open] { display: flex; flex-direction: column; animation: mi-drawer-in var(--dur-long) var(--ease-out); }
-.mi-drawer::backdrop { background: var(--color-scrim); }
-@keyframes mi-drawer-in { from { transform: translateX(32px); opacity: 0; } }
+.mi-drawer.is-closing { animation: mi-drawer-out var(--dur-short) var(--ease-in) forwards; }
+.mi-drawer::backdrop { background: var(--color-scrim); animation: mi-fade var(--dur-short) var(--ease-out); }
+.mi-drawer.is-closing::backdrop { animation: mi-fade var(--dur-short) var(--ease-in) reverse forwards; }
+@keyframes mi-drawer-in { from { transform: translateX(100%); } }
+@keyframes mi-drawer-out { to { transform: translateX(100%); } }
+@keyframes mi-sheet-in { from { transform: translateY(100%); } }
+@keyframes mi-sheet-out { to { transform: translateY(100%); } }
+@keyframes mi-fade { from { opacity: 0; } }
+/* Each field rises in when it mounts, so switching Run / Workout / Event animates only what changed. */
+.mi-drawer .mi-editor > * { animation: mi-rise var(--dur-long) var(--ease-out) backwards; }
+.mi-drawer .mi-editor > :nth-child(2) { animation-delay: 30ms; }
+.mi-drawer .mi-editor > :nth-child(3) { animation-delay: 60ms; }
+.mi-drawer .mi-editor > :nth-child(n + 4) { animation-delay: 90ms; }
+@keyframes mi-rise { from { opacity: 0; transform: translateY(8px); } }
 .mi-drawer__head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); padding: var(--space-sm) var(--space-lg); background: var(--color-card); border-bottom: 1px solid var(--color-rule); }
 .mi-drawer__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-md) var(--space-lg) var(--space-xl); }
 .mi-drawer .mi-editor { padding: 0; border-radius: 0; box-shadow: none; background: transparent; }
@@ -583,6 +596,12 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
   .mi-calhead__sum { order: 3; width: 100%; }
   .mi-filters { order: 4; flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .mi-chip-btn { flex: none; }
+  .mi-editor .mi-filters { order: 0; flex: none; }
+  .mi-drawer { inset: auto 0 0; margin: 0; max-width: none; height: auto; max-height: calc(100dvh - var(--space-xl)); border-radius: var(--radius-card) var(--radius-card) 0 0; }
+  .mi-drawer__head { border-radius: inherit; }
+  .mi-drawer__body { padding-bottom: calc(var(--space-xl) + env(safe-area-inset-bottom)); }
+  .mi-drawer[open] { animation-name: mi-sheet-in; }
+  .mi-drawer.is-closing { animation-name: mi-sheet-out; }
   .mi-calpage .mi-cols__side { flex-basis: 100%; }
   .mi-cal { padding: var(--space-xs); }
   .mi-month__row { grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -613,9 +632,10 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
   .mi-login__form { max-width: 22rem; padding: 0; background: none; border-radius: 0; }
 }
 @media (pointer: coarse) {
+  .mi-editor__field input, .mi-editor__field select, .mi-move__value input, .mi-move__value select, .mi-move__note { font-size: var(--text-md); }
   .mi-iconbtn--sm { width: var(--hit); height: var(--hit); }
   .mi-checkbox { width: 32px; height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mi-drawer[open], .mi-login__day { animation: none; }
+  .mi-login__day { animation: none; }
 }

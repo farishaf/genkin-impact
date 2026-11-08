@@ -74,10 +74,10 @@ mark { background: color-mix(in oklab, var(--color-accent) 55%, transparent); co
 .icon-btn {
   width: var(--control-h-sm); height: var(--control-h-sm); border-radius: var(--radius-sm); flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--color-muted);
-  transition: background-color var(--dur-micro) var(--ease-snap), color var(--dur-micro) var(--ease-snap);
+  transition: background-color var(--dur-micro) var(--ease-snap), color var(--dur-micro) var(--ease-snap), scale var(--dur-micro) var(--ease-snap);
 }
 .icon-btn:hover:not(:disabled) { background: var(--color-paper-3); color: var(--color-ink); }
-.icon-btn:active:not(:disabled) { background: var(--color-rule); }
+.icon-btn:active:not(:disabled) { background: var(--color-rule); scale: 0.9; }
 .icon-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .icon-btn--danger:hover:not(:disabled) { background: color-mix(in oklab, var(--color-expense) 14%, var(--color-paper-2)); color: var(--color-expense); }
 @media (pointer: coarse) { .icon-btn { width: var(--hit); height: var(--hit); } }
