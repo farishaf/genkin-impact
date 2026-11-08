@@ -56,6 +56,8 @@ mark { background: color-mix(in oklab, var(--color-accent) 55%, transparent); co
   box-shadow: 0 var(--edge) 0 0 var(--color-accent-deep);
   transition-timing-function: var(--ease-spring);
 }
+/* Destructive confirm: the money-out red, so it never reads as the primary pear. */
+.btn--danger { background: var(--color-expense); color: var(--color-paper); box-shadow: 0 var(--edge) 0 0 var(--color-expense-deep); }
 .btn:hover:not(:disabled), .btn-primary:hover:not(:disabled), .btn-outline:hover:not(:disabled), .mi-pill:hover:not(:disabled), .mi-solid:hover:not(:disabled) { --edge: 4px; translate: 0 -1px; }
 .btn:active:not(:disabled), .btn-primary:active:not(:disabled), .btn-outline:active:not(:disabled), .mi-pill:active:not(:disabled), .mi-solid:active:not(:disabled) { --edge: 1px; translate: 0 2px; }
 .btn:disabled, .btn-primary:disabled, .btn-outline:disabled, .mi-pill:disabled, .mi-solid:disabled { opacity: 0.55; cursor: not-allowed; --edge: 1px; }
@@ -289,6 +291,20 @@ mark { background: color-mix(in oklab, var(--color-accent) 55%, transparent); co
 .seg-toggle button[data-active="true"] { background: var(--color-ink); color: var(--color-paper); font-weight: var(--display-weight); }
 
 /* ---------- modal ---------- */
+/* Confirm and prompt: a small raised sheet; the backdrop fades by CSS, the sheet moves by GSAP. */
+.mi-confirm {
+  width: min(24rem, calc(100% - 2 * var(--space-md))); padding: 0; border: 0; margin: auto;
+  background: var(--color-card); color: var(--color-ink); border-radius: var(--radius-card); box-shadow: var(--shadow-pop);
+}
+.mi-confirm::backdrop { background: var(--color-scrim); animation: mi-fade var(--dur-short) var(--ease-out); }
+.mi-confirm.is-closing::backdrop { animation: mi-fade 120ms var(--ease-in) reverse forwards; }
+.mi-confirm__form { display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-lg); }
+.mi-confirm__title { margin: 0; font-size: var(--text-lg); font-weight: var(--display-weight); line-height: 1.25; overflow-wrap: anywhere; }
+.mi-confirm__body { margin: 0; color: var(--color-muted); font-size: var(--text-sm); }
+.mi-confirm__field { margin-bottom: 0; }
+.mi-confirm__actions { display: flex; justify-content: flex-end; gap: var(--space-xs); margin-top: var(--space-xs); }
+@media (max-width: 30rem) { .mi-confirm__actions > * { flex: 1; } }
+
 .modal-backdrop { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-lg); background: var(--color-scrim); }
 .modal-panel {
   width: min(35rem, 100%); max-height: 85dvh; overflow-y: auto; display: flex; flex-direction: column;

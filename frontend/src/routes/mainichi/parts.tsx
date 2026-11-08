@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { useEnter } from "../../lib/motion";
 import { eventMeta, TYPE_LABEL, type CheckItem, type PlannerEvent } from "../../lib/planner";
 
 /** Notion-ish checklist: tick, edit inline, Enter jumps to the add row, Backspace on an empty item removes it. */
@@ -18,13 +19,14 @@ export function Checklist<T extends CheckItem>({
 }) {
   const [draft, setDraft] = useState("");
   const addRef = useRef<HTMLInputElement>(null);
+  const listRef = useEnter<HTMLUListElement>();
   const update = (id: string, patch: Partial<T>, delay?: number) =>
     onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)), delay);
 
   return (
-    <ul className="mi-check">
+    <ul ref={listRef} className="mi-check">
       {items.map((it) => (
-        <li key={it.id} className={`mi-check__row${it.done ? " mi-check__row--done" : ""}`}>
+        <li key={it.id} className={`mi-check__row${it.done ? " mi-check__row--done" : ""}`} data-enter>
           <input
             type="checkbox"
             className="mi-checkbox"
@@ -93,7 +95,7 @@ export function EventRow({
   const open = () => (event.type === "workout" && !editWorkouts ? navigate(`/mainichi/workout/${event.id}`) : onEdit());
   const meta = eventMeta({ ...event, time: null });
   return (
-    <div className={`mi-event mi-type--${event.type}${event.done ? " mi-event--done" : ""}`}>
+    <div className={`mi-event mi-type--${event.type}${event.done ? " mi-event--done" : ""}`} data-enter>
       <button type="button" className="mi-event__body" onClick={open}>
         <span className="mi-event__kicker">
           <span>{TYPE_LABEL[event.type]}</span>

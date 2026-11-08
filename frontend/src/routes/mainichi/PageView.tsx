@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { newItemId, useDeletePage, useEditPage, usePage, type CheckItem } from "../../lib/planner";
 import { BackButton, Checklist, Progress } from "./parts";
+import { confirmDialog } from "../../components/ConfirmDialog";
 
 export function PageView() {
   const { id = "" } = useParams();
@@ -17,8 +18,8 @@ export function PageView() {
 
   const done = page.checklist.filter((c) => c.done).length;
 
-  function remove() {
-    if (!page || !window.confirm(`Delete "${page.title || "Untitled"}"? This can't be undone.`)) return;
+  async function remove() {
+    if (!page || !(await confirmDialog({ title: `Delete "${page.title || "Untitled"}"?`, body: "This can't be undone.", confirmLabel: "Delete page", danger: true }))) return;
     deletePage.mutate(page.id, { onSuccess: () => navigate("/mainichi", { replace: true }) });
   }
 

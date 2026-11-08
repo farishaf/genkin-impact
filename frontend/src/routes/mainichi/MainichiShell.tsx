@@ -1,9 +1,14 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useConvention, useTheme } from "../../hooks/useDisplayPrefs";
 import { flushSaves, useSaveState } from "../../lib/planner";
 import { Icon } from "./parts";
+import { ENTER, reducedMotion } from "../../lib/motion";
+
+gsap.registerPlugin(useGSAP);
 
 const navClass = ({ isActive }: { isActive: boolean }) => `mi-nav__item${isActive ? " mi-nav__item--active" : ""}`;
 
@@ -41,7 +46,17 @@ function AccountMenu({ label }: { label?: string }) {
         <span className="mi-menu__initials">{initials}</span>
         {label ? <span className="mi-menu__label">{label}</span> : null}
       </button>
-      <div id={menuId} popover="auto" className="mi-menu__panel">
+      <div
+        id={menuId}
+        popover="auto"
+        className="mi-menu__panel"
+        // beforetoggle fires while the panel is still hidden, so the from-state is set before its first paint.
+        onBeforeToggle={(e) => {
+          if (e.newState !== "open" || reducedMotion()) return;
+          gsap.from(e.currentTarget, { autoAlpha: 0, y: -6, ...ENTER, duration: 0.16, clearProps: "opacity,visibility,transform" });
+          gsap.from(e.currentTarget.children, { autoAlpha: 0, y: 4, ...ENTER, stagger: 0.03, delay: 0.04, clearProps: "opacity,visibility,transform" });
+        }}
+      >
         <button type="button" className="mi-menu__item" onClick={() => setTheme(nextTheme)} aria-label={`Switch to ${nextTheme} theme`}>
           Theme
           <span className="mi-menu__value">
@@ -99,6 +114,19 @@ function MoneyGroup() {
   const [isOpen, setIsOpen] = useState(isOnMoney);
   const [wasOnMoney, setWasOnMoney] = useState(isOnMoney);
   const listId = useId();
+  const listRef = useRef<HTMLUListElement>(null);
+  const wasOpen = useRef(isOpen);
+
+  // Opening the group drops its links in one by one. Not on first paint: the page already shows it open.
+  useGSAP(
+    () => {
+      const opened = isOpen && !wasOpen.current;
+      wasOpen.current = isOpen;
+      if (!opened || !listRef.current || reducedMotion()) return;
+      gsap.from(listRef.current.children, { autoAlpha: 0, y: -4, ...ENTER, stagger: 0.03, clearProps: "opacity,visibility,transform" });
+    },
+    { dependencies: [isOpen] },
+  );
 
   // Arriving on a money page (a link elsewhere in the app) opens the group. Adjusted during render, not in an effect.
   if (isOnMoney !== wasOnMoney) {
@@ -120,7 +148,7 @@ function MoneyGroup() {
         <span className="mi-side__label">Money</span>
         <Icon name="chevron" className={`mi-side__chev${isOpen ? " mi-side__chev--open" : ""}`} />
       </button>
-      <ul id={listId} className="mi-side__sub" hidden={!isOpen}>
+      <ul id={listId} ref={listRef} className="mi-side__sub" hidden={!isOpen}>
         {MONEY_TABS.map((tab) => (
           <li key={tab.to}>
             <NavLink to={tab.to} end={tab.end} className={({ isActive }) => `${navClass({ isActive })} mi-nav__sub`}>

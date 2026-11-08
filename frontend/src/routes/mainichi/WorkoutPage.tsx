@@ -6,6 +6,8 @@ import {
   type Exercise,
 } from "../../lib/planner";
 import { BackButton, Icon, Progress } from "./parts";
+import { useEnter } from "../../lib/motion";
+import { confirmDialog } from "../../components/ConfirmDialog";
 
 // ponytail: fixed default rest; "+10s" covers longer rests. Make it a setting if it keeps getting bumped.
 const REST_SECONDS = 30;
@@ -28,6 +30,7 @@ function ExerciseList({
   onSetDone?: () => void;
 }) {
   const [newName, setNewName] = useState("");
+  const listRef = useEnter<HTMLDivElement>();
   const updEx = (id: string, patch: Partial<Exercise>, delay?: number) =>
     onChange((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)), delay);
   const updSets = (id: string, fn: (sets: Exercise["sets"]) => Exercise["sets"], delay?: number) =>
@@ -52,10 +55,10 @@ function ExerciseList({
   }
 
   return (
-    <>
+    <div ref={listRef} className="mi-exlist">
       {exercises.length === 0 && <p className="muted mi-pad">No exercises yet. Add one below.</p>}
       {exercises.map((x, i) => (
-        <section key={x.id} className="card mi-card mi-ex">
+        <section key={x.id} className="card mi-card mi-ex" data-enter>
           <div className="mi-ex__head">
             <span className={`mi-ex__num${checkable && x.sets.length > 0 && x.sets.every((s) => s.done) ? " mi-ex__num--done" : ""}`}>{i + 1}</span>
             {editing ? (
@@ -87,7 +90,7 @@ function ExerciseList({
               {editing && <span />}
             </div>
             {x.sets.map((s, si) => (
-              <div key={s.id} className={`mi-sets__row${s.done ? " mi-sets__row--done" : ""}`}>
+              <div key={s.id} className={`mi-sets__row${s.done ? " mi-sets__row--done" : ""}`} data-enter>
                 <span className="mi-sets__n">{si + 1}</span>
                 <input
                   className="mi-input mi-sets__in"
@@ -150,7 +153,7 @@ function ExerciseList({
         </datalist>
         <button type="button" className="btn btn--outline btn--sm" onClick={addExercise} disabled={!newName.trim()}>Add</button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -292,7 +295,7 @@ export function RoutinePage() {
   if (!routine) return <div className="mi-narrow"><BackButton /><p className="muted">Routine not found.</p></div>;
 
   async function remove() {
-    if (!routine || !window.confirm(`Delete routine "${routine.title}"? Planned workouts keep their exercises.`)) return;
+    if (!routine || !(await confirmDialog({ title: `Delete the routine "${routine.title}"?`, body: "Planned workouts keep their exercises.", confirmLabel: "Delete routine", danger: true }))) return;
     await deleteRoutine.mutateAsync(routine.id);
     navigate("/mainichi/calendar");
   }

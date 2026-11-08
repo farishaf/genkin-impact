@@ -61,6 +61,7 @@
   --color-accent: oklch(87% 0.175 96);
   --color-accent-ink: oklch(20% 0.014 255);
   --color-accent-deep: color-mix(in oklab, var(--color-accent) 80%, var(--color-ink));
+  --color-expense-deep: color-mix(in oklab, var(--color-expense) 72%, var(--color-ink));
   --color-accent-2: oklch(50% 0.17 250);
   --color-accent-3: oklch(70% 0.2 22);
   --color-mint: oklch(82% 0.15 152);

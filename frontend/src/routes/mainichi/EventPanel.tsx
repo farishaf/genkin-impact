@@ -6,6 +6,8 @@ import {
   type EventType, type Intensity, type PlannerEvent, type Routine, type RunStep, type Segment, type StepKind, type StepUnit,
 } from "../../lib/planner";
 import { Icon } from "./parts";
+import { useEnter } from "../../lib/motion";
+import { confirmDialog } from "../../components/ConfirmDialog";
 
 const fmtMinutes = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 
@@ -81,7 +83,7 @@ function MovementCard({
   const intensity = stepIntensity(step);
   const goal = step.unit === "km" || step.unit === "m" ? "distance" : "time";
   return (
-    <div className={`mi-move mi-step--${step.kind}${nested ? " mi-move--nested" : ""}${dragging ? " mi-move--drag" : ""}`}>
+    <div data-enter className={`mi-move mi-step--${step.kind}${nested ? " mi-move--nested" : ""}${dragging ? " mi-move--drag" : ""}`}>
       <div className="mi-move__head">
         <span className="mi-handle" role="button" aria-label={`Drag ${STEP_LABEL[step.kind]} to reorder`} {...handle}>
           <Icon name="grip" />
@@ -101,7 +103,7 @@ function MovementCard({
       </div>
 
       {open ? (
-        <div className="mi-move__body">
+        <div className="mi-move__body" data-enter>
           <div className="mi-move__row">
             <span className="mi-caret">
               <select
@@ -187,7 +189,7 @@ function RoundCard({
 }) {
   const sort = useDragSort(seg.steps.map((s) => s.id), (from, to) => onChange({ ...seg, steps: moveIn(seg.steps, from, to) }, 150));
   return (
-    <div className={`mi-round${dragging ? " mi-move--drag" : ""}`}>
+    <div className={`mi-round${dragging ? " mi-move--drag" : ""}`} data-enter>
       <div className="mi-move__head">
         <span className="mi-handle" role="button" aria-label="Drag round to reorder" {...handle}>
           <Icon name="grip" />
@@ -245,9 +247,10 @@ function RunCourse({ segments, onChange }: { segments: Segment[]; onChange: (seg
   const setSeg = (id: string, seg: Segment | null, delay?: number) =>
     onChange(seg ? segments.map((s) => (s.id === id ? seg : s)) : segments.filter((s) => s.id !== id), delay);
   const totals = totalsLabel(segments);
+  const courseRef = useEnter<HTMLDivElement>();
 
   return (
-    <div className="mi-course">
+    <div ref={courseRef} className="mi-course">
       <div className="mi-sechead">
         <h3 className="mi-h2">Exercise</h3>
         {totals && <span className="mi-count">≈ {totals}</span>}
@@ -335,7 +338,7 @@ export function EventEditor({
   const stats = setStats(event.details.exercises);
 
   async function remove() {
-    if (!window.confirm(`Delete "${event!.title}"?`)) return;
+    if (!(await confirmDialog({ title: `Delete "${event!.title}"?`, confirmLabel: "Delete", danger: true }))) return;
     await deleteEvent.mutateAsync(event!.id);
     onClose();
   }

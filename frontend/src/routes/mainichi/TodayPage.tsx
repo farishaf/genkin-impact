@@ -12,6 +12,8 @@ import {
 import { Checklist, Drawer, EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
 import { useOpenEvent } from "./useOpenEvent";
+import { useEnter } from "../../lib/motion";
+import { confirmDialog } from "../../components/ConfirmDialog";
 
 function dayKicker(date: string) {
   const diff = Math.round((fromKey(date).getTime() - fromKey(todayKey()).getTime()) / 864e5);
@@ -48,6 +50,7 @@ interface DayTxn {
 // Keys start with "transactions" so AddTransactionForm's invalidation refreshes this card.
 function DaySpending({ date }: { date: string }) {
   const [adding, setAdding] = useState(false);
+  const spendRef = useEnter<HTMLElement>();
   const txns = useQuery({
     queryKey: ["transactions", "day", date],
     queryFn: () => api.get<{ items: DayTxn[] }>(`/transactions?from=${date}&to=${date}&limit=50`).then((r) => r.items),
@@ -62,7 +65,7 @@ function DaySpending({ date }: { date: string }) {
   });
 
   return (
-    <section className="mi-sheet mi-dayspend" aria-label="Money for the day">
+    <section ref={spendRef} className="mi-sheet mi-dayspend" aria-label="Money for the day">
       <div className="mi-dayhead">
         <div className="mi-dayhead__titles">
           <span className="mi-spend__label">{spentLabel(date)}</span>
@@ -79,7 +82,7 @@ function DaySpending({ date }: { date: string }) {
       {txns.data?.length ? (
         <div className="mi-list mi-list--tight">
           {txns.data.map((t) => (
-            <div key={t.id} className="mi-pagerow mi-txn">
+            <div key={t.id} className="mi-pagerow mi-txn" data-enter>
               <span className="mi-tile">{t.category_emoji || <Icon name={t.type === "transfer" ? "transfer" : "receipt"} />}</span>
               <span className="mi-pagerow__text">
                 <span className="mi-pagerow__title">{t.note || t.category_name || (t.type === "transfer" ? "Transfer" : "Expense")}</span>
@@ -109,6 +112,7 @@ function DaySpending({ date }: { date: string }) {
 
 export function TodayPage() {
   const [params, setParams] = useSearchParams();
+  const calRef = useEnter<HTMLElement>();
   const navigate = useNavigate();
   const date = isValidKey(params.get("date")) ? params.get("date")! : todayKey();
   const setDate = (k: string) => setParams(k === todayKey() ? {} : { date: k }, { replace: true });
@@ -151,7 +155,9 @@ export function TodayPage() {
   }
 
   function removePage(p: Page) {
-    if (window.confirm(`Delete "${p.title || "Untitled"}"? This can't be undone.`)) deletePage.mutate(p.id);
+    confirmDialog({ title: `Delete "${p.title || "Untitled"}"?`, body: "This can't be undone.", confirmLabel: "Delete page", danger: true }).then(
+      (ok) => ok && deletePage.mutate(p.id),
+    );
   }
 
   const rel = dayKicker(date);
@@ -251,7 +257,7 @@ export function TodayPage() {
         </section>
 
         <div className="mi-today__col">
-          <section className="mi-today__col" aria-label="From the calendar">
+          <section ref={calRef} className="mi-today__col" aria-label="From the calendar">
             <div className="mi-sechead">
               <h2 className="mi-h2">From calendar</h2>
               <Link to={`/mainichi/calendar?date=${date}`} className="mi-textbtn">Open</Link>

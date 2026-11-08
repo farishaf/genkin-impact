@@ -13,6 +13,7 @@ import { ChevronIcon, PaperclipIcon } from "../components/TxnIcons";
 import { Modal } from "../components/Modal";
 import { CategoryManager } from "../components/CategoryManager";
 import { Button } from "../components/Button";
+import { confirmDialog, promptDialog } from "../components/ConfirmDialog";
 
 gsap.registerPlugin(useGSAP);
 
@@ -264,8 +265,8 @@ export function TransactionsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["savedFilters"] }),
   });
 
-  function handleSaveCurrentFilter() {
-    const name = window.prompt("Name this filter view:");
+  async function handleSaveCurrentFilter() {
+    const name = await promptDialog({ title: "Save this filter view", input: { label: "Name", placeholder: "e.g. Food this month" }, confirmLabel: "Save view" });
     if (!name) return;
     const criteria: FilterCriteria = {
       ...(typeFilter && { type: typeFilter }),
@@ -430,13 +431,18 @@ export function TransactionsPage() {
     { scope: filterPopoverRef, dependencies: [filterOpen] },
   );
 
-  const handleDelete = contextSafe((t: TxnItem) => {
-    if (
-      !confirm(
-        `Delete this ${t.type === "expense" ? "-" : "+"}${formatMoney(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}?`,
-      )
-    )
-      return;
+  async function handleDelete(t: TxnItem) {
+    const ok = await confirmDialog({
+      title: "Delete this transaction?",
+      body: `${t.type === "expense" ? "-" : "+"}${formatMoney(t.amount, t.currency_code)} ${t.category_name ?? "transfer"}`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (ok) removeRow(t);
+  }
+
+  // Runs after the await above, so it needs contextSafe to stay inside the useGSAP context.
+  const removeRow = contextSafe((t: TxnItem) => {
     const el = rowRefs.current[t.id];
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -837,8 +843,9 @@ export function TransactionsPage() {
                           aria-label={`Delete saved filter ${f.name}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`Delete saved filter "${f.name}"?`))
-                              deleteSavedFilter.mutate(f.id);
+                            confirmDialog({ title: `Delete the saved view "${f.name}"?`, confirmLabel: "Delete", danger: true }).then(
+                              (ok) => ok && deleteSavedFilter.mutate(f.id),
+                            );
                           }}
                         >
                           ×

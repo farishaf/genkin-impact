@@ -4,6 +4,7 @@ import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { api, ApiError } from "../lib/api";
 import { EditIcon, DeleteIcon } from "./TxnIcons";
 import { Button } from "./Button";
+import { confirmDialog } from "./ConfirmDialog";
 
 interface Category {
   id: string;
@@ -104,7 +105,7 @@ export function CategoryManager() {
                   disabled={c.is_system || deleteCategory.isPending}
                   title={c.is_system ? "Built-in categories can't be deleted" : undefined}
                   onClick={() => {
-                    if (confirm(`Delete category "${c.name}"?`)) deleteCategory.mutate(c.id);
+                    confirmDialog({ title: `Delete the category "${c.name}"?`, confirmLabel: "Delete", danger: true }).then((ok) => ok && deleteCategory.mutate(c.id));
                   }}
                 >
                   <DeleteIcon />

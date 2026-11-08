@@ -8,6 +8,7 @@ import {
 import { EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
 import { useOpenEvent } from "./useOpenEvent";
+import { useEnter } from "../../lib/motion";
 
 const FILTERS: ("all" | EventType)[] = ["all", "workout", "run", "event"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -34,6 +35,7 @@ export function CalendarPage() {
   const createRoutine = useCreateRoutine();
   const [filter, setFilter] = useState<"all" | EventType>("all");
   const [adding, setAdding] = useState(false);
+  const dayRef = useEnter<HTMLElement>();
 
   const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -154,7 +156,7 @@ export function CalendarPage() {
       </section>
 
       <div className="mi-cols__side">
-        <section className="card mi-card mi-daypanel">
+        <section ref={dayRef} className="card mi-card mi-daypanel">
           <div className="mi-cardhead">
             <div className="mi-dayhead__titles">
               <h2 className="mi-h2 mi-h2--lg">{fromKey(sel).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</h2>

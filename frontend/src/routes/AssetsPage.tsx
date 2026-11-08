@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { formatMoney, minorToInputValue } from "../lib/formatAmount";
 import { AddAccountForm } from "../components/AddAccountForm";
+import { confirmDialog } from "../components/ConfirmDialog";
 
 interface Account {
   id: string;
@@ -170,7 +171,9 @@ export function AssetsPage() {
                     className="btn-outline btn-outline--sm"
                     type="button"
                     onClick={() => {
-                      if (confirm(`Delete "${a.name}"? This can't be undone.`)) deleteAccount.mutate(a.id);
+                      confirmDialog({ title: `Delete "${a.name}"?`, body: "This can't be undone.", confirmLabel: "Delete account", danger: true }).then(
+                        (ok) => ok && deleteAccount.mutate(a.id),
+                      );
                     }}
                   >
                     Delete
