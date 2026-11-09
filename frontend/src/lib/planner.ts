@@ -32,8 +32,10 @@ export const stepIntensity = (s: RunStep): Intensity => s.intensity ?? (s.pace ?
 /** rounds = 1 is a single step; rounds > 1 repeats the steps (e.g. 6 × [400 m run, 90 s recovery]). */
 export interface Segment { id: string; rounds: number; steps: RunStep[] }
 
+export type RunType = "easy" | "long" | "tempo" | "intervals" | "hills" | "threshold";
 export interface EventDetails {
   segments?: Segment[];
+  runType?: RunType;
   km?: string;
   pace?: string;
   detail?: string;
@@ -206,24 +208,54 @@ const step = (kind: StepKind, amount: string, unit: StepUnit, pace = "", paceTo 
 const one = (s: RunStep): Segment => ({ id: newItemId(), rounds: 1, steps: [s] });
 
 /** Starting structures for the run presets. */
-export const RUN_PRESETS: { title: string; segments: () => Segment[] }[] = [
-  { title: "Easy run", segments: () => [one(step("run", "5", "km", "6:45", "7:15", "Zone 2, conversational"))] },
-  { title: "Long run", segments: () => [one(step("run", "14", "km", "6:30", "7:00"))] },
+export const RUN_PRESETS: { type: RunType; title: string; segments: () => Segment[] }[] = [
+  { type: "easy", title: "Easy run", segments: () => [one(step("run", "5", "km", "6:45", "7:15", "Zone 2, conversational"))] },
+  { type: "long", title: "Long run", segments: () => [one(step("run", "14", "km", "6:30", "7:00"))] },
   {
+    type: "tempo",
     title: "Tempo run",
-   
     segments: () => [one(step("warmup", "10", "min")), one(step("run", "4", "km", "5:40", "5:50", "Comfortably hard")), one(step("cooldown", "10", "min"))],
   },
   {
+    type: "intervals",
     title: "Intervals",
-   
     segments: () => [
       one(step("warmup", "10", "min")),
       { id: newItemId(), rounds: 6, steps: [step("run", "400", "m", "4:50", "5:05"), step("recovery", "90", "s", "", "", "Walk or jog")] },
       one(step("cooldown", "10", "min")),
     ],
   },
+  {
+    type: "hills",
+    title: "Hill repeats",
+    segments: () => [
+      one(step("warmup", "15", "min")),
+      { id: newItemId(), rounds: 8, steps: [step("run", "60", "s", "", "", "Uphill, strong"), step("recovery", "90", "s", "", "", "Jog back down")] },
+      one(step("cooldown", "10", "min")),
+    ],
+  },
+  {
+    type: "threshold",
+    title: "Threshold run",
+    segments: () => [
+      one(step("warmup", "15", "min")),
+      { id: newItemId(), rounds: 3, steps: [step("run", "8", "min", "5:20", "5:30", "Hard but controlled"), step("recovery", "2", "min")] },
+      one(step("cooldown", "10", "min")),
+    ],
+  },
 ];
+
+/** The stored run type, or a guess from the title for runs saved before types existed. */
+export function runTypeOf(e: PlannerEvent): RunType {
+  if (e.details.runType) return e.details.runType;
+  const t = e.title.toLowerCase();
+  if (t.includes("hill")) return "hills";
+  if (t.includes("interval") || t.includes("repeat")) return "intervals";
+  if (t.includes("threshold")) return "threshold";
+  if (t.includes("tempo")) return "tempo";
+  if (t.includes("long")) return "long";
+  return "easy";
+}
 /**
  * A run's movements. Runs saved before structured courses only had km/pace: show those as one Run
  * movement (stable id, so it can be edited) instead of an empty course.

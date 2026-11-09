@@ -75,8 +75,8 @@ export function LoginPage({ mode = "login" }: { mode?: "login" | "register" }) {
     <div className="mi mi-login">
       <aside className="mi-login__panel">
         <div className="mi-brand">
-          <span className="mi-brand__mark" lang="ja">ヒ</span>
-          <span className="mi-brand__name" lang="ja">ヒツネ</span>
+          <span className="mi-brand__mark">H</span>
+          <span className="mi-brand__name">Hitsune</span>
         </div>
         <EverydayArt />
         <p className="mi-login__meaning">Your tasks, plans and money in one place.</p>

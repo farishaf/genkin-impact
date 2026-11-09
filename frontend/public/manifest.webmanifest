@@ -1,7 +1,7 @@
 {
-  "name": "ヒツネ",
-  "short_name": "ヒツネ",
-  "description": "ヒツネ (日常, the everyday): to-dos, calendar, workouts and money in one place.",
+  "name": "Hitsune",
+  "short_name": "Hitsune",
+  "description": "Hitsune (日常, the everyday): to-dos, calendar, workouts and money in one place.",
   "start_url": "/mainichi",
   "scope": "/",
   "display": "standalone",

@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  addDays, eventMeta, fromKey, isValidKey, toKey, todayKey, weekStart, TYPE_LABEL,
+  addDays, eventMeta, fromKey, isValidKey, runTypeOf, toKey, todayKey, weekStart, TYPE_LABEL,
   useCreateRoutine, useEvents, useRoutines, useUpdateEvent,
   type EventType, type PlannerEvent,
 } from "../../lib/planner";
 import { Empty, EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
+import { RunArt, WorkoutArt } from "./art";
 import { RunDetail, RunWeek } from "./RunDetail";
 import { useOpenEvent } from "./useOpenEvent";
 import { useEnter } from "../../lib/motion";
@@ -209,7 +210,7 @@ export function CalendarPage() {
             <div className="mi-list">
               {routines.map((r) => (
                 <Link key={r.id} to={`/mainichi/routines/${r.id}`} className="mi-pagerow">
-                  <span className="mi-tile"><Icon name="dumbbell" /></span>
+                  <WorkoutArt />
                   <span className="mi-pagerow__text">
                     <span className="mi-pagerow__title">{r.title}</span>
                     <span className="mi-pagerow__sub">{[r.focus, `${r.exercises.length} exercises`].filter(Boolean).join(", ")}</span>
@@ -226,7 +227,7 @@ export function CalendarPage() {
             <div className="mi-list">
               {upcomingRuns.map((e) => (
                 <button key={e.id} type="button" className="mi-pagerow" onClick={() => update({ date: e.date, run: e.id })}>
-                  <span className="mi-tile"><Icon name="timer" /></span>
+                  <RunArt type={runTypeOf(e)} />
                   <span className="mi-pagerow__text">
                     <span className="mi-pagerow__title">{e.title}</span>
                     <span className="mi-pagerow__sub">

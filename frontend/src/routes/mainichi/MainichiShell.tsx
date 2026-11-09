@@ -175,9 +175,9 @@ function MoneyGroup() {
 function Brand() {
   const dayOfMonth = new Date().getDate();
   return (
-    <Link to="/mainichi" className="mi-brand" aria-label="ヒツネ, today">
+    <Link to="/mainichi" className="mi-brand" aria-label="Hitsune, today">
       <span className="mi-brand__mark" aria-hidden="true">{dayOfMonth}</span>
-      <span className="mi-brand__name" lang="ja">ヒツネ</span>
+      <span className="mi-brand__name">Hitsune</span>
     </Link>
   );
 }
@@ -194,7 +194,7 @@ export function MainichiShell() {
       </header>
       <aside className="mi-side">
         <Brand />
-        <nav className="mi-side__nav" aria-label="ヒツネ">
+        <nav className="mi-side__nav" aria-label="Hitsune">
           <NavLink to="/mainichi" end className={navClass}>
             <NavIcon name="today" />
             Today
@@ -213,7 +213,7 @@ export function MainichiShell() {
       <main className="mi-main">
         <Outlet />
       </main>
-      <nav className="mi-tabbar" aria-label="ヒツネ">
+      <nav className="mi-tabbar" aria-label="Hitsune">
         <NavLink to="/mainichi" end className={navClass}>
           <NavIcon name="today" />
           Today

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
 export interface User {
@@ -39,8 +40,14 @@ export function useRegister() {
 
 export function useLogout() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   return useMutation({
     mutationFn: () => api.post("/auth/logout"),
-    onSuccess: () => qc.clear(),
+    // qc.clear() alone doesn't notify mounted observers, so RequireAuth kept the old user and never redirected.
+    // Leave first, then drop the cache. onSettled: a failed request (expired session, offline) still signs out here.
+    onSettled: () => {
+      navigate("/login", { replace: true });
+      qc.clear();
+    },
   });
 }

@@ -44,7 +44,7 @@
   background: var(--color-accent); color: var(--color-accent-ink);
   font-weight: var(--display-weight); font-size: var(--text-sm); font-variant-numeric: tabular-nums;
 }
-.mi-brand__name { font-family: var(--font-display); font-weight: var(--display-weight); font-size: var(--text-lg); letter-spacing: var(--tracking-display); }
+.mi-brand__name { font-family: var(--font-title); font-weight: 700; font-size: var(--text-lg); letter-spacing: 0; }
 .mi-nav__icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .mi-nav__item {
   display: inline-flex; align-items: center; min-height: var(--control-h); padding: 0 var(--space-md); border-radius: var(--radius-pill);
@@ -114,9 +114,9 @@
 }
 
 /* ---------- type and small parts ---------- */
-.mi-h1 { margin: 0; font-size: var(--text-2xl); }
+.mi-h1 { margin: 0; font-family: var(--font-title); font-weight: 700; letter-spacing: 0; font-size: var(--text-2xl); }
 .mi-h1--xl { font-size: var(--text-3xl); }
-.mi-h2 { margin: 0; font-size: var(--text-lg); }
+.mi-h2 { margin: 0; font-family: var(--font-title); font-weight: 700; letter-spacing: 0; font-size: var(--text-lg); }
 .mi-h2--lg { font-size: var(--text-xl); }
 .mi-h2--spaced { margin-top: var(--space-lg); }
 .mi-muted, .mi .muted { margin: 0; padding: 0; color: var(--color-muted); font-size: var(--text-sm); }
@@ -601,7 +601,34 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
 /* Intro: rise from below with a little overshoot, one group after another by --d. */
 .mi-art__pop { transform-box: fill-box; transform-origin: 50% 100%; animation: mi-art-pop 680ms var(--ease-spring) var(--d, 0ms) backwards; }
 @keyframes mi-art-pop { from { opacity: 0; transform: translateY(56px) scale(0.92); } }
-.mi-login__title { font-family: "Redaction 50", Georgia, serif; font-weight: 700; letter-spacing: 0; }
+
+/* Type tiles (art.tsx): tinted tile, flat shapes in --k. One colour per run type so a list of runs reads at a glance. */
+.mi-kart { display: block; flex: none; width: 40px; height: 40px; --k: var(--color-mint); }
+.mi-kart--long { --k: var(--color-accent-2); }
+.mi-kart--tempo { --k: oklch(72% 0.16 62); }
+.mi-kart--intervals { --k: var(--color-accent-3); }
+.mi-kart--hills { --k: oklch(64% 0.1 195); }
+.mi-kart--threshold { --k: oklch(60% 0.15 300); }
+.mi-kart--workout { --k: var(--color-workout); }
+.mi-kart--event { --k: var(--color-event); }
+.mi-kart__bg { fill: color-mix(in oklab, var(--k) 18%, var(--color-card)); }
+.mi-kart__fill { fill: var(--k); }
+.mi-kart__soft { fill: color-mix(in oklab, var(--k) 45%, var(--color-card)); }
+.mi-kart__line { fill: none; stroke: var(--k); stroke-width: 5; stroke-linecap: round; }
+.mi-kart__line--wide { stroke-width: 7; }
+.mi-kart__ink-line { fill: none; stroke: var(--color-ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.mi-kart__ink { fill: var(--color-ink); }
+.mi-kart__base { stroke: var(--color-ink); stroke-width: 2; stroke-linecap: round; opacity: 0.4; }
+.mi-kart__dash { stroke: var(--color-ink); stroke-width: 2; stroke-dasharray: 3 3; stroke-linecap: round; }
+.mi-kart__sun, .mi-kart__spark { fill: var(--color-accent); }
+.mi-kart__card { fill: var(--color-card); }
+.mi-kart__dot { fill: var(--color-rule); }
+/* The add form's preview: the drawing for what is about to be added, plus its one-line facts. */
+.mi-preview { display: flex; align-items: center; gap: var(--space-sm); }
+.mi-preview .mi-kart { width: 64px; height: 64px; }
+.mi-preview__text { display: flex; flex-direction: column; gap: var(--space-3xs); min-width: 0; }
+.mi-preview__title { font-family: var(--font-title); font-weight: 700; }
+.mi-preview__sub { color: var(--color-muted); font-size: var(--text-sm); }
 
 /* Spot drawings for empty states: same shapes as the sign-in art, on app tokens so they follow the theme. */
 .mi-emptyart { display: flex; align-items: center; gap: var(--space-md); padding-block: var(--space-xs); }

@@ -50,6 +50,8 @@ const segmentSchema = z.object({ id: itemId, rounds: z.number().int().min(1).max
 
 const detailsSchema = z.object({
   segments: z.array(segmentSchema).max(30).optional(),
+  // What kind of run this is; drives its drawing. Older runs have none and are guessed from the title.
+  runType: z.enum(["easy", "long", "tempo", "intervals", "hills", "threshold"]).optional(),
   km: z.string().max(20).optional(),
   pace: z.string().max(20).optional(),
   detail: z.string().max(2000).optional(),

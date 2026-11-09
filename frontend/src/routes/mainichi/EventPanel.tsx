@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-  goalLabel, intensityLabel, newItemId, newStep, runSegments, runTotals, setStats, stepIntensity, RUN_PRESETS, STEP_LABEL, TYPE_LABEL,
+  fromKey, goalLabel, intensityLabel, newItemId, newStep, runSegments, runTotals, setStats, stepIntensity, RUN_PRESETS, STEP_LABEL, TYPE_LABEL,
   useCreateEvents, useDeleteEvent, useEditEvent,
   type EventType, type Intensity, type PlannerEvent, type Routine, type RunStep, type Segment, type StepKind, type StepUnit,
 } from "../../lib/planner";
 import { Icon } from "./parts";
+import { EventArt, RunArt, WorkoutArt } from "./art";
 import { useEnter } from "../../lib/motion";
 import { confirmDialog } from "../../components/ConfirmDialog";
 
@@ -409,6 +410,26 @@ export function EventEditor({
 
 // ---------- inline create form ----------
 
+/** The drawing for what is about to be added, with its facts in one line. Keyed so a new pick pops in again. */
+function Preview({ type, preset, routine, date, time }: { type: EventType; preset: number; routine?: Routine; date: string; time: string }) {
+  const p = RUN_PRESETS[preset];
+  const [art, title, sub] =
+    type === "run"
+      ? [<RunArt type={p.type} />, p.title, totalsLabel(p.segments())]
+      : type === "workout"
+        ? [<WorkoutArt />, routine?.title ?? "Empty workout", routine ? [routine.focus, `${routine.exercises.length} exercises`].filter(Boolean).join(", ") : "Add exercises after"]
+        : [<EventArt />, fromKey(date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }), time || "All day"];
+  return (
+    <div className="mi-preview mi-art__pop" key={`${type}-${preset}-${routine?.id ?? ""}`}>
+      {art}
+      <span className="mi-preview__text">
+        <span className="mi-preview__title">{title}</span>
+        <span className="mi-preview__sub">{sub}</span>
+      </span>
+    </div>
+  );
+}
+
 export function NewEventForm({
   date,
   routines,
@@ -445,7 +466,7 @@ export function NewEventForm({
         type,
         title,
         time: type === "run" ? null : time || null,
-        details: segments ? { segments, km: String(runTotals(segments).km) } : undefined,
+        details: segments ? { segments, km: String(runTotals(segments).km), runType: p.type } : undefined,
         routine_id: type === "workout" && routineId ? routineId : undefined,
         repeat_weeks: repeat,
       });
@@ -465,6 +486,8 @@ export function NewEventForm({
         ))}
       </div>
 
+      <Preview type={type} preset={preset} routine={routines.find((r) => r.id === routineId)} date={date} time={time} />
+
       {type === "run" && (
         <>
           <div className="mi-filters">
@@ -483,7 +506,6 @@ export function NewEventForm({
               </button>
             ))}
           </div>
-          <p className="mi-muted">{totalsLabel(RUN_PRESETS[preset].segments())}. Every step stays editable after adding.</p>
         </>
       )}
 

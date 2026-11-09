@@ -22,6 +22,7 @@
   /* ---- type: one family, a 1.125 to 1.2 ratio, fixed sizes in the app ---- */
   --font-display: "Chillax", ui-rounded, ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-display);
+  --font-title: "Redaction 50", Georgia, serif; /* brand name, page and section titles */
   --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem;
   --text-2xl: 1.728rem; --text-3xl: 2.074rem;
   --leading-tight: 1.15; --leading-snug: 1.35; --leading-body: 1.5;
