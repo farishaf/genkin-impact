@@ -565,27 +565,58 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
 .mi-drawer__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-md) var(--space-lg) var(--space-xl); }
 .mi-drawer .mi-editor { padding: 0; border-radius: 0; box-shadow: none; background: transparent; }
 
-/* ---------- sign-in: the year as dots, beside the form ---------- */
+/* ---------- sign-in: the everyday illustration, beside the form ---------- */
 .mi-login { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); padding: var(--space-xs); }
 .mi-login__panel {
   display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-xl); padding: var(--space-xl);
   border-radius: var(--radius-card); background: var(--color-sheet); color: var(--color-on-sheet);
   --color-ink: var(--color-on-sheet); --color-ink-2: var(--color-on-sheet-2); --color-muted: var(--color-on-sheet-2);
 }
-.mi-login__story { display: flex; flex-direction: column; gap: var(--space-xl); }
 .mi-login__meaning { max-width: 34rem; margin: 0; font-size: var(--text-xl); line-height: 1.4; }
-.mi-login__accent { padding-inline: var(--space-2xs); border-radius: var(--space-2xs); background: var(--color-accent); color: var(--color-accent-ink); }
-.mi-login__today { display: flex; align-items: center; gap: var(--space-sm); }
-.mi-login__badge { flex: none; width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: 50%; background: var(--color-accent); color: var(--color-accent-ink); font-weight: var(--display-weight); font-variant-numeric: tabular-nums; }
-.mi-login__date { margin: 0; font-weight: var(--display-weight); }
-.mi-login__count { margin: 0; color: var(--color-on-sheet-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
-.mi-login__year { display: grid; gap: var(--space-2xs); max-width: 34rem; --step: 1ms; }
-.mi-login__month { display: grid; grid-template-columns: 1.25rem repeat(31, minmax(0, 1fr)); gap: var(--space-2xs); align-items: center; }
-.mi-login__initial { color: var(--color-on-sheet-2); font-size: var(--text-xs); line-height: 1; }
-.mi-login__day { aspect-ratio: 1; border-radius: 50%; background: var(--color-sheet-rule); animation: mi-day-in var(--dur-long) var(--ease-out) calc(var(--i) * var(--step)) backwards; }
-.mi-login__day.is-past { background: var(--color-on-sheet-2); }
-.mi-login__day.is-today { background: var(--color-accent); box-shadow: 0 0 0 3px var(--color-sheet-2); }
-@keyframes mi-day-in { from { opacity: 0; } }
+
+/* The art sits on the dark sheet; its cards are paper with ink, so these reach past the sheet overrides. */
+.mi-art { display: block; width: 100%; max-width: 32rem; height: auto; margin-inline: auto; overflow: visible; }
+.mi-art__card > :first-child { fill: oklch(98.8% 0.007 95); }
+.mi-art__card { filter: drop-shadow(0 14px 22px oklch(8% 0.012 255 / 0.35)); }
+.mi-art__ink { fill: oklch(20% 0.014 255); }
+.mi-art__muted { fill: oklch(87% 0.016 95); }
+.mi-art__rule { stroke: oklch(87% 0.016 95); stroke-width: 2; stroke-dasharray: 4 5; stroke-linecap: round; }
+.mi-art__accent, .mi-art__coin, .mi-art__spark { fill: var(--color-accent); }
+.mi-art__spark--sm { fill: var(--color-mint); }
+.mi-art__total { fill: oklch(50% 0.19 27); font: var(--display-weight) 15px var(--font-display); font-variant-numeric: tabular-nums; }
+.mi-art__done { fill: var(--color-mint); }
+.mi-art__box { fill: none; stroke: oklch(52% 0.014 255); stroke-width: 2; }
+.mi-art__tick { fill: none; stroke: oklch(20% 0.014 255); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; animation: mi-art-tick var(--dur-long) var(--ease-out) backwards; }
+.mi-art__chip > rect:first-child { fill: var(--color-sheet-2); }
+.mi-art__bar { fill: var(--color-mint); }
+.mi-art__bar:last-child { fill: var(--color-accent); }
+.mi-art__coin { filter: drop-shadow(0 10px 16px oklch(8% 0.012 255 / 0.35)); }
+.mi-art__coin-ring { fill: none; stroke: var(--color-accent-deep); stroke-width: 2; }
+.mi-art__coin-text { fill: var(--color-accent-ink); font: var(--display-weight) 15px var(--font-display); }
+.mi-art__float { animation: mi-art-float 6s var(--ease-in-out) infinite alternate; }
+.mi-art__float--a { animation-delay: -1.5s; }
+.mi-art__float--b { animation-delay: -3s; }
+.mi-art__float--c { animation-duration: 4.5s; }
+@keyframes mi-art-float { to { transform: translateY(-6px); } }
+/* Intro: rise from below with a little overshoot, one group after another by --d. */
+.mi-art__pop { transform-box: fill-box; transform-origin: 50% 100%; animation: mi-art-pop 680ms var(--ease-spring) var(--d, 0ms) backwards; }
+@keyframes mi-art-pop { from { opacity: 0; transform: translateY(56px) scale(0.92); } }
+.mi-login__title { font-family: "Redaction 50", Georgia, serif; font-weight: 700; letter-spacing: 0; }
+
+/* Spot drawings for empty states: same shapes as the sign-in art, on app tokens so they follow the theme. */
+.mi-emptyart { display: flex; align-items: center; gap: var(--space-md); padding-block: var(--space-xs); }
+.mi-spot { flex: none; width: 96px; height: auto; overflow: visible; }
+.mi-spot__card { fill: var(--color-card); stroke: var(--color-rule); stroke-width: 1.5; filter: drop-shadow(0 6px 10px oklch(20% 0.014 255 / 0.12)); }
+.mi-spot__head { fill: var(--color-accent-3); }
+.mi-spot__ink { fill: var(--color-ink); }
+.mi-spot__muted { fill: var(--color-rule); }
+.mi-spot__rule { stroke: var(--color-rule); stroke-width: 1.5; stroke-dasharray: 3 3; stroke-linecap: round; }
+.mi-spot__total { fill: var(--color-expense); }
+.mi-spot__accent { fill: var(--color-accent); }
+.mi-spot__mint { fill: var(--color-mint); }
+.mi-spot__ring { fill: none; stroke: var(--color-accent-deep); stroke-width: 1.5; }
+.mi-spot__coin { fill: var(--color-accent-ink); font: var(--display-weight) 8px var(--font-display); }
+@keyframes mi-art-tick { from { stroke-dashoffset: 20; } }
 .mi-login__main { display: grid; place-items: center; padding: var(--space-xl); }
 .mi-login__form { display: flex; flex-direction: column; gap: var(--space-lg); width: 100%; max-width: 25rem; padding: var(--space-xl); border-radius: var(--radius-card); background: var(--color-paper-2); }
 .mi-login__head { display: flex; flex-direction: column; gap: var(--space-2xs); }
@@ -673,8 +704,9 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
 }
 @media (max-width: 60rem) {
   .mi-login { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; padding: 0; }
-  .mi-login__panel { gap: var(--space-md); padding: var(--space-md); border-radius: 0; }
-  .mi-login__year, .mi-login__meaning { display: none; }
+  .mi-login__panel { gap: var(--space-md); padding: var(--space-md) var(--space-md) var(--space-lg); border-radius: 0 0 var(--radius-card) var(--radius-card); }
+  .mi-art { max-width: 20rem; }
+  .mi-login__meaning { font-size: var(--text-md); }
   .mi-login__main { place-items: start center; padding: var(--space-lg) var(--space-md); }
   .mi-login__form { max-width: 22rem; padding: 0; background: none; border-radius: 0; }
 }
@@ -684,5 +716,5 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
   .mi-checkbox { width: 32px; height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mi-login__day { animation: none; }
+  .mi-art__float, .mi-art__tick, .mi-art__pop { animation: none; }
 }

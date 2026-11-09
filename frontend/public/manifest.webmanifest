@@ -1,7 +1,7 @@
 {
-  "name": "Mainichi",
-  "short_name": "Mainichi",
-  "description": "A daily planner for one person: to-dos, calendar, workouts and money in one place.",
+  "name": "ヒツネ",
+  "short_name": "ヒツネ",
+  "description": "ヒツネ (日常, the everyday): to-dos, calendar, workouts and money in one place.",
   "start_url": "/mainichi",
   "scope": "/",
   "display": "standalone",

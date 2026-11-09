@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useEnter } from "../../lib/motion";
 import { eventMeta, TYPE_LABEL, type CheckItem, type PlannerEvent } from "../../lib/planner";
@@ -194,6 +194,62 @@ export function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="mi-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
       <div className="mi-progress__fill" style={{ transform: `scaleX(${total ? done / total : 0})` }} />
+    </div>
+  );
+}
+
+/** Empty state with a small drawing in the sign-in art's style: a calendar sheet for free days, a receipt for no money moves. */
+export function Empty({ art, children }: { art: "calendar" | "receipt"; children: ReactNode }) {
+  return (
+    <div className="mi-emptyart">
+      <svg className="mi-spot" viewBox="0 0 120 92" aria-hidden="true">
+        <path className="mi-spot__accent" d="M102 6l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />
+        <path className="mi-spot__mint" d="M18 68l1.5 4.5 4.5 1.5-4.5 1.5-1.5 4.5-1.5-4.5-4.5-1.5 4.5-1.5z" />
+        {art === "calendar" ? (
+          <>
+            <g className="mi-art__pop">
+              <g transform="translate(28 14) rotate(-6)">
+                <rect className="mi-spot__card" width="60" height="64" rx="12" />
+                <path className="mi-spot__head" d="M0 12Q0 0 12 0H48Q60 0 60 12V18H0Z" />
+                <rect className="mi-spot__ink" x="14" y="-4" width="6" height="10" rx="3" />
+                <rect className="mi-spot__ink" x="40" y="-4" width="6" height="10" rx="3" />
+                {[0, 1, 2].flatMap((r) =>
+                  [0, 1, 2, 3].map((c) => (
+                    <circle key={`${r}${c}`} className={r === 1 && c === 2 ? "mi-spot__accent" : "mi-spot__muted"} cx={12 + c * 12} cy={30 + r * 11} r={r === 1 && c === 2 ? 3.6 : 2.6} />
+                  )),
+                )}
+              </g>
+            </g>
+            <g className="mi-art__pop" style={{ "--d": "180ms" } as CSSProperties}>
+              <circle className="mi-spot__accent" cx="90" cy="64" r="13" />
+              <circle className="mi-spot__ring" cx="90" cy="64" r="9" />
+            </g>
+          </>
+        ) : (
+          <>
+            <g className="mi-art__pop">
+              <g transform="translate(36 8) rotate(5)">
+                <path className="mi-spot__card" d="M0 10Q0 0 10 0H36Q46 0 46 10V68l-5.75-5-5.75 5-5.75-5-5.75 5-5.75-5-5.75 5-5.75-5L0 68Z" />
+                <rect className="mi-spot__ink" x="8" y="10" width="20" height="4" rx="2" />
+                {[22, 30, 38].map((y, i) => (
+                  <g key={y}>
+                    <rect className="mi-spot__muted" x="8" y={y} width={[18, 14, 20][i]} height="3" rx="1.5" />
+                    <rect className="mi-spot__muted" x="31" y={y} width="7" height="3" rx="1.5" />
+                  </g>
+                ))}
+                <line className="mi-spot__rule" x1="8" y1="47" x2="38" y2="47" />
+                <rect className="mi-spot__total" x="24" y="52" width="14" height="4" rx="2" />
+              </g>
+            </g>
+            <g className="mi-art__pop" style={{ "--d": "180ms" } as CSSProperties}>
+              <circle className="mi-spot__accent" cx="84" cy="70" r="13" />
+              <circle className="mi-spot__ring" cx="84" cy="70" r="9" />
+              <text className="mi-spot__coin" x="84" y="73" textAnchor="middle">Rp</text>
+            </g>
+          </>
+        )}
+      </svg>
+      <p className="mi-empty">{children}</p>
     </div>
   );
 }

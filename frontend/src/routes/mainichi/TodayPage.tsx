@@ -9,7 +9,7 @@ import {
   useCreatePage, useDay, useDeletePage, useEditDay, useEvents, usePages, useUpdateEvent,
   type Page, type Todo,
 } from "../../lib/planner";
-import { Checklist, Drawer, EventRow, Icon } from "./parts";
+import { Checklist, Drawer, Empty, EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
 import { RunDetail } from "./RunDetail";
 import { useOpenEvent } from "./useOpenEvent";
@@ -99,7 +99,7 @@ function DaySpending({ date }: { date: string }) {
           ))}
         </div>
       ) : (
-        <p className="mi-empty">{txns.isLoading ? "Loading…" : "No transactions this day."}</p>
+        txns.isLoading ? <p className="mi-empty">Loading…</p> : <Empty art="receipt">No transactions this day.</Empty>
       )}
       {/* ponytail: the form always stamps "now"; pass a date into AddTransactionForm if backdating from here matters. */}
       {adding && (
@@ -270,7 +270,7 @@ export function TodayPage() {
               <Link to={`/mainichi/calendar?date=${date}`} className="mi-textbtn">Open</Link>
             </div>
             {dayEvents.length === 0 ? (
-              <p className="mi-empty">Rest day, nothing on the calendar.</p>
+              <Empty art="calendar">Rest day, nothing on the calendar.</Empty>
             ) : (
               <div className="mi-list">
                 {dayEvents.map((e) => (

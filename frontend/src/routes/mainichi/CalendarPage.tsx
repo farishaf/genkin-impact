@@ -5,7 +5,7 @@ import {
   useCreateRoutine, useEvents, useRoutines, useUpdateEvent,
   type EventType, type PlannerEvent,
 } from "../../lib/planner";
-import { EventRow, Icon } from "./parts";
+import { Empty, EventRow, Icon } from "./parts";
 import { EventDrawer } from "./EventDrawer";
 import { RunDetail, RunWeek } from "./RunDetail";
 import { useOpenEvent } from "./useOpenEvent";
@@ -180,7 +180,7 @@ export function CalendarPage() {
             <button type="button" className="mi-pill" onClick={() => setAdding(true)}>+ Add here</button>
           </div>
           {selEvents.length === 0 ? (
-            <p className="mi-empty">Nothing planned. Rest day?</p>
+            <Empty art="calendar">Nothing planned. Rest day?</Empty>
           ) : (
             <div className="mi-list">
               {selEvents.map((e) => (

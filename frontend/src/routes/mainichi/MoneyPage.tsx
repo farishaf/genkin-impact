@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import { decimalDigits, formatMoney } from "../../lib/formatAmount";
 import { isValidKey, newItemId, toKey, todayKey } from "../../lib/planner";
-import { Drawer, Icon } from "./parts";
+import { Drawer, Empty, Icon } from "./parts";
 
 // Money in Mainichi is a thin view over Genkin-Impact: purchases are written as ordinary expense
 // transactions, so budgets, analytics and balances there stay the single source of truth.
@@ -347,7 +347,7 @@ export function MoneyPage() {
             ))}
           </div>
         ) : (
-          <p className="mi-empty">{recent.isLoading ? "Loading…" : "No purchases this month."}</p>
+          recent.isLoading ? <p className="mi-empty">Loading…</p> : <Empty art="receipt">No purchases this month.</Empty>
         )}
       </section>
     </div>
