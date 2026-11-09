@@ -32,7 +32,7 @@ categoriesRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (re
     }
 
     const result = await pool.query(
-      `SELECT id, name, emoji, kind, sort_order FROM categories WHERE ${conditions.join(" AND ")} ORDER BY sort_order`,
+      `SELECT id, name, emoji, kind, sort_order, is_system FROM categories WHERE ${conditions.join(" AND ")} ORDER BY sort_order`,
       params
     );
     res.json({ categories: result.rows });

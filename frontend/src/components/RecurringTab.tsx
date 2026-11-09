@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { formatMoney } from "../lib/formatAmount";
@@ -57,8 +57,6 @@ function AddRecurringRuleForm({ onCreated }: { onCreated: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  useEffect(() => setCategoryId(""), [txnType]);
-
   const create = useMutation({
     mutationFn: () => {
       const body =
@@ -91,7 +89,10 @@ function AddRecurringRuleForm({ onCreated }: { onCreated: () => void }) {
       </label>
       <label className="field">
         <span>Type</span>
-        <select value={txnType} onChange={(e) => setTxnType(e.target.value as typeof txnType)}>
+        <select value={txnType} onChange={(e) => {
+          setTxnType(e.target.value as typeof txnType);
+          setCategoryId(""); // the old category belongs to the other kind
+        }}>
           <option value="expense">Expense</option>
           <option value="income">Income</option>
           <option value="transfer">Transfer</option>

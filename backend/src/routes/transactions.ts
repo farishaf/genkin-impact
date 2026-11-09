@@ -165,6 +165,77 @@ transactionsRouter.post("/", requireAuth, validateBody(createTransactionSchema),
   }
 });
 
+// One scanned receipt = one expense per category, all saved or none: a failed save can't leave half a receipt behind.
+const receiptSchema = z.object({
+  account_id: z.string().uuid(),
+  occurred_at: z.string().datetime(),
+  member_id: z.string().uuid().optional(),
+  tag_ids: z.string().uuid().array().optional(),
+  expenses: z
+    .array(
+      z.object({
+        category_id: z.string().uuid(),
+        amount: z.string().regex(/^\d+(\.\d+)?$/, "amount must be a plain decimal string"),
+        note: z.string().max(500).optional(),
+      })
+    )
+    .min(1)
+    .max(50),
+});
+
+transactionsRouter.post("/receipt", requireAuth, validateBody(receiptSchema), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof receiptSchema>;
+    const account = await loadOwnedAccount(req.userId!, body.account_id);
+    const amounts = body.expenses.map((e) => {
+      let minor: bigint;
+      try {
+        minor = parseToMinor(e.amount, account.decimal_digits);
+      } catch {
+        throw new AppError(400, "invalid_amount", `Amount has more decimal places than ${account.currency_code} supports.`);
+      }
+      if (minor <= 0n) throw new AppError(400, "invalid_amount", "Amount must be positive.");
+      return minor;
+    });
+
+    const categoryIds = [...new Set(body.expenses.map((e) => e.category_id))];
+    const cats = await pool.query(
+      "SELECT id FROM categories WHERE id = ANY($1) AND user_id = $2 AND kind = 'expense' AND deleted_at IS NULL",
+      [categoryIds, req.userId]
+    );
+    if (cats.rows.length !== categoryIds.length) throw new AppError(400, "invalid_category", "One or more expense categories not found.");
+    if (body.member_id) {
+      const m = await pool.query("SELECT id FROM members WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL", [body.member_id, req.userId]);
+      if (m.rows.length === 0) throw new AppError(400, "invalid_member", "Member not found.");
+    }
+    const tagIds = [...new Set(body.tag_ids ?? [])];
+    if (tagIds.length) {
+      const t = await pool.query("SELECT id FROM tags WHERE id = ANY($1) AND user_id = $2 AND deleted_at IS NULL", [tagIds, req.userId]);
+      if (t.rows.length !== tagIds.length) throw new AppError(400, "invalid_tag", "One or more tags not found.");
+    }
+
+    const transactions = await withTransaction(async (client) => {
+      const ids: string[] = [];
+      for (const [i, e] of body.expenses.entries()) {
+        const id = newId();
+        await client.query(
+          `INSERT INTO transactions (id, user_id, type, account_id, category_id, member_id, amount, currency_code, occurred_at, note)
+           VALUES ($1, $2, 'expense', $3, $4, $5, $6, $7, $8, $9)`,
+          [id, req.userId, body.account_id, e.category_id, body.member_id ?? null, amounts[i], account.currency_code, body.occurred_at, e.note ?? null]
+        );
+        for (const tagId of tagIds) await client.query("INSERT INTO transaction_tags (transaction_id, tag_id) VALUES ($1, $2)", [id, tagId]);
+        ids.push(id);
+      }
+      await recomputeAccountBalance(client, body.account_id);
+      return (await client.query("SELECT * FROM transactions WHERE id = ANY($1) ORDER BY array_position($1::uuid[], id)", [ids])).rows;
+    });
+
+    res.status(201).json({ transactions });
+  } catch (err) {
+    next(err);
+  }
+});
+
 transactionsRouter.patch("/:id", requireAuth, validateBody(updateTransactionSchema), async (req, res, next) => {
   try {
     const body = req.body as z.infer<typeof updateTransactionSchema>;

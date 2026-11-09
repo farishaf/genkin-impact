@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { api, ApiError } from "../lib/api";
 import { EditIcon, DeleteIcon } from "./TxnIcons";
 import { Button } from "./Button";
@@ -9,7 +8,6 @@ import { confirmDialog } from "./ConfirmDialog";
 interface Category {
   id: string;
   name: string;
-  emoji: string | null;
   kind: "expense" | "income";
   is_system: boolean;
 }
@@ -19,11 +17,8 @@ export function CategoryManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [newExpenseName, setNewExpenseName] = useState("");
-  const [newExpenseEmoji, setNewExpenseEmoji] = useState("");
   const [newIncomeName, setNewIncomeName] = useState("");
-  const [newIncomeEmoji, setNewIncomeEmoji] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pickerOpenFor, setPickerOpenFor] = useState<"expense" | "income" | null>(null);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -31,13 +26,11 @@ export function CategoryManager() {
   });
 
   const createCategory = useMutation({
-    mutationFn: (body: { name: string; emoji?: string; kind: "expense" | "income" }) => api.post("/categories", body),
+    mutationFn: (body: { name: string; kind: "expense" | "income" }) => api.post("/categories", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["categories"] });
       setNewExpenseName("");
-      setNewExpenseEmoji("");
       setNewIncomeName("");
-      setNewIncomeEmoji("");
       setError(null);
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Something went wrong."),
@@ -60,7 +53,6 @@ export function CategoryManager() {
 
   function renderSection(kind: "expense" | "income", label: string, singular: string) {
     const items = (categories ?? []).filter((c) => c.kind === kind);
-    const emoji = kind === "expense" ? newExpenseEmoji : newIncomeEmoji;
     return (
       <div className="category-manager__section">
         <h3>{label}</h3>
@@ -83,10 +75,7 @@ export function CategoryManager() {
               </>
             ) : (
               <>
-                <span style={{ flex: 1 }}>
-                  {c.emoji ? `${c.emoji} ` : ""}
-                  {c.name}
-                </span>
+                <span style={{ flex: 1 }}>{c.name}</span>
                 <button
                   type="button"
                   className="icon-btn"
@@ -120,45 +109,9 @@ export function CategoryManager() {
             e.preventDefault();
             const name = kind === "expense" ? newExpenseName : newIncomeName;
             if (!name.trim()) return;
-            createCategory.mutate({ name: name.trim(), emoji: emoji.trim() || undefined, kind });
+            createCategory.mutate({ name: name.trim(), kind });
           }}
         >
-          <div className="category-manager__emoji-picker">
-            <button
-              type="button"
-              className="category-manager__emoji-btn"
-              aria-label={emoji ? `Change icon, currently ${emoji}` : "Pick an icon (optional)"}
-              onClick={() => setPickerOpenFor(pickerOpenFor === kind ? null : kind)}
-            >
-              {emoji || <svg className="category-manager__emoji-btn-hint" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12.5V4.5h8v8l-8 8-8-8 8-8Z" /><path d="M16 8.5h.01" /></svg>}
-            </button>
-            {emoji && (
-              <button
-                type="button"
-                className="category-manager__emoji-clear"
-                aria-label="Remove icon"
-                onClick={() => (kind === "expense" ? setNewExpenseEmoji("") : setNewIncomeEmoji(""))}
-              >
-                ×
-              </button>
-            )}
-            {pickerOpenFor === kind && (
-              <div className="category-manager__emoji-popover">
-                <EmojiPicker
-                  open
-                  width="100%"
-                  height={320}
-                  skinTonesDisabled
-                  previewConfig={{ showPreview: false }}
-                  onEmojiClick={(data: EmojiClickData) => {
-                    if (kind === "expense") setNewExpenseEmoji(data.emoji);
-                    else setNewIncomeEmoji(data.emoji);
-                    setPickerOpenFor(null);
-                  }}
-                />
-              </div>
-            )}
-          </div>
           <input
             placeholder={`New ${singular} category`}
             value={kind === "expense" ? newExpenseName : newIncomeName}

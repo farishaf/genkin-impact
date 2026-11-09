@@ -629,3 +629,41 @@ describe("member + tags on transactions", () => {
     expect(byCategory.body.items).toHaveLength(1);
   });
 });
+
+describe("POST /transactions/receipt", () => {
+  it("logs one expense per category and moves the balance once", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const other = await pool.query("SELECT id FROM categories WHERE kind = 'expense' AND id <> $1 LIMIT 1", [categoryId]);
+
+    const res = await agent.post("/transactions/receipt").send({
+      account_id: accountId,
+      occurred_at: "2026-11-05T03:00:00.000Z",
+      expenses: [
+        { category_id: categoryId, amount: "12.50", note: "Store: Pizza" },
+        { category_id: other.rows[0].id, amount: "7.25", note: "Store: Soap ×2" },
+      ],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.transactions.map((t: { amount: string }) => t.amount)).toEqual(["1250", "725"]);
+
+    const accountRes = await agent.get("/accounts");
+    expect(accountRes.body.accounts[0].cached_balance).toBe("98025"); // 1000.00 - 19.75
+  });
+
+  it("saves nothing when any line is invalid", async () => {
+    const { agent, accountId, categoryId } = await setUp();
+    const incomeCat = await pool.query("SELECT id FROM categories WHERE kind = 'income' LIMIT 1");
+
+    const res = await agent.post("/transactions/receipt").send({
+      account_id: accountId,
+      occurred_at: "2026-11-05T03:00:00.000Z",
+      expenses: [
+        { category_id: categoryId, amount: "12.50" },
+        { category_id: incomeCat.rows[0].id, amount: "7.25" },
+      ],
+    });
+    expect(res.status).toBe(400);
+    const count = await pool.query("SELECT count(*)::int AS n FROM transactions");
+    expect(count.rows[0].n).toBe(0);
+  });
+});

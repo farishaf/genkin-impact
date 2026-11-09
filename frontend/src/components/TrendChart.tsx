@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useId, useRef, useMemo } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import type { AnalyticsDay } from "./HeatmapCalendar";
@@ -12,7 +12,7 @@ const H = 120;
 export function TrendChart({ days }: { days: AnalyticsDay[] }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const lineRef = useRef<SVGPathElement>(null);
-  const uid = useRef(`trend-${Math.random().toString(36).slice(2)}`).current;
+  const uid = `trend${useId()}`;
 
   const { linePath, areaPath, midY } = useMemo(() => {
     const nets = days.map((d) => Number(d.net_minor));

@@ -18,4 +18,7 @@ export const env = {
   CONTACT_EMAIL_FROM: required("CONTACT_EMAIL_FROM"),
   APP_ORIGIN: process.env.APP_ORIGIN ?? "http://localhost:5173",
   NODE_ENV: process.env.NODE_ENV ?? "development",
+  // Receipt scanning. Optional: without a key, POST /receipts/scan answers 503 and the form stays manual.
+  DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY || undefined,
+  DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL || "deepseek-flash",
 };

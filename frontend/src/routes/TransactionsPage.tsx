@@ -421,12 +421,14 @@ export function TransactionsPage() {
       const reduced = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
-      gsap.from(".filter-popover", {
-        autoAlpha: 0,
-        y: reduced ? 0 : -6,
-        duration: reduced ? 0.15 : 0.18,
-        ease: "power2.out",
-      });
+      // Same breakpoint as the bottom-sheet CSS in base.css: phones slide the sheet up instead.
+      const sheet = window.matchMedia("(max-width: 60rem)").matches;
+      gsap.from(
+        ".filter-popover",
+        sheet
+          ? { y: reduced ? 0 : "100%", duration: reduced ? 0.1 : 0.26, ease: "power3.out" }
+          : { autoAlpha: 0, y: reduced ? 0 : -6, duration: reduced ? 0.15 : 0.18, ease: "power2.out" },
+      );
     },
     { scope: filterPopoverRef, dependencies: [filterOpen] },
   );
@@ -442,7 +444,8 @@ export function TransactionsPage() {
   }
 
   // Runs after the await above, so it needs contextSafe to stay inside the useGSAP context.
-  const removeRow = contextSafe((t: TxnItem) => {
+  // Wrapped at call time, not render time, so the row ref is only read in the event.
+  const removeRow = (t: TxnItem) => contextSafe(() => {
     const el = rowRefs.current[t.id];
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -458,7 +461,7 @@ export function TransactionsPage() {
       ease: "power2.out",
       onComplete: () => deleteTxn.mutate(t.id),
     });
-  });
+  })();
 
   function openCreate() {
     setEditingTxn(null);
@@ -683,6 +686,8 @@ export function TransactionsPage() {
           <h1>Transactions</h1>
           <span className="count-badge">{summary?.count ?? 0}</span>
           <div className="head-spacer" />
+          {/* Phones: the popover becomes a bottom sheet; tapping this scrim (outside the wrap) closes it. */}
+          {filterOpen && <div className="filter-scrim" aria-hidden="true" />}
           <div className="filter-popover-wrap" ref={filterPopoverRef}>
             <div className="filter-cluster">
               <button

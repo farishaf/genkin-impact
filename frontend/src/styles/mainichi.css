@@ -32,7 +32,8 @@
 
 /* ---------- top bar ---------- */
 .mi-top {
-  position: sticky; top: 0; z-index: var(--z-sticky-nav); height: var(--topbar-h);
+  position: sticky; top: 0; z-index: var(--z-sticky-nav); height: calc(var(--topbar-h) + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
   display: flex; align-items: center; gap: var(--space-md);
   padding-inline: max(var(--gutter), calc((100% - var(--container)) / 2));
   background: var(--color-paper); border-bottom: 1px solid var(--color-rule);
@@ -408,6 +409,7 @@ a.mi-chip-btn { text-decoration: none; }
 }
 
 /* ---------- money overview ---------- */
+.mi-money__logbtn { display: none; }
 .mi-money__main { display: flex; flex-direction: column; gap: var(--space-lg); min-width: 0; }
 .mi-money .mi-cols__side { flex: 1 1 24rem; }
 .mi-monthsheet { padding: var(--space-lg); }
@@ -425,9 +427,19 @@ a.mi-chip-btn { text-decoration: none; }
 .mi-lines__add { align-self: flex-start; }
 .mi-receipt__foot { display: flex; align-items: center; gap: var(--space-sm); padding-top: var(--space-md); border-top: 1px solid var(--color-rule); }
 .mi-receipt__file { max-width: 60%; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.mi-receipt__total { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-3xs); color: var(--color-muted); font-size: var(--text-sm); }
-.mi-receipt__total strong { color: var(--color-ink); font-size: var(--text-xl); font-weight: var(--display-weight); font-variant-numeric: tabular-nums; }
 .mi-receipt__send { align-self: stretch; min-height: var(--control-h); }
+/* Scan: the pill fills the form; the line beside it says what happened. */
+.mi-receipt__scan { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+/* Review summary: per-category subtotals (one expense each), the total, and the printed total to check against. */
+.mi-receipt__summary { display: flex; flex-direction: column; gap: var(--space-2xs); margin: 0; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-stock); background: var(--color-paper-2); }
+.mi-receipt__sumrow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); font-size: var(--text-sm); }
+.mi-receipt__sumrow dt { display: flex; flex-direction: column; min-width: 0; color: var(--color-ink-2); }
+.mi-receipt__sumrow dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.mi-receipt__sumrow--total { padding-top: var(--space-2xs); border-top: 1px solid var(--color-rule); }
+.mi-receipt__sumrow--total dt { color: var(--color-ink); font-weight: var(--display-weight); }
+.mi-receipt__sumrow--total dd { font-size: var(--text-xl); font-weight: var(--display-weight); }
+.mi-receipt__sumrow--warn dd { color: var(--color-expense); font-weight: var(--display-weight); }
+.mi-receipt__warn { margin: 0; color: var(--color-expense); font-size: var(--text-sm); }
 .mi-sent { display: flex; align-items: center; gap: var(--space-xs); margin: 0; color: var(--color-income); font-size: var(--text-sm); font-weight: var(--display-weight); }
 
 .mi-form { display: flex; flex-direction: column; gap: var(--space-2xs); }
@@ -614,6 +626,9 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
   .mi-cols, .mi-cols__side { gap: var(--space-md); }
   .mi-cols__main, .mi-cols__side { flex-basis: 100%; }
   .mi-today__nav { margin-left: 0; width: 100%; }
+  .mi-money__logcard { display: none; }
+  .mi-monthsheet .mi-dayhead { flex-wrap: wrap; }
+  .mi-money__logbtn { display: inline-flex; flex-basis: 100%; justify-content: center; }
   .mi-week { gap: var(--space-2xs); padding: var(--space-2xs); }
 
   .mi-tabbar {

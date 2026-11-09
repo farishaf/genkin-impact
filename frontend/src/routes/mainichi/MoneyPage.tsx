@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import { decimalDigits, formatMoney } from "../../lib/formatAmount";
-import { newItemId, toKey, todayKey } from "../../lib/planner";
-import { Icon } from "./parts";
+import { isValidKey, newItemId, toKey, todayKey } from "../../lib/planner";
+import { Drawer, Icon } from "./parts";
 
 // Money in Mainichi is a thin view over Genkin-Impact: purchases are written as ordinary expense
 // transactions, so budgets, analytics and balances there stay the single source of truth.
@@ -23,13 +23,21 @@ interface Txn {
 }
 interface Summary { expenditure_minor: string; count: number; main_currency_code: string }
 interface Line { id: string; name: string; qty: string; price: string; category_id: string }
+/** What /receipts/scan reads off a photo. Amounts are in the receipt's currency, major units. */
+interface ReceiptScan {
+  store: string;
+  date: string;
+  currency: string;
+  total: number | null;
+  items: { name: string; qty: number; unit_price: number; category_id?: string }[];
+}
 
 const monthRange = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
   return { from: `${ym}-01`, to: toKey(new Date(y, m, 0)) };
 };
 
-function PurchaseForm({ accounts, categories }: { accounts: Account[]; categories: Category[] }) {
+function PurchaseForm({ accounts, categories, onDone }: { accounts: Account[]; categories: Category[]; onDone?: () => void }) {
   const qc = useQueryClient();
   const blankLine = (): Line => ({ id: newItemId(), name: "", qty: "1", price: "", category_id: categories[0]?.id ?? "" });
   const [store, setStore] = useState("");
@@ -38,6 +46,9 @@ function PurchaseForm({ accounts, categories }: { accounts: Account[]; categorie
   const [lines, setLines] = useState<Line[]>(() => [blankLine()]);
   const [receipt, setReceipt] = useState<File | null>(null);
   const [sent, setSent] = useState<string | null>(null);
+  // Set after a scan: the printed total and currency, kept to check the reviewed lines against.
+  const [scanned, setScanned] = useState<Pick<ReceiptScan, "total" | "currency"> | null>(null);
+  const scanInput = useRef<HTMLInputElement>(null);
 
   const account = accounts.find((a) => a.id === accountId);
   const digits = decimalDigits(account?.currency_code ?? "IDR");
@@ -45,6 +56,33 @@ function PurchaseForm({ accounts, categories }: { accounts: Account[]; categorie
   const total = lines.reduce((s, l) => s + lineTotal(l), 0);
   const valid = lines.filter((l) => lineTotal(l) > 0);
   const updLine = (id: string, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const money = (n: number) => formatMoney(String(Math.round(n * 10 ** digits)), account?.currency_code ?? "IDR");
+  // One expense is logged per category, so the summary shows those subtotals.
+  const byCategory = [...valid.reduce((m, l) => m.set(l.category_id, (m.get(l.category_id) ?? 0) + lineTotal(l)), new Map<string, number>())];
+  const catLabel = (id: string) => {
+    const c = categories.find((x) => x.id === id);
+    return c ? `${c.emoji ? `${c.emoji} ` : ""}${c.name}` : "Uncategorised";
+  };
+  const offBy = scanned?.total != null ? total - scanned.total : 0;
+  const mismatch = Math.abs(offBy) >= 10 ** -digits / 2;
+
+  // The model fills the form; nothing is logged until "Log purchase", so every field stays editable for review.
+  const scan = useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return api.postForm<{ scan: ReceiptScan }>("/receipts/scan", fd).then((r) => r.scan);
+    },
+    onSuccess: (s) => {
+      if (s.store) setStore(s.store);
+      if (isValidKey(s.date)) setDate(s.date);
+      const fallback = lines[0]?.category_id || categories[0]?.id || "";
+      if (s.items.length) {
+        setLines(s.items.map((it) => ({ id: newItemId(), name: it.name, qty: String(it.qty), price: String(it.unit_price), category_id: it.category_id ?? fallback })));
+      }
+      setScanned({ total: s.total, currency: s.currency });
+    },
+  });
 
   const send = useMutation({
     mutationFn: async () => {
@@ -82,6 +120,8 @@ function PurchaseForm({ accounts, categories }: { accounts: Account[]; categorie
       setStore("");
       setLines([blankLine()]);
       setReceipt(null);
+      setScanned(null);
+      onDone?.();
     },
   });
 
@@ -93,6 +133,31 @@ function PurchaseForm({ accounts, categories }: { accounts: Account[]; categorie
 
   return (
     <form className="mi-receipt" onSubmit={submit}>
+      <div className="mi-receipt__scan">
+        <button type="button" className="mi-pill" onClick={() => scanInput.current?.click()} disabled={scan.isPending}>
+          <Icon name="receipt" />
+          {scan.isPending ? "Reading receipt…" : "Scan receipt"}
+        </button>
+        <input
+          ref={scanInput}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = ""; // so picking the same photo again re-scans it
+            if (!file) return;
+            setSent(null);
+            setReceipt(file); // the photo is also attached to the logged expense
+            scan.mutate(file);
+          }}
+        />
+        <span className="mi-muted" aria-live="polite">
+          {scan.isPending ? "This takes a few seconds." : scanned ? "Filled from the photo. Check each line before logging." : "A photo fills in the store, date and items."}
+        </span>
+      </div>
+      {scan.error && <p className="field-error">{scan.error.message}</p>}
+
       <div className="mi-receipt__meta">
         <input className="mi-receipt__store" value={store} placeholder="Store, e.g. Superindo" aria-label="Store" maxLength={120} onChange={(e) => setStore(e.target.value)} />
         <input type="date" className="mi-receipt__date" value={date} aria-label="Date" onChange={(e) => setDate(e.target.value || todayKey())} />
@@ -145,12 +210,36 @@ function PurchaseForm({ accounts, categories }: { accounts: Account[]; categorie
           {receipt ? receipt.name : "Attach receipt photo"}
           <input type="file" accept="image/*,application/pdf" hidden onChange={(e) => setReceipt(e.target.files?.[0] ?? null)} />
         </label>
-        <div className="mi-top__spacer" />
-        <div className="mi-receipt__total">
-          <span>Total</span>
-          <strong>{formatMoney(String(Math.round(total * 10 ** digits)), account?.currency_code ?? "IDR")}</strong>
-        </div>
       </div>
+
+      <dl className="mi-receipt__summary" aria-label="Summary">
+        {byCategory.length > 1 &&
+          byCategory.map(([id, sum]) => (
+            <div key={id} className="mi-receipt__sumrow">
+              <dt>{catLabel(id)}</dt>
+              <dd>{money(sum)}</dd>
+            </div>
+          ))}
+        <div className="mi-receipt__sumrow mi-receipt__sumrow--total">
+          <dt>
+            Total
+            <span className="mi-muted">
+              {valid.length} item{valid.length === 1 ? "" : "s"}
+              {byCategory.length > 1 ? `, logged as ${byCategory.length} expenses` : ""}
+            </span>
+          </dt>
+          <dd>{money(total)}</dd>
+        </div>
+        {scanned?.total != null && (
+          <div className={`mi-receipt__sumrow${mismatch ? " mi-receipt__sumrow--warn" : ""}`}>
+            <dt>Receipt says</dt>
+            <dd>{mismatch ? `${money(scanned.total)}, off by ${money(Math.abs(offBy))}` : `${money(scanned.total)}, matches`}</dd>
+          </div>
+        )}
+      </dl>
+      {scanned?.currency && account && scanned.currency !== account.currency_code && (
+        <p className="mi-receipt__warn">The receipt reads {scanned.currency}, but {account.name} is in {account.currency_code}.</p>
+      )}
 
       {send.error && <p className="field-error">{send.error.message}</p>}
       {sent && <p className="mi-sent"><Icon name="check" /> {sent}</p>}
@@ -189,6 +278,19 @@ export function MoneyPage() {
   });
 
   const notSetUp = summary.error instanceof ApiError && summary.error.code === "no_main_currency";
+  // Phones open the form in a sheet from the header button, like "+ Transaction" on Today; wider screens keep it inline.
+  const [logging, setLogging] = useState(false);
+  const purchaseForm = (onDone?: () => void) =>
+    notSetUp || (accounts.data && accounts.data.length === 0) ? (
+      <p className="mi-empty">
+        Set up your money first (main currency and at least one account).{" "}
+        <Link to={notSetUp ? "/onboarding" : "/mainichi/money/assets"} className="mi-link">Set up</Link>
+      </p>
+    ) : accounts.data && categories.data ? (
+      <PurchaseForm accounts={accounts.data} categories={categories.data} onDone={onDone} />
+    ) : (
+      <p className="mi-empty">Loading…</p>
+    );
 
   return (
     <div className="mi-cols mi-money">
@@ -206,25 +308,22 @@ export function MoneyPage() {
             </div>
             <button type="button" className="mi-iconbtn" aria-label="Previous month" onClick={() => shift(-1)}><Icon name="back" /></button>
             <button type="button" className="mi-iconbtn" aria-label="Next month" onClick={() => shift(1)}><Icon name="chevron" /></button>
+            <button type="button" className="mi-solid mi-money__logbtn" onClick={() => setLogging(true)}>+ Purchase</button>
           </div>
         </section>
 
-        <section className="card mi-card">
+        <section className="card mi-card mi-money__logcard">
           <div className="mi-sechead">
             <h2 className="mi-h2">Log a purchase</h2>
             <span className="mi-count">Lines are grouped per category into expenses</span>
           </div>
-          {notSetUp || (accounts.data && accounts.data.length === 0) ? (
-            <p className="mi-empty">
-              Set up your money first (main currency and at least one account).{" "}
-              <Link to={notSetUp ? "/onboarding" : "/mainichi/money/assets"} className="mi-link">Set up</Link>
-            </p>
-          ) : accounts.data && categories.data ? (
-            <PurchaseForm accounts={accounts.data} categories={categories.data} />
-          ) : (
-            <p className="mi-empty">Loading…</p>
-          )}
+          {purchaseForm()}
         </section>
+        {logging && (
+          <Drawer title="Log a purchase" onClose={() => setLogging(false)}>
+            {purchaseForm(() => setLogging(false))}
+          </Drawer>
+        )}
       </div>
 
       <section className="card mi-card mi-cols__side">

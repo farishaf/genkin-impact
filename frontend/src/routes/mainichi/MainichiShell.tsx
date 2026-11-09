@@ -5,7 +5,8 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useCurrentUser, useLogout } from "../../hooks/useAuth";
 import { useConvention, useTheme } from "../../hooks/useDisplayPrefs";
 import { flushSaves, useSaveState } from "../../lib/planner";
-import { Icon } from "./parts";
+import { Drawer, Icon } from "./parts";
+import { CategoryManager } from "../../components/CategoryManager";
 import { ENTER, reducedMotion } from "../../lib/motion";
 
 gsap.registerPlugin(useGSAP);
@@ -32,6 +33,7 @@ function AccountMenu({ label }: { label?: string }) {
   const { theme, setTheme } = useTheme();
   const { convention, setConvention } = useConvention();
   const nextTheme = theme === "dark" ? "light" : "dark";
+  const [managing, setManaging] = useState(false);
   const initials =
     (user?.display_name ?? "")
       .trim()
@@ -74,6 +76,10 @@ function AccountMenu({ label }: { label?: string }) {
           <span className="mi-menu__value">{convention === "western" ? "Green" : "Red"}</span>
         </button>
         <p className="mi-menu__hint">Red is a gain in the eastern convention, green in the western one.</p>
+        <button type="button" className="mi-menu__item" popoverTarget={menuId} popoverTargetAction="hide" onClick={() => setManaging(true)}>
+          Categories
+          <span className="mi-menu__value">Edit</span>
+        </button>
         <button type="button" className="mi-menu__item" onClick={() => logout.mutate()}>
           Log out
           <span className="mi-menu__value">
@@ -81,6 +87,11 @@ function AccountMenu({ label }: { label?: string }) {
           </span>
         </button>
       </div>
+      {managing && (
+        <Drawer title="Categories" onClose={() => setManaging(false)}>
+          <CategoryManager />
+        </Drawer>
+      )}
     </div>
   );
 }
