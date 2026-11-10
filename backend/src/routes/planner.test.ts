@@ -13,6 +13,7 @@ beforeEach(async () => {
   await pool.query("DELETE FROM planner_routines");
   await pool.query("DELETE FROM planner_days");
   await pool.query("DELETE FROM planner_pages");
+  await pool.query("DELETE FROM planner_goals");
   await pool.query("DELETE FROM transaction_tags");
   await pool.query("UPDATE transactions SET installment_plan_id = NULL WHERE installment_plan_id IS NOT NULL");
   await pool.query("DELETE FROM installment_plans");
@@ -198,6 +199,20 @@ describe("/planner/days", () => {
     expect(got.body.day.todos).toHaveLength(1);
     expect(got.body.day.notes).toBe("Slept 7h");
     expect((await agent.get("/planner/days/31-10-2026")).status).toBe(400);
+  });
+});
+
+describe("/planner/goals", () => {
+  it("starts empty, replaces the list on PUT, and rejects bad items", async () => {
+    const agent = await registerAndLogin();
+    expect((await agent.get("/planner/goals")).body.goals).toEqual([]);
+
+    const goals = [{ id: "g1", title: "Half marathon under 2:00", note: "Build to 18 km long runs" }];
+    expect((await agent.put("/planner/goals").send({ goals })).status).toBe(200);
+    await agent.put("/planner/goals").send({ goals: [...goals, { id: "g2", title: "JLPT N3", note: "" }] });
+    expect((await agent.get("/planner/goals")).body.goals.map((g: { id: string }) => g.id)).toEqual(["g1", "g2"]);
+
+    expect((await agent.put("/planner/goals").send({ goals: [{ id: "g3", title: 5 }] })).status).toBe(400);
   });
 });
 

@@ -421,3 +421,51 @@ mark { background: color-mix(in oklab, var(--color-accent) 55%, transparent); co
 .receipt-attach__doc { display: grid; place-items: center; color: var(--color-muted); font-size: var(--text-xs); }
 .receipt-attach__name { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .receipt-attach__name small { color: var(--color-muted); font-size: var(--text-xs); }
+
+/* ---------- date picker (components/DatePicker.tsx) ---------- */
+.dp { position: relative; display: inline-flex; min-width: 0; }
+.field .dp, .mi-receipt .dp { display: flex; }
+.dp__btn {
+  display: inline-flex; align-items: center; gap: var(--space-xs); width: 100%; min-width: 0; min-height: var(--control-h); padding: 0 var(--space-sm);
+  border: 1px solid var(--color-control); border-radius: var(--radius-input); background: var(--color-card); color: var(--color-ink);
+  font-variant-numeric: tabular-nums; text-align: left; white-space: nowrap;
+  transition: border-color var(--dur-micro) var(--ease-snap);
+}
+.dp__btn:hover { border-color: var(--color-ink); }
+.dp__btn[aria-expanded="true"] { border-color: var(--color-ink); }
+.dp__btn--empty { color: var(--color-muted); }
+.dp__btn > span { overflow: hidden; text-overflow: ellipsis; }
+.dp__icon, .dp__nav svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.dp__icon { color: var(--color-muted); }
+.dp__pop {
+  position: absolute; top: calc(100% + var(--space-2xs)); left: 0; z-index: var(--z-dropdown);
+  width: 18.5rem; padding: var(--space-sm); border-radius: var(--radius-stock);
+  background: var(--color-card); color: var(--color-ink); box-shadow: 0 0 0 1px var(--color-rule), 0 12px 32px -12px var(--color-scrim);
+  animation: dp-in var(--dur-short) var(--ease-out);
+}
+@keyframes dp-in { from { opacity: 0; transform: translateY(-4px); } }
+.dp__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-xs); }
+.dp__month { font-weight: var(--display-weight); }
+.dp__nav { width: var(--control-h-sm); height: var(--control-h-sm); display: grid; place-items: center; border-radius: 50%; }
+.dp__nav:hover { background: var(--color-paper-3); }
+.dp__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-3xs); }
+.dp__dow { padding: var(--space-2xs) 0; color: var(--color-muted); font-size: var(--text-xs); text-align: center; }
+.dp__day {
+  aspect-ratio: 1; display: grid; place-items: center; border-radius: var(--radius-sm); font-size: var(--text-sm); font-variant-numeric: tabular-nums;
+  transition: background-color var(--dur-micro) var(--ease-snap);
+}
+.dp__day:hover:not(:disabled) { background: var(--color-paper-3); }
+.dp__day--out { color: var(--color-muted); }
+.dp__day--today { box-shadow: inset 0 0 0 1px var(--color-ink-2); }
+.dp__day[aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
+.dp__day:disabled { opacity: 0.3; cursor: not-allowed; }
+.dp__day:focus-visible { outline-offset: -2px; }
+.dp__foot { display: flex; justify-content: space-between; margin-top: var(--space-xs); padding-top: var(--space-xs); border-top: 1px solid var(--color-rule); }
+.dp__text { padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-sm); color: var(--color-accent-2); font-size: var(--text-sm); font-weight: var(--display-weight); }
+.dp__text:hover:not(:disabled) { background: var(--color-paper-3); }
+.dp__text:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Small fields (event editor "Move to"): match the neighbouring time input. */
+.dp--sm .dp__btn { min-height: var(--control-h-sm); padding: 0 var(--space-xs); font-size: var(--text-sm); }
+/* Right-aligned popover for fields near the right edge. */
+.dp--end .dp__pop { left: auto; right: 0; }
+@media (max-width: 480px) { .dp__pop { width: min(18.5rem, calc(100vw - 2 * var(--space-md))); } }

@@ -4,6 +4,7 @@ import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { newItemId, useDeletePage, useEditPage, usePage, type CheckItem } from "../../lib/planner";
 import { BackButton, Checklist, Progress } from "./parts";
 import { confirmDialog } from "../../components/ConfirmDialog";
+import { RichText } from "../../components/RichText";
 
 export function PageView() {
   const { id = "" } = useParams();
@@ -100,15 +101,12 @@ export function PageView() {
 
       <section className="mi-docsec">
         <h2 className="mi-h2">Notes</h2>
-        <textarea
-          className="mi-notes mi-notes--doc"
+        <RichText
+          className="mi-richnotes"
           value={page.notes}
-          placeholder="Write anything…"
+          placeholder="Write anything… (- for a list)"
           aria-label="Notes"
-          onChange={(e) => {
-            const notes = e.target.value;
-            edit((p) => ({ ...p, notes }));
-          }}
+          onChange={(notes) => edit((p) => ({ ...p, notes }))}
         />
       </section>
 

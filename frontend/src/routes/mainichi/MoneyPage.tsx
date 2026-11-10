@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { decimalDigits, formatMoney } from "../../lib/formatAmount";
 import { isValidKey, newItemId, toKey, todayKey } from "../../lib/planner";
 import { Drawer, Empty, Icon } from "./parts";
+import { DatePicker } from "../../components/DatePicker";
 
 // Money in Mainichi is a thin view over Genkin-Impact: purchases are written as ordinary expense
 // transactions, so budgets, analytics and balances there stay the single source of truth.
@@ -160,7 +161,7 @@ function PurchaseForm({ accounts, categories, onDone }: { accounts: Account[]; c
 
       <div className="mi-receipt__meta">
         <input className="mi-receipt__store" value={store} placeholder="Store, e.g. Superindo" aria-label="Store" maxLength={120} onChange={(e) => setStore(e.target.value)} />
-        <input type="date" className="mi-receipt__date" value={date} aria-label="Date" onChange={(e) => setDate(e.target.value || todayKey())} />
+        <DatePicker required className="mi-receipt__date" value={date} aria-label="Date" onChange={setDate} />
         <select className="mi-receipt__acct" value={accountId} aria-label="Paid from" onChange={(e) => setAccountId(e.target.value)}>
           {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency_code})</option>)}
         </select>

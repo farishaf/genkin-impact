@@ -190,6 +190,18 @@ export function Drawer({ title, onClose, children }: { title: string; onClose: (
   );
 }
 
+/** Placeholder rows while a list loads, so an empty state doesn't flash before the data lands. */
+export function Skeleton({ rows = 2, height = "3.5rem", className = "mi-list" }: { rows?: number; height?: string; className?: string }) {
+  return (
+    <div className={className} role="status" aria-live="polite">
+      <span className="visually-hidden">Loading…</span>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="mi-skel" style={{ height }} aria-hidden="true" />
+      ))}
+    </div>
+  );
+}
+
 export function Progress({ done, total }: { done: number; total: number }) {
   return (
     <div className="mi-progress" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>

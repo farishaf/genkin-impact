@@ -279,6 +279,36 @@ plannerRouter.put("/days/:date", validateBody(putDaySchema), async (req, res, ne
   }
 });
 
+// ---------- goals (long-term, one list per user) ----------
+
+const putGoalsSchema = z.object({
+  goals: z.array(z.object({ id: itemId, title: z.string().max(200), note: z.string().max(2000) })).max(20),
+});
+
+plannerRouter.get("/goals", async (req, res, next) => {
+  try {
+    const result = await pool.query("SELECT goals FROM planner_goals WHERE user_id = $1", [req.userId]);
+    res.json({ goals: result.rows[0]?.goals ?? [] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+plannerRouter.put("/goals", validateBody(putGoalsSchema), async (req, res, next) => {
+  try {
+    const { goals } = req.body as z.infer<typeof putGoalsSchema>;
+    const result = await pool.query(
+      `INSERT INTO planner_goals (user_id, goals) VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET goals = EXCLUDED.goals
+       RETURNING goals`,
+      [req.userId, JSON.stringify(goals)]
+    );
+    res.json({ goals: result.rows[0].goals });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- pages ----------
 
 const createPageSchema = z.object({ title: z.string().max(200).optional(), icon: z.string().min(1).max(16).optional() });

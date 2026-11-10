@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { ProgressBar } from "./ProgressBar";
+import { DatePicker } from "./DatePicker";
 
 interface Account {
   id: string;
@@ -105,7 +106,7 @@ function AddSavingsGoalForm({ onCreated }: { onCreated: () => void }) {
       )}
       <label className="field">
         <span>Target date (optional)</span>
-        <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+        <DatePicker value={targetDate} placeholder="No target date" onChange={setTargetDate} />
       </label>
       {error && <p className="field-error">{error}</p>}
       <button className="btn-primary" type="submit" disabled={create.isPending}>

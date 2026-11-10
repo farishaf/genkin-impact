@@ -5,7 +5,7 @@ import {
   useCreateRoutine, useEvents, useRoutines, useUpdateEvent,
   type EventType, type PlannerEvent,
 } from "../../lib/planner";
-import { Empty, EventRow, Icon } from "./parts";
+import { Empty, EventRow, Icon, Skeleton } from "./parts";
 import { EventDrawer } from "./EventDrawer";
 import { RunArt, WorkoutArt } from "./art";
 import { RunDetail, RunWeek } from "./RunDetail";
@@ -31,8 +31,8 @@ export function CalendarPage() {
   const weeks: string[][] = [];
   for (let d = weekStart(monthStart); d <= monthEnd; d = addDays(d, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => toKey(addDays(d, i))));
 
-  const { data: events = [] } = useEvents(weeks[0][0], weeks[weeks.length - 1][6]);
-  const { data: routines = [] } = useRoutines();
+  const { data: events = [], isLoading: eventsLoading } = useEvents(weeks[0][0], weeks[weeks.length - 1][6]);
+  const { data: routines = [], isLoading: routinesLoading } = useRoutines();
   const updateEvent = useUpdateEvent();
   const createRoutine = useCreateRoutine();
   const [filter, setFilter] = useState<"all" | EventType>("all");
@@ -108,7 +108,7 @@ export function CalendarPage() {
       </div>
 
       <div className="mi-cols">
-      <section className="card mi-card mi-cal mi-cols__main">
+      <section className="card mi-card mi-cal mi-cols__main" aria-busy={eventsLoading}>
         <div className="mi-month">
           <div className="mi-month__row mi-month__row--head">
             {DOW.map((d) => <span key={d}>{d}</span>)}
@@ -155,12 +155,12 @@ export function CalendarPage() {
                     aria-label={`Runs in the week of ${fromKey(wk[0]).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}: ${fmtKm(km)} km planned, ${fmtKm(doneKm)} done`}
                     onClick={() => update({ week: wk[0] })}
                   >
-                    <strong>{fmtKm(km)}</strong>
-                    <span>{fmtKm(doneKm)} done</span>
+                    <strong>{fmtKm(km)}km</strong>
+                    <span>{fmtKm(doneKm)}km done</span>
                   </button>
                 ) : (
                   <span className="mi-month__km">
-                    <span>0</span>
+                    <span>0km</span>
                   </span>
                 )}
               </div>
@@ -180,7 +180,9 @@ export function CalendarPage() {
             <button type="button" className="mi-textbtn mi-weekbtn" onClick={() => update({ week: toKey(weekStart(fromKey(sel))) })}>Run week</button>
             <button type="button" className="mi-pill" onClick={() => setAdding(true)}>+ Add here</button>
           </div>
-          {selEvents.length === 0 ? (
+          {eventsLoading ? (
+            <Skeleton rows={2} height="4.75rem" />
+          ) : selEvents.length === 0 ? (
             <Empty art="calendar">Nothing planned. Rest day?</Empty>
           ) : (
             <div className="mi-list">
@@ -204,7 +206,9 @@ export function CalendarPage() {
             <h2 className="mi-h2">Routines</h2>
             <button type="button" className="mi-pill" onClick={newRoutine} disabled={createRoutine.isPending}>+ New routine</button>
           </div>
-          {routines.length === 0 ? (
+          {routinesLoading ? (
+            <Skeleton rows={2} height="3.25rem" />
+          ) : routines.length === 0 ? (
             <p className="mi-empty">Create a routine (e.g. Upper A) to plan workouts from it.</p>
           ) : (
             <div className="mi-list">

@@ -9,6 +9,7 @@ import { Icon } from "./parts";
 import { EventArt, RunArt, WorkoutArt } from "./art";
 import { useEnter } from "../../lib/motion";
 import { confirmDialog } from "../../components/ConfirmDialog";
+import { DatePicker } from "../../components/DatePicker";
 
 const fmtMinutes = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
 
@@ -387,13 +388,13 @@ export function EventEditor({
       <div className="mi-editor__row mi-editor__foot">
         <label className="mi-editor__field">
           <span>Move to</span>
-          <input
-            type="date"
+          <DatePicker
+            required
+            className="dp--sm"
             value={event.date}
-            onChange={(e) => {
-              if (!e.target.value) return;
-              set({ date: e.target.value }, 0);
-              onMoved(e.target.value);
+            onChange={(date) => {
+              set({ date }, 0);
+              onMoved(date);
             }}
           />
         </label>

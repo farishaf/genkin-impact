@@ -5,6 +5,7 @@ import { decimalDigits, minorToInputValue } from "../lib/formatAmount";
 import { isValidKey, todayKey } from "../lib/planner";
 import { groupByCategory, type ReceiptLine } from "../lib/receiptLines";
 import { ReceiptItems } from "./ReceiptItems";
+import { DatePicker } from "./DatePicker";
 
 /** What /receipts/scan reads off a photo. Amounts are in the receipt's currency, major units. */
 interface ReceiptScan {
@@ -349,7 +350,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
       {date && (
         <label className="field">
           <span>Date</span>
-          <input type="date" value={date} max={todayKey()} onChange={(e) => setDate(e.target.value || todayKey())} />
+          <DatePicker required value={date} max={todayKey()} onChange={setDate} />
         </label>
       )}
       {!lines && (

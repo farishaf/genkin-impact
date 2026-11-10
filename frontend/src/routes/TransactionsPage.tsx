@@ -10,6 +10,8 @@ import {
 } from "../components/AddTransactionForm";
 import { TransactionsReportPanel } from "../components/TransactionsReportPanel";
 import { ChevronIcon, PaperclipIcon } from "../components/TxnIcons";
+import { DatePicker } from "../components/DatePicker";
+import { todayKey as todayDateKey } from "../lib/planner";
 import { Modal } from "../components/Modal";
 import { CategoryManager } from "../components/CategoryManager";
 import { Button } from "../components/Button";
@@ -645,11 +647,11 @@ export function TransactionsPage() {
                 inputMode="decimal"
                 placeholder="Fee (optional)"
               />
-              <input
+              <DatePicker
                 name="first_due_date"
-                type="date"
                 required
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                aria-label="First due date"
+                defaultValue={todayDateKey()}
               />
               <button
                 className="btn-primary btn-outline--sm"

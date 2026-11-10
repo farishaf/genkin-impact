@@ -9,7 +9,8 @@ import {
   useCreatePage, useDay, useDeletePage, useEditDay, useEvents, usePages, useUpdateEvent,
   type Page, type Todo,
 } from "../../lib/planner";
-import { Checklist, Drawer, Empty, EventRow, Icon } from "./parts";
+import { Checklist, Drawer, Empty, EventRow, Icon, Skeleton } from "./parts";
+import { BigGoals } from "./BigGoals";
 import { EventDrawer } from "./EventDrawer";
 import { RunDetail } from "./RunDetail";
 import { useOpenEvent } from "./useOpenEvent";
@@ -70,7 +71,7 @@ function DaySpending({ date }: { date: string }) {
       <div className="mi-dayhead">
         <div className="mi-dayhead__titles">
           <span className="mi-spend__label">{spentLabel(date)}</span>
-          <span className="mi-money__total">{spent.data ? formatMoney(spent.data.expenditure_minor, spent.data.main_currency_code) : "—"}</span>
+          <span className="mi-money__total">{spent.data ? formatMoney(spent.data.expenditure_minor, spent.data.main_currency_code) : spent.isLoading ? "…" : "—"}</span>
         </div>
         <button type="button" className="mi-solid" onClick={() => setAdding(true)}>
           + Transaction
@@ -99,7 +100,7 @@ function DaySpending({ date }: { date: string }) {
           ))}
         </div>
       ) : (
-        txns.isLoading ? <p className="mi-empty">Loading…</p> : <Empty art="receipt">No transactions this day.</Empty>
+        txns.isLoading ? <Skeleton rows={2} height="3rem" className="mi-list mi-list--tight" /> : <Empty art="receipt">No transactions this day.</Empty>
       )}
       {/* ponytail: the form always stamps "now"; pass a date into AddTransactionForm if backdating from here matters. */}
       {adding && (
@@ -120,10 +121,10 @@ export function TodayPage() {
 
   const ws = weekStart(fromKey(date));
   const week = Array.from({ length: 7 }, (_, i) => toKey(addDays(ws, i)));
-  const { data: events = [] } = useEvents(week[0], week[6]);
+  const { data: events = [], isLoading: eventsLoading } = useEvents(week[0], week[6]);
   const dayEvents = events.filter((e) => e.date === date);
   const [day, editDay] = useEditDay(date, useDay(date).data);
-  const { data: pages = [] } = usePages();
+  const { data: pages = [], isLoading: pagesLoading } = usePages();
   const createPage = useCreatePage();
   const deletePage = useDeletePage();
   const updateEvent = useUpdateEvent();
@@ -170,6 +171,7 @@ export function TodayPage() {
   const rel = dayKicker(date);
   return (
     <div className="mi-today">
+      <BigGoals />
       <header className="mi-today__head">
         <h1 className="mi-h1 mi-today__title">{fromKey(date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</h1>
         {RELATIVE_DAYS.includes(rel) && <span className={`mi-today__rel${date === todayKey() ? " mi-today__rel--now" : ""}`}>{rel}</span>}
@@ -246,7 +248,7 @@ export function TodayPage() {
               }}
             />
           ) : (
-            <p className="muted">Loading…</p>
+            <Skeleton rows={3} height="2.5rem" />
           )}
 
           <h2 className="mi-h2 mi-h2--spaced">Notes</h2>
@@ -269,7 +271,9 @@ export function TodayPage() {
               <h2 className="mi-h2">From calendar</h2>
               <Link to={`/mainichi/calendar?date=${date}`} className="mi-textbtn">Open</Link>
             </div>
-            {dayEvents.length === 0 ? (
+            {eventsLoading ? (
+              <Skeleton rows={2} height="4.75rem" />
+            ) : dayEvents.length === 0 ? (
               <Empty art="calendar">Rest day, nothing on the calendar.</Empty>
             ) : (
               <div className="mi-list">
@@ -292,7 +296,9 @@ export function TodayPage() {
               <h2 className="mi-h2">Pages</h2>
               <button type="button" className="mi-textbtn" onClick={newPage} disabled={createPage.isPending}>+ New</button>
             </div>
-            {pages.length === 0 ? (
+            {pagesLoading ? (
+              <Skeleton rows={2} height="3.25rem" className="mi-list mi-list--tight" />
+            ) : pages.length === 0 ? (
               <p className="mi-empty">No pages yet.</p>
             ) : (
               <div className="mi-list mi-list--tight">

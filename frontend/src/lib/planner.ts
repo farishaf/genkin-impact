@@ -58,6 +58,7 @@ export interface PlannerEvent {
 }
 export interface Routine { id: string; title: string; focus: string; exercises: Exercise[] }
 export interface Day { date: string; todos: Todo[]; notes: string }
+export interface Goal { id: string; title: string; note: string }
 export interface Page { id: string; icon: string; title: string; description: string; checklist: CheckItem[]; notes: string; updated_at: string }
 
 export const TYPE_LABEL: Record<EventType, string> = { workout: "Workout", run: "Run", event: "Event" };
@@ -487,6 +488,19 @@ export function useDay(date: string) {
 
 export function useEditDay(date: string, day: Day | undefined) {
   return useDocEditor<Day>(["planner", "day", date], day, (d) => api.put(`/planner/days/${date}`, { todos: d.todos, notes: d.notes }));
+}
+
+// ---------- goals ----------
+
+export function useGoals() {
+  return useQuery({
+    queryKey: ["planner", "goals"],
+    queryFn: () => api.get<{ goals: Goal[] }>("/planner/goals").then((r) => r.goals),
+  });
+}
+
+export function useEditGoals(goals: Goal[] | undefined) {
+  return useDocEditor<Goal[]>(["planner", "goals"], goals, (g) => api.put("/planner/goals", { goals: g }));
 }
 
 // ---------- pages ----------

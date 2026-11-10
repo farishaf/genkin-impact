@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { formatMoney } from "../lib/formatAmount";
+import { todayKey } from "../lib/planner";
+import { DatePicker } from "./DatePicker";
 
 interface Account {
   id: string;
@@ -51,7 +53,7 @@ function AddRecurringRuleForm({ onCreated }: { onCreated: () => void }) {
   const [amount, setAmount] = useState("");
   const [frequency, setFrequency] = useState<RecurringRule["frequency"]>("monthly");
   const [intervalCount, setIntervalCount] = useState("1");
-  const [startsOn, setStartsOn] = useState(new Date().toISOString().slice(0, 10));
+  const [startsOn, setStartsOn] = useState(todayKey());
   const [endsOn, setEndsOn] = useState("");
   const [autoPost, setAutoPost] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,11 +161,11 @@ function AddRecurringRuleForm({ onCreated }: { onCreated: () => void }) {
       </label>
       <label className="field">
         <span>Starts on</span>
-        <input type="date" required value={startsOn} onChange={(e) => setStartsOn(e.target.value)} />
+        <DatePicker required value={startsOn} onChange={setStartsOn} />
       </label>
       <label className="field">
         <span>Ends on (optional)</span>
-        <input type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+        <DatePicker value={endsOn} min={startsOn} placeholder="No end date" onChange={setEndsOn} />
       </label>
       <label className="field field--checkbox">
         <input type="checkbox" checked={autoPost} onChange={(e) => setAutoPost(e.target.checked)} />
