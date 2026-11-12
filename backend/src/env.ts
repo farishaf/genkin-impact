@@ -21,4 +21,6 @@ export const env = {
   // Receipt scanning. Optional: without a key, POST /receipts/scan answers 503 and the form stays manual.
   DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY || undefined,
   DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL || "deepseek-flash",
+  // Open Food Facts asks every client to identify itself.
+  OFF_USER_AGENT: process.env.OFF_USER_AGENT || "Hitsune/0.1 (+https://mainichi.splitz.web.id)",
 };

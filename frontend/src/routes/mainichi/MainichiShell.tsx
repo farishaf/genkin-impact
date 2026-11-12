@@ -99,6 +99,7 @@ function AccountMenu({ label }: { label?: string }) {
 const NAV_ICONS = {
   today: "M4 11l8-7 8 7v8.5a.5.5 0 0 1-.5.5H15v-6H9v6H4.5a.5.5 0 0 1-.5-.5Z",
   calendar: "M5 5h14a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-12A1.5 1.5 0 0 1 5 5ZM3.5 10h17M8 3v4M16 3v4",
+  fuel: "M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11ZM9.5 14.5a2.5 2.5 0 0 0 2.5 2.5",
   money: "M4 6h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM3 10h18M16 14.5h2",
 } as const;
 
@@ -203,6 +204,10 @@ export function MainichiShell() {
             <NavIcon name="calendar" />
             Calendar
           </NavLink>
+          <NavLink to="/mainichi/fuel" className={navClass}>
+            <NavIcon name="fuel" />
+            Fuel
+          </NavLink>
           <MoneyGroup />
         </nav>
         <div className="mi-side__foot">
@@ -221,6 +226,10 @@ export function MainichiShell() {
         <NavLink to="/mainichi/calendar" className={navClass}>
           <NavIcon name="calendar" />
           Calendar
+        </NavLink>
+        <NavLink to="/mainichi/fuel" className={navClass}>
+          <NavIcon name="fuel" />
+          Fuel
         </NavLink>
         <NavLink to="/mainichi/money" className={navClass}>
           <NavIcon name="money" />

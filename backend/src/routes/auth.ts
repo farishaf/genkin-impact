@@ -1,4 +1,4 @@
-import { Router, type Response, type Request } from "express";
+import { Router, type NextFunction, type Response, type Request } from "express";
 import { z } from "zod";
 import { randomBytes, createHash } from "node:crypto";
 import { pool } from "../db/pool.js";
@@ -157,7 +157,33 @@ authRouter.post("/register", validateBody(registerSchema), async (req, res, next
 
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
 
-authRouter.post("/login", validateBody(loginSchema), async (req, res, next) => {
+// Failed sign-ins per client IP. Ten failures in 15 minutes block that IP until the window ends.
+// ponytail: in-memory, so it resets on restart and is per process; move to Postgres or Redis if the backend ever runs more than one instance.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 10;
+const loginFailures = new Map<string, { count: number; since: number }>();
+
+function loginLimiter(req: Request, res: Response, next: NextFunction) {
+  const key = req.ip ?? "unknown";
+  const now = Date.now();
+  const entry = loginFailures.get(key);
+  if (entry && now - entry.since > LOGIN_WINDOW_MS) loginFailures.delete(key);
+  const current = loginFailures.get(key);
+  if (current && current.count >= LOGIN_MAX_FAILURES) {
+    res.setHeader("Retry-After", Math.ceil((current.since + LOGIN_WINDOW_MS - now) / 1000));
+    next(new AppError(429, "too_many_attempts", "Too many sign-in attempts. Try again in a few minutes."));
+    return;
+  }
+  res.on("finish", () => {
+    if (res.statusCode === 401) {
+      const e = loginFailures.get(key);
+      loginFailures.set(key, e ? { ...e, count: e.count + 1 } : { count: 1, since: Date.now() });
+    } else if (res.statusCode < 400) loginFailures.delete(key);
+  });
+  next();
+}
+
+authRouter.post("/login", loginLimiter, validateBody(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body as z.infer<typeof loginSchema>;
     const result = await pool.query("SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL", [email]);

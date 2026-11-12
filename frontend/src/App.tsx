@@ -15,6 +15,8 @@ import { CalendarPage } from "./routes/mainichi/CalendarPage";
 import { WorkoutEventPage, RoutinePage } from "./routes/mainichi/WorkoutPage";
 import { PageView } from "./routes/mainichi/PageView";
 import { MoneyPage } from "./routes/mainichi/MoneyPage";
+import { FuelLayout, FuelToday } from "./routes/mainichi/FuelPage";
+import { FuelBody, FuelSettings } from "./routes/mainichi/FuelBody";
 
 export function App() {
   return (
@@ -52,6 +54,11 @@ export function App() {
           <Route path="workout/:id" element={<WorkoutEventPage />} />
           <Route path="routines/:id" element={<RoutinePage />} />
           <Route path="pages/:id" element={<PageView />} />
+          <Route path="fuel" element={<FuelLayout />}>
+            <Route index element={<FuelToday />} />
+            <Route path="body" element={<FuelBody />} />
+            <Route path="settings" element={<FuelSettings />} />
+          </Route>
           <Route path="money" element={<MoneyLayout />}>
             <Route index element={<MoneyPage />} />
             <Route path="transactions" element={<TransactionsPage />} />

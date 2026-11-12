@@ -19,8 +19,19 @@ import { savedFiltersRouter } from "./routes/savedFilters.js";
 import { attachmentsRouter } from "./routes/attachments.js";
 import { receiptsRouter } from "./routes/receipts.js";
 import { plannerRouter } from "./routes/planner.js";
+import { fuelRouter } from "./routes/fuel.js";
 
 export const app = express();
+
+// One reverse proxy (nginx) sits in front, so req.ip is the real client for the login limiter.
+app.set("trust proxy", 1);
+// The API serves JSON only; keep it out of search results and frames.
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  res.setHeader("X-Frame-Options", "DENY");
+  next();
+});
 
 app.use(cors({ origin: env.APP_ORIGIN, credentials: true }));
 app.use(express.json());
@@ -44,6 +55,7 @@ app.use("/recurring-rules", recurringRulesRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/saved-filters", savedFiltersRouter);
 app.use("/planner", plannerRouter);
+app.use("/fuel", fuelRouter);
 app.use("/receipts", receiptsRouter);
 app.use("/", attachmentsRouter);
 

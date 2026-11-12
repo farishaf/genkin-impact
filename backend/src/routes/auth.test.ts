@@ -254,3 +254,18 @@ describe("POST /auth/forgot-password + POST /auth/reset-password", () => {
     expect(second.status).toBe(400);
   });
 });
+
+// Last in the file: the limiter's in-memory state is per test file, and this leaves the test IP blocked.
+describe("POST /auth/login rate limit", () => {
+  it("blocks an IP after 10 failed sign-ins", async () => {
+    await request(app).post("/auth/register").send({ email: "limit@example.com", password: "password12345", display_name: "Limit" });
+    // Earlier tests in this file already failed a few sign-ins from the same IP, so the block can come sooner.
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i++) statuses.push((await request(app).post("/auth/login").send({ email: "limit@example.com", password: "wrong-password" })).status);
+    expect(statuses).toContain(429);
+    expect(statuses.filter((s) => s === 401).length).toBeLessThanOrEqual(10);
+    const blocked = await request(app).post("/auth/login").send({ email: "limit@example.com", password: "password12345" });
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers["retry-after"]).toBeDefined();
+  });
+});
