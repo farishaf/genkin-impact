@@ -18,7 +18,8 @@ export function computeSavingsProgress(input: {
     const balance = input.accountBalanceMinor ?? 0n;
     const opening = input.accountOpeningBalanceMinor ?? 0n;
     const delta = balance - opening;
-    progressMinor = delta > 0n ? delta : 0n;
+    // Allocations earmark existing balance on top of growth since opening — tracking only, no money moves.
+    progressMinor = (delta > 0n ? delta : 0n) + input.contributedMinor;
   } else {
     progressMinor = input.contributedMinor;
   }

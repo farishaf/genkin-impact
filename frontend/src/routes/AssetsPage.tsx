@@ -11,6 +11,9 @@ interface Account {
   type: string;
   currency_code: string;
   balance_display: string;
+  allocated_minor: string;
+  allocated_display: string;
+  spendable_display: string;
   exclude_from_net_worth: boolean;
   is_archived: boolean;
   credit_limit: string | null;
@@ -155,6 +158,11 @@ export function AssetsPage() {
                 <div className="account-card__name">{a.name}</div>
                 <div className="account-card__type">{a.type.replace("_", " ")}</div>
                 <div className="account-card__balance">{a.balance_display}</div>
+                {a.allocated_minor !== "0" && (
+                  <div className="muted-inline">
+                    {a.allocated_display} set aside for savings, {a.spendable_display} spendable
+                  </div>
+                )}
                 {a.is_archived && <div className="muted-inline">Archived</div>}
                 <div className="account-card__actions">
                   <button className="btn-outline btn-outline--sm" type="button" onClick={() => setEditingId(a.id)}>

@@ -32,6 +32,17 @@ describe("computeSavingsProgress", () => {
     expect(p.progressMinor).toBe(0n);
   });
 
+  it("adds tracking allocations on top of balance growth for linked goals", () => {
+    const p = computeSavingsProgress({
+      targetMinor: 100000n,
+      linkedToAccount: true,
+      contributedMinor: 20000n,
+      accountBalanceMinor: 80000n,
+      accountOpeningBalanceMinor: 100000n,
+    });
+    expect(p.progressMinor).toBe(20000n);
+  });
+
   it("marks achieved when progress reaches target, and caps displayed pct at 100", () => {
     const p = computeSavingsProgress({ targetMinor: 100000n, linkedToAccount: false, contributedMinor: 150000n });
     expect(p.achieved).toBe(true);

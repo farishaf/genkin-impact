@@ -44,14 +44,25 @@ accountsRouter.get("/", requireAuth, validateQuery(listQuerySchema), async (req,
     const includeArchived = query.include_archived === "true";
 
     const result = await pool.query(
-      `SELECT a.*, c.symbol, c.decimal_digits
+      `SELECT a.*, c.symbol, c.decimal_digits,
+         (SELECT COALESCE(SUM(g.contributed_amount), 0) FROM savings_goals g
+          WHERE g.account_id = a.id AND g.status != 'archived') AS allocated_minor
        FROM accounts a
        JOIN currencies c ON c.code = a.currency_code
        WHERE a.user_id = $1 AND a.deleted_at IS NULL ${includeArchived ? "" : "AND a.is_archived = false"}
        ORDER BY a.sort_order, a.created_at`,
       [req.userId]
     );
-    const accounts = result.rows.map((row) => withDisplay(row, row.symbol));
+    const accounts = result.rows.map((row) => {
+      // Savings allocations are earmarks only; spendable = balance minus what's set aside.
+      const allocated = BigInt(row.allocated_minor);
+      return {
+        ...withDisplay(row, row.symbol),
+        allocated_minor: allocated.toString(),
+        allocated_display: formatMinor(allocated, row.decimal_digits, row.symbol),
+        spendable_display: formatMinor(BigInt(row.cached_balance) - allocated, row.decimal_digits, row.symbol),
+      };
+    });
 
     // Net worth: live-converted sum of non-archived, non-excluded balances — same
     // read-time conversion §8 uses for report totals, never a stored/cached figure.

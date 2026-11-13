@@ -36,7 +36,8 @@ const contributeSchema = z.object({
 savingsGoalsRouter.get("/", requireAuth, async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT g.*, c.symbol, c.decimal_digits, a.name AS account_name, a.cached_balance AS account_balance, a.opening_balance AS account_opening_balance
+      `SELECT g.*, c.symbol, c.decimal_digits, a.name AS account_name, a.cached_balance AS account_balance, a.opening_balance AS account_opening_balance,
+         (g.target_date IS NOT NULL AND g.target_date <= CURRENT_DATE) AS date_reached
        FROM savings_goals g
        JOIN currencies c ON c.code = g.currency_code
        LEFT JOIN accounts a ON a.id = g.account_id
@@ -60,6 +61,8 @@ savingsGoalsRouter.get("/", requireAuth, async (req, res, next) => {
         progress_minor: progress.progressMinor.toString(),
         pct: progress.pct,
         achieved: progress.achieved,
+        // ponytail: computed at read time, not persisted; status column stays as-is.
+        completed: progress.achieved || g.date_reached,
         target_display: formatMinor(progress.targetMinor, g.decimal_digits, g.symbol),
         progress_display: formatMinor(progress.progressMinor, g.decimal_digits, g.symbol),
       };
@@ -154,7 +157,6 @@ savingsGoalsRouter.post("/:id/contribute", requireAuth, validateBody(contributeS
     ]);
     if (existing.rows.length === 0) throw new AppError(404, "not_found", "Savings goal not found.");
     const goal = existing.rows[0];
-    if (goal.account_id !== null) throw new AppError(400, "goal_is_account_linked", "This goal tracks an account balance and can't take manual contributions.");
 
     let amountMinor: bigint;
     try {
