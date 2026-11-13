@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-  fromKey, goalLabel, intensityLabel, newItemId, newStep, runSegments, runTotals, setStats, stepIntensity, RUN_PRESETS, STEP_LABEL, TYPE_LABEL,
+  fromKey, goalLabel, intensityLabel, newItemId, newStep, runSegments, runTotals, segmentLabel, setStats, stepIntensity, RUN_PRESETS, STEP_LABEL, TYPE_LABEL,
   useCreateEvents, useDeleteEvent, useEditEvent,
   type EventType, type Intensity, type PlannerEvent, type Routine, type RunStep, type Segment, type StepKind, type StepUnit,
 } from "../../lib/planner";
@@ -72,6 +72,7 @@ function MovementCard({
   onToggle,
   onChange,
   onRemove,
+  onCopy,
 }: {
   step: RunStep;
   open: boolean;
@@ -81,6 +82,7 @@ function MovementCard({
   onToggle: () => void;
   onChange: (patch: Partial<RunStep>) => void;
   onRemove: () => void;
+  onCopy?: () => void;
 }) {
   const intensity = stepIntensity(step);
   const goal = step.unit === "km" || step.unit === "m" ? "distance" : "time";
@@ -97,6 +99,11 @@ function MovementCard({
           <span>{[goalLabel(step), intensity === "none" ? "" : intensityLabel(step)].filter(Boolean).join(", ")}</span>
           <Icon name={open ? "up" : "down"} />
         </button>
+        {onCopy && (
+          <button type="button" className="icon-btn" aria-label={`Copy ${STEP_LABEL[step.kind]}`} title="Copy" onClick={onCopy}>
+            <Icon name="copy" />
+          </button>
+        )}
         {open && (
           <button type="button" className="icon-btn icon-btn--danger" aria-label="Delete movement" onClick={onRemove}>
             <Icon name="trash" />
@@ -180,6 +187,7 @@ function RoundCard({
   onToggle,
   onChange,
   onRemove,
+  onCopy,
 }: {
   seg: Segment;
   dragging: boolean;
@@ -188,6 +196,7 @@ function RoundCard({
   onToggle: (id: string) => void;
   onChange: (seg: Segment | null, delay?: number) => void;
   onRemove: () => void;
+  onCopy: () => void;
 }) {
   const sort = useDragSort(seg.steps.map((s) => s.id), (from, to) => onChange({ ...seg, steps: moveIn(seg.steps, from, to) }, 150));
   return (
@@ -201,6 +210,9 @@ function RoundCard({
           {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}×</option>)}
         </select>
         <div className="mi-top__spacer" />
+        <button type="button" className="icon-btn" aria-label="Copy round" title="Copy" onClick={onCopy}>
+          <Icon name="copy" />
+        </button>
         <button type="button" className="icon-btn icon-btn--danger" aria-label="Delete round" onClick={onRemove}>
           <Icon name="trash" />
         </button>
@@ -236,7 +248,26 @@ function RoundCard({
   );
 }
 
+// Copied movement/round lives in localStorage so it can be pasted into another run.
+const CLIP_KEY = "mi-course-clipboard";
+function readClip(): Segment | null {
+  try {
+    return JSON.parse(localStorage.getItem(CLIP_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
 function RunCourse({ segments, onChange }: { segments: Segment[]; onChange: (segments: Segment[], delay?: number) => void }) {
+  const [clip, setClip] = useState<Segment | null>(readClip);
+  const copy = (seg: Segment) => {
+    localStorage.setItem(CLIP_KEY, JSON.stringify(seg));
+    setClip(seg);
+  };
+  const paste = () => {
+    if (!clip) return;
+    onChange([...segments, { ...clip, id: newItemId(), steps: clip.steps.map((st) => ({ ...st, id: newItemId() })) }], 150);
+  };
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const toggle = (id: string) =>
     setOpen((s) => {
@@ -271,6 +302,7 @@ function RunCourse({ segments, onChange }: { segments: Segment[]; onChange: (seg
                 onToggle={toggle}
                 onChange={(next, delay) => setSeg(seg.id, next, delay)}
                 onRemove={() => setSeg(seg.id, null, 150)}
+                onCopy={() => copy(seg)}
               />
             ) : (
               <MovementCard
@@ -281,6 +313,7 @@ function RunCourse({ segments, onChange }: { segments: Segment[]; onChange: (seg
                 onToggle={() => toggle(seg.steps[0].id)}
                 onChange={(patch) => setSeg(seg.id, { ...seg, steps: [{ ...seg.steps[0], ...patch }] })}
                 onRemove={() => setSeg(seg.id, null, 150)}
+                onCopy={() => copy(seg)}
               />
             )}
           </div>
@@ -309,6 +342,11 @@ function RunCourse({ segments, onChange }: { segments: Segment[]; onChange: (seg
         >
           <Icon name="plus" /> Movement
         </button>
+        {clip && (
+          <button type="button" className="mi-pill" onClick={paste} title={segmentLabel(clip)}>
+            <Icon name="copy" /> Paste
+          </button>
+        )}
       </div>
     </div>
   );
