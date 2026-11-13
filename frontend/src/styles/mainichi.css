@@ -830,7 +830,8 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
 
 /* Fuel: nutrition, body and recovery. Locked to design.md (Hum, app density); tokens only. */
 .mi-fuel__disclaimer { max-width: 48rem; margin: var(--space-xl) auto 0; font-size: var(--text-xs); }
-.mi-fuel__sheet { display: flex; flex-direction: column; gap: var(--space-xs); }
+.mi-fueltabs { max-width: 48rem; margin: 0 auto var(--space-md); }
+.mi-fuel__sheet { display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-lg); }
 .mi-fuel__sheet p { margin: 0; font-size: var(--text-sm); opacity: 0.85; }
 .mi-fuel__of { font-size: var(--text-base); opacity: 0.7; }
 .mi-fuel__hint { margin: calc(var(--space-sm) * -1) 0 0; font-size: var(--text-sm); }
@@ -850,3 +851,5 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
   .mi-fuel__entry { flex-wrap: wrap; }
   .mi-fuel__entry .mi-pagerow__text { flex-basis: 100%; }
 }
+.mi-fuel__pick { cursor: pointer; }
+.mi-fuel__pick[aria-disabled="true"] { opacity: 0.6; pointer-events: none; }

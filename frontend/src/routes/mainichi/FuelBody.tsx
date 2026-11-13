@@ -1,4 +1,6 @@
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { API_URL, ApiError } from "../../lib/api";
@@ -10,6 +12,8 @@ import {
 import { reducedMotion } from "../../lib/motion";
 import { confirmDialog } from "../../components/ConfirmDialog";
 import { Skeleton } from "./parts";
+import { PhotoPick } from "./FuelAi";
+import { getAiUsage, readScaleScreenshot, takeSharedImage } from "../../lib/fuelAi";
 
 gsap.registerPlugin(useGSAP);
 
@@ -63,10 +67,8 @@ const FIELDS = [
   ["muscle_rate_pct", "Muscle rate (%)"],
 ] as const;
 
-const nowLocal = () => {
-  const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
-};
+const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+const nowLocal = () => toLocalInput(new Date());
 
 /** The 8 core fields from the scale screen. Values that fail a cross-check come back as a question, not a block. */
 function ReadingForm() {
@@ -76,17 +78,53 @@ function ReadingForm() {
   const [context, setContext] = useState("");
   const [warning, setWarning] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [source, setSource] = useState<"manual" | "screenshot">("manual");
+  const [segmental, setSegmental] = useState<unknown>(null);
+  const [reading, setReading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+
+  /** Screenshot → the same form, filled in. Saving it is the confirm step; the checks run again on save. */
+  async function importShot(file: Blob) {
+    setReading(true);
+    setImportError(null);
+    setSaved(false);
+    try {
+      const res = await readScaleScreenshot(file);
+      setAt(toLocalInput(new Date(res.reading.measured_at)));
+      setVals(Object.fromEntries(FIELDS.map(([k]) => [k, res.reading[k] == null ? "" : String(res.reading[k])])));
+      setContext(res.context);
+      setSegmental(res.reading.segmental ?? null);
+      setSource("screenshot");
+      setWarning(res.issues.length ? res.issues.map((i) => i.message).join(" ") : null);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Couldn't read that screenshot.");
+    } finally {
+      setReading(false);
+    }
+  }
+
+  // Shared from AiLink or the gallery (Android Share → Hitsune): the service worker parked the image for us.
+  const shared = params.get("shared") === "1";
+  useEffect(() => {
+    if (!shared) return;
+    setParams({}, { replace: true });
+    takeSharedImage().then((img) => img && importShot(img));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per share
+  }, [shared]);
 
   function submit(e: FormEvent | null, force = false) {
     e?.preventDefault();
     setSaved(false);
     const body = Object.fromEntries(FIELDS.map(([k]) => [k, numOrNull(vals[k] ?? "")]));
     add.mutate(
-      { ...body, measured_at: new Date(at).toISOString(), ...(context ? { context } : {}), force },
+      { ...body, measured_at: new Date(at).toISOString(), ...(context ? { context } : {}), force, source, ...(segmental ? { segmental } : {}) },
       {
         onSuccess: () => {
           setWarning(null);
           setVals({});
+          setSource("manual");
+          setSegmental(null);
           setSaved(true);
         },
         onError: (err) => setWarning(err instanceof ApiError && err.code === "needs_confirm" ? err.message : null),
@@ -96,7 +134,12 @@ function ReadingForm() {
 
   return (
     <form className="card mi-card mi-form" onSubmit={(e) => submit(e)}>
-      <h2 className="mi-h2">New weigh-in</h2>
+      <div className="mi-sechead">
+        <h2 className="mi-h2">New weigh-in</h2>
+        <PhotoPick label="Import AiLink screenshot" busy={reading} onFile={importShot} />
+      </div>
+      {importError && <p className="field-error" role="alert">{importError} The form still works by hand.</p>}
+      {source === "screenshot" && <p className="mi-muted">Read from the screenshot. Check each number against the app, then save.</p>}
       <div className="mi-fuel__grid">
         <label className="field">
           <span>Measured at</span>
@@ -350,12 +393,34 @@ function SettingsForm({ profile }: { profile: Profile }) {
   );
 }
 
+function AiUsageCard() {
+  const usage = useQuery({ queryKey: ["fuel", "ai-usage"], queryFn: getAiUsage });
+  const u = usage.data;
+  return (
+    <section className="card mi-card" aria-label="AI use this month">
+      <h2 className="mi-h2">AI reads this month</h2>
+      {u ? (
+        <>
+          <dl className="mi-figs">
+            <div><dt>Spent</dt><dd>${u.month_usd.toFixed(3)} <span className="mi-muted">of ${u.cap_usd}</span></dd></div>
+            {u.by_task.map((t) => (
+              <div key={t.task}><dt>{t.task}</dt><dd>{t.calls} <span className="mi-muted">· {(t.avg_ms / 1000).toFixed(1)} s{t.failed ? ` · ${t.failed} failed` : ""}</span></dd></div>
+            ))}
+          </dl>
+          <p className="mi-muted">Photos go to DeepSeek (labels, scale screens) or Anthropic (meals, text); only a hash and the numbers are kept. At the cap, AI turns off until next month and manual entry keeps working.</p>
+        </>
+      ) : <Skeleton rows={1} height="3rem" />}
+    </section>
+  );
+}
+
 export function FuelSettings() {
   const profile = useProfile();
   return (
     <div className="mi-narrow">
       <h1 className="mi-h1">Fuel settings</h1>
       {profile.data ? <SettingsForm key={JSON.stringify(profile.data)} profile={profile.data} /> : <Skeleton rows={3} height="3rem" />}
+      <AiUsageCard />
     </div>
   );
 }

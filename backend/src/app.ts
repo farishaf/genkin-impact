@@ -20,6 +20,7 @@ import { attachmentsRouter } from "./routes/attachments.js";
 import { receiptsRouter } from "./routes/receipts.js";
 import { plannerRouter } from "./routes/planner.js";
 import { fuelRouter } from "./routes/fuel.js";
+import { fuelAiRouter } from "./routes/fuelAi.js";
 
 export const app = express();
 
@@ -55,6 +56,7 @@ app.use("/recurring-rules", recurringRulesRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/saved-filters", savedFiltersRouter);
 app.use("/planner", plannerRouter);
+app.use("/fuel/ai", fuelAiRouter);
 app.use("/fuel", fuelRouter);
 app.use("/receipts", receiptsRouter);
 app.use("/", attachmentsRouter);

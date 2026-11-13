@@ -7,6 +7,7 @@ import {
 } from "../../lib/fuel";
 import { useEnter } from "../../lib/motion";
 import { Drawer, Icon, Progress, Skeleton } from "./parts";
+import { AiMealFlow, LabelPhoto } from "./FuelAi";
 
 const FUEL_TABS = [
   { to: "/mainichi/fuel", label: "Today", end: true },
@@ -17,7 +18,7 @@ const FUEL_TABS = [
 export function FuelLayout() {
   return (
     <>
-      <nav className="mi-filters mi-moneytabs" aria-label="Fuel">
+      <nav className="mi-filters mi-fueltabs" aria-label="Fuel">
         {FUEL_TABS.map((t) => (
           <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `mi-chip-btn${isActive ? " mi-chip-btn--on" : ""}`}>
             {t.label}
@@ -184,9 +185,17 @@ function EntryRow({ entry }: { entry: Entry }) {
   );
 }
 
-type Mode = "saved" | "barcode" | "manual";
+type Mode = "saved" | "text" | "photo" | "barcode" | "label" | "manual";
+const MODES: { id: Mode; label: string }[] = [
+  { id: "saved", label: "Saved" },
+  { id: "text", label: "Describe" },
+  { id: "photo", label: "Photo" },
+  { id: "barcode", label: "Barcode" },
+  { id: "label", label: "Label" },
+  { id: "manual", label: "Manual" },
+];
 
-/** Saved foods first (zero AI, a tap and an amount), then barcode, then a one-off manual item. */
+/** Saved foods first (zero AI, a tap and an amount), then describing it (the most accurate AI path), photo, barcode, label, by hand. */
 function LogFood({ date, onDone }: { date: string; onDone: () => void }) {
   const [mode, setMode] = useState<Mode>("saved");
   const [q, setQ] = useState("");
@@ -207,7 +216,6 @@ function LogFood({ date, onDone }: { date: string; onDone: () => void }) {
       else setDraft(res);
     } catch (err) {
       setLookupError((err as Error).message);
-      setDraft({ food: { ...EMPTY_FOOD, barcode: barcode.trim() }, missing: [], saved: false });
     } finally {
       setLooking(false);
     }
@@ -217,13 +225,15 @@ function LogFood({ date, onDone }: { date: string; onDone: () => void }) {
 
   return (
     <div className="mi-form">
-      <div className="mi-seg" role="group" aria-label="How to add">
-        {(["saved", "barcode", "manual"] as const).map((m) => (
-          <button key={m} type="button" className={`mi-seg__btn${mode === m ? " mi-seg__btn--on" : ""}`} aria-pressed={mode === m} onClick={() => { setMode(m); setDraft(null); }}>
-            {m === "saved" ? "Saved" : m === "barcode" ? "Barcode" : "Manual"}
+      <div className="mi-filters" role="group" aria-label="How to add">
+        {MODES.map((m) => (
+          <button key={m.id} type="button" className={`mi-chip-btn${mode === m.id ? " mi-chip-btn--on" : ""}`} aria-pressed={mode === m.id} onClick={() => { setMode(m.id); setDraft(null); setLookupError(null); }}>
+            {m.label}
           </button>
         ))}
       </div>
+
+      {(mode === "text" || mode === "photo") && <AiMealFlow key={mode} date={date} kind={mode} onDone={onDone} />}
 
       {mode === "saved" && (
         <>
@@ -254,10 +264,25 @@ function LogFood({ date, onDone }: { date: string; onDone: () => void }) {
           <button type="submit" className="btn btn--primary" disabled={barcode.length < 6 || looking}>{looking ? "Looking up…" : "Look up"}</button>
         </form>
       )}
-      {lookupError && <p className="field-error">{lookupError}</p>}
+      {lookupError && (
+        <div className="mi-form__actions">
+          <p className="field-error">{lookupError}</p>
+          <button type="button" className="mi-textbtn" onClick={() => setDraft({ food: { ...EMPTY_FOOD, barcode: barcode.trim() }, missing: [], saved: false })}>Enter it by hand</button>
+        </div>
+      )}
+      {/* Not in Open Food Facts: read the label instead, and keep it under this barcode for next time. */}
+      {((mode === "barcode" && lookupError && !draft) || (mode === "label" && !draft)) && (
+        <LabelPhoto
+          barcode={mode === "barcode" ? barcode.trim() : undefined}
+          onDraft={(d) => {
+            setLookupError(null);
+            setDraft({ food: { ...EMPTY_FOOD, ...d.food, barcode: d.food.barcode ?? null, source: "label" } as FoodDraft, missing: d.missing, saved: false });
+          }}
+        />
+      )}
 
       {(mode === "manual" || draft) && (
-        <FoodForm key={draft?.food.barcode ?? "manual"} initial={draft?.food ?? EMPTY_FOOD} missing={draft?.missing ?? []} date={date} onDone={onDone} />
+        <FoodForm key={`${mode}-${draft?.food.source}-${draft?.food.name}`} initial={draft?.food ?? EMPTY_FOOD} missing={draft?.missing ?? []} date={date} onDone={onDone} />
       )}
     </div>
   );
@@ -325,14 +350,16 @@ function FoodForm({ initial, missing, date, onDone }: { initial: FoodDraft; miss
   const ok = name.trim() && per100.kcal_100g !== null && g > 0;
   const error = saveFood.error ?? add.error;
 
+  const entrySource = initial.source === "label" ? { source: "label" } : initial.barcode ? { source: "barcode" } : {};
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     const base = { ...per100, protein_100g: per100.protein_100g ?? 0, carbs_100g: per100.carbs_100g ?? 0, fat_100g: per100.fat_100g ?? 0, ...(sweet === null ? {} : { is_sweet: sweet }) };
     if (keep || initial.barcode) {
-      const food = (await saveFood.mutateAsync({ ...base, name: name.trim(), barcode: initial.barcode, serving_g: initial.serving_g, source: initial.barcode ? "barcode" : "manual" })) as Food;
-      await add.mutateAsync({ date, food_id: food.id, grams: g, is_planned: planned });
+      const food = (await saveFood.mutateAsync({ ...base, name: name.trim(), barcode: initial.barcode, serving_g: initial.serving_g, source: initial.source })) as Food;
+      await add.mutateAsync({ date, food_id: food.id, grams: g, is_planned: planned, ...entrySource });
     } else {
-      await add.mutateAsync({ ...base, date, name: name.trim(), grams: g, is_planned: planned });
+      await add.mutateAsync({ ...base, date, name: name.trim(), grams: g, is_planned: planned, ...entrySource });
     }
     onDone();
   }

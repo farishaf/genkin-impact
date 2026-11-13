@@ -109,6 +109,8 @@ const readingSchema = z.object({
   context: z.enum(["fasted_morning", "post_run", "other"]).optional(),
   // Save despite warnings (the user saw them on the confirm step).
   force: z.boolean().optional(),
+  // A screenshot import dedupes on measured_at: importing the same screen twice saves one reading.
+  source: z.enum(["manual", "screenshot"]).optional(),
 });
 
 const READING_COLUMNS = [
@@ -137,7 +139,8 @@ fuelRouter.get("/body", validateQuery(rangeQuery), async (req, res, next) => {
 
 fuelRouter.post("/body", validateBody(readingSchema), async (req, res, next) => {
   try {
-    const { force, context, segmental, ...input } = req.body as z.infer<typeof readingSchema>;
+    const { force, context, segmental, source = "manual", ...input } = req.body as z.infer<typeof readingSchema>;
+    const origin = source === "screenshot" ? "ailink" : "";
     const [profile, tz, prev] = await Promise.all([
       loadProfile(req.userId!),
       userTimezone(req.userId!),
@@ -153,15 +156,15 @@ fuelRouter.post("/body", validateBody(readingSchema), async (req, res, next) => 
     const values = READING_COLUMNS.map((c) => r[c] ?? null);
     const inserted = await pool.query(
       `INSERT INTO body_readings (id, user_id, measured_at, ${READING_COLUMNS.join(", ")}, segmental, context, source, origin, raw)
-       VALUES ($1, $2, $3, ${READING_COLUMNS.map((_, i) => `$${i + 4}`).join(", ")}, $19, $20, 'manual', '', $21)
+       VALUES ($1, $2, $3, ${READING_COLUMNS.map((_, i) => `$${i + 4}`).join(", ")}, $19, $20, $22, $23, $21)
        ON CONFLICT (user_id, measured_at, source, origin) DO NOTHING RETURNING *`,
-      [newId(), req.userId, r.measured_at, ...values, segmental ? JSON.stringify(segmental) : null, ctx, JSON.stringify(req.body)]
+      [newId(), req.userId, r.measured_at, ...values, segmental ? JSON.stringify(segmental) : null, ctx, JSON.stringify(req.body), source, origin]
     );
     if (inserted.rows[0]) {
       res.status(201).json({ reading: inserted.rows[0], duplicate: false });
       return;
     }
-    const existing = await pool.query("SELECT * FROM body_readings WHERE user_id = $1 AND measured_at = $2 AND source = 'manual' AND origin = ''", [req.userId, r.measured_at]);
+    const existing = await pool.query("SELECT * FROM body_readings WHERE user_id = $1 AND measured_at = $2 AND source = $3 AND origin = $4", [req.userId, r.measured_at, source, origin]);
     res.json({ reading: existing.rows[0], duplicate: true });
   } catch (err) {
     next(err);
@@ -326,12 +329,16 @@ const entrySchema = z.object({
   ...z.object(per100).partial().shape,
   is_sweet: z.boolean().optional(),
   is_planned: z.boolean().optional(),
+  // Set by the AI confirm screens: where the item came from, the model's confidence, and the image's hash (never the image).
+  source: z.enum(["barcode", "label", "photo", "text", "manual"]).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  image_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 });
 const patchEntrySchema = z.object({ grams: n(0.1, 5000).optional(), name: z.string().trim().min(1).max(200).optional(), is_sweet: z.boolean().optional(), is_planned: z.boolean().optional() });
 
 const ENTRY_INSERT = `INSERT INTO food_entries (id, user_id, date, eaten_at, food_id, name, grams, kcal_100g, protein_100g, carbs_100g, fat_100g, fiber_100g, sugar_100g,
-  kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g, is_sweet, is_planned, source)
-  VALUES ($1, $2, $3, COALESCE($4, now()), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`;
+  kcal, protein_g, carbs_g, fat_g, fiber_g, sugar_g, is_sweet, is_planned, source, confidence, image_hash)
+  VALUES ($1, $2, $3, COALESCE($4, now()), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING *`;
 
 type Snapshot = { name: string; kcal_100g: number; protein_100g: number; carbs_100g: number; fat_100g: number; fiber_100g: number | null; sugar_100g: number | null };
 const entryValues = (p: Snapshot, grams: number) => {
@@ -365,7 +372,8 @@ fuelRouter.post("/entries", validateBody(entrySchema), async (req, res, next) =>
       sweet = e.is_sweet ?? looksSweet(e.name, e.sugar_100g, (await loadProfile(req.userId!)).config);
     }
     const result = await pool.query(ENTRY_INSERT, [
-      newId(), req.userId, e.date, e.eaten_at ?? null, e.food_id ?? null, ...entryValues(snap, e.grams), sweet, e.is_planned ?? false, e.food_id ? "saved" : "manual",
+      newId(), req.userId, e.date, e.eaten_at ?? null, e.food_id ?? null, ...entryValues(snap, e.grams), sweet, e.is_planned ?? false,
+      e.source ?? (e.food_id ? "saved" : "manual"), e.confidence ?? null, e.image_hash ?? null,
     ]);
     res.status(201).json({ entry: result.rows[0] });
   } catch (err) {
