@@ -45,6 +45,10 @@ export interface EventDetails {
   /** Logged when a run is marked done: elevation gain (m) and average heart rate (bpm). */
   elevation?: string;
   avgHr?: string;
+  /** Logged on done for Fuel: actual minutes, effort 1–10, device calories (display only for runs). */
+  duration_min?: string;
+  rpe?: string;
+  device_kcal?: string;
 }
 export interface PlannerEvent {
   id: string;

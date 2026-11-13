@@ -17,10 +17,12 @@ export function RunDetail({ event, onClose, onEdit }: { event: PlannerEvent; onC
   const updateEvent = useUpdateEvent();
   const [elevation, setElevation] = useState(event.details.elevation ?? "");
   const [avgHr, setAvgHr] = useState(event.details.avgHr ?? "");
+  const [duration, setDuration] = useState(event.details.duration_min ?? "");
+  const [rpe, setRpe] = useState(event.details.rpe ?? "");
 
   function save(done: boolean) {
     updateEvent.mutate(
-      { id: event.id, done, details: { ...event.details, elevation: elevation.trim(), avgHr: avgHr.trim() } },
+      { id: event.id, done, details: { ...event.details, elevation: elevation.trim(), avgHr: avgHr.trim(), duration_min: duration.trim(), rpe: rpe.trim() } },
       { onSuccess: onClose },
     );
   }
@@ -76,6 +78,14 @@ export function RunDetail({ event, onClose, onEdit }: { event: PlannerEvent; onC
             <label className="field">
               <span>Avg heart rate (bpm)</span>
               <input value={avgHr} inputMode="numeric" placeholder="e.g. 150" onChange={(e) => setAvgHr(e.target.value)} />
+            </label>
+            <label className="field">
+              <span>Time (min)</span>
+              <input value={duration} inputMode="numeric" placeholder="e.g. 52" onChange={(e) => setDuration(e.target.value)} />
+            </label>
+            <label className="field">
+              <span>Effort (RPE 1–10)</span>
+              <input value={rpe} inputMode="numeric" placeholder="e.g. 4" onChange={(e) => setRpe(e.target.value)} />
             </label>
           </div>
           {updateEvent.isError && <p className="field-error">Couldn't save. Try again.</p>}

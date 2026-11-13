@@ -24,6 +24,7 @@ interface SavingsGoal {
   status: "active" | "achieved" | "archived";
   pct: number;
   achieved: boolean;
+  completed: boolean;
   target_display: string;
   progress_display: string;
 }
@@ -116,7 +117,7 @@ function AddSavingsGoalForm({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-function ContributeForm({ goalId }: { goalId: string }) {
+function ContributeForm({ goalId, linked }: { goalId: string; linked: boolean }) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -141,9 +142,9 @@ function ContributeForm({ goalId }: { goalId: string }) {
 
   return (
     <form className="contribute-form" onSubmit={onSubmit}>
-      <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Add amount" required />
+      <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={linked ? "Allocate amount" : "Add amount"} required />
       <button className="btn-outline btn-outline--sm" type="submit" disabled={contribute.isPending}>
-        Add
+        {linked ? "Allocate" : "Add"}
       </button>
       {error && <p className="field-error">{error}</p>}
     </form>
@@ -179,8 +180,12 @@ function SavingsGoalCard({ goal }: { goal: SavingsGoal }) {
         <span>{goal.progress_display} saved</span>
         <span className="muted-inline">of {goal.target_display}</span>
       </div>
-      {goal.achieved && <div className="plan-card__badge">Achieved 🎉</div>}
-      {!goal.account_id && !goal.achieved && <ContributeForm goalId={goal.id} />}
+      {goal.achieved ? (
+        <div className="plan-card__badge">Achieved 🎉</div>
+      ) : (
+        goal.completed && <div className="plan-card__badge">Completed, target date reached</div>
+      )}
+      {!goal.completed && <ContributeForm goalId={goal.id} linked={!!goal.account_id} />}
     </div>
   );
 }

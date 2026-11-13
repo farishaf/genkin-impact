@@ -68,7 +68,7 @@ describe("manual (unlinked) savings goals", () => {
 });
 
 describe("account-linked savings goals", () => {
-  it("derives currency from the linked account and rejects manual contributions", async () => {
+  it("derives currency from the linked account and accepts tracking allocations", async () => {
     const agent = await setupUser();
     const accountsRes = await agent.get("/accounts");
     const accountId = accountsRes.body.accounts[0].id;
@@ -83,7 +83,8 @@ describe("account-linked savings goals", () => {
     expect(created.body.savings_goal.currency_code).toBe("USD");
 
     const contrib = await agent.post(`/savings-goals/${created.body.savings_goal.id}/contribute`).send({ amount: "10.00" });
-    expect(contrib.status).toBe(400);
+    expect(contrib.status).toBe(200);
+    expect(contrib.body.savings_goal.contributed_amount).toBe("1000");
   });
 
   it("tracks progress from account balance growth", async () => {
@@ -104,6 +105,31 @@ describe("account-linked savings goals", () => {
     const res = await agent.get("/savings-goals");
     expect(res.body.savings_goals[0].progress_minor).toBe("25000");
     expect(res.body.savings_goals[0].pct).toBe(50);
+  });
+});
+
+describe("allocations and target dates", () => {
+  it("subtracts allocations from account spendable and marks past-date goals completed", async () => {
+    const agent = await setupUser();
+    const accountsRes = await agent.get("/accounts");
+    const accountId = accountsRes.body.accounts[0].id;
+
+    const created = await agent.post("/savings-goals").send({
+      name: "Trip",
+      account_id: accountId,
+      target_amount: "5000.00",
+      currency_code: "USD",
+      target_date: "2000-01-01",
+    });
+    await agent.post(`/savings-goals/${created.body.savings_goal.id}/contribute`).send({ amount: "30.00" });
+
+    const accounts = await agent.get("/accounts");
+    const account = accounts.body.accounts.find((a: { id: string }) => a.id === accountId);
+    expect(account.allocated_minor).toBe("3000");
+
+    const goals = await agent.get("/savings-goals");
+    expect(goals.body.savings_goals[0].completed).toBe(true);
+    expect(goals.body.savings_goals[0].achieved).toBe(false);
   });
 });
 

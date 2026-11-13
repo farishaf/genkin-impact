@@ -61,6 +61,10 @@ const detailsSchema = z.object({
   // Logged when a run is marked done: elevation gain in metres and average heart rate in bpm.
   elevation: z.string().max(10).optional(),
   avgHr: z.string().max(10).optional(),
+  // Also logged on done, for Fuel's weekly hours and energy out: actual minutes, effort 1–10, device calories (display only for runs).
+  duration_min: z.string().max(10).optional(),
+  rpe: z.string().max(4).optional(),
+  device_kcal: z.string().max(10).optional(),
 });
 
 /** UPDATE only the provided columns. Keys come from a zod schema's parsed output, never raw client input. */

@@ -21,4 +21,12 @@ export const env = {
   // Receipt scanning. Optional: without a key, POST /receipts/scan answers 503 and the form stays manual.
   DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY || undefined,
   DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL || "deepseek-flash",
+  // Fuel AI inputs (meal photos, text parsing). Optional: without a key those paths answer 503 and manual entry stays.
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
+  // Optional: per-100g data for AI-listed foods. Without it, saved foods and the model's estimate are used.
+  USDA_API_KEY: process.env.USDA_API_KEY || undefined,
+  // Monthly AI spend cap per user, in USD. When reached, AI paths turn off and manual paths keep working.
+  AI_MONTHLY_CAP_USD: Number(process.env.AI_MONTHLY_CAP_USD ?? 5),
+  // Open Food Facts asks every client to identify itself.
+  OFF_USER_AGENT: process.env.OFF_USER_AGENT || "Hitsune/0.1 (+https://mainichi.splitz.web.id)",
 };
