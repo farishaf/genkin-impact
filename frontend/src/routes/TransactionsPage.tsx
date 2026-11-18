@@ -480,6 +480,7 @@ export function TransactionsPage() {
       amount: t.amount,
       currency_code: t.currency_code,
       note: t.note,
+      occurred_at: t.occurred_at,
       tags: t.tags,
     });
     setShowForm(true);

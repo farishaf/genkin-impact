@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { moveIn, useDragSort } from "./useDragSort";
 import { useNavigate } from "react-router-dom";
 import { useEnter } from "../../lib/motion";
 import { eventMeta, TYPE_LABEL, type CheckItem, type PlannerEvent } from "../../lib/planner";
@@ -22,11 +23,20 @@ export function Checklist<T extends CheckItem>({
   const listRef = useEnter<HTMLUListElement>();
   const update = (id: string, patch: Partial<T>, delay?: number) =>
     onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)), delay);
+  const sort = useDragSort(items.map((it) => it.id), (from, to) => onChange(moveIn(items, from, to), 150));
 
   return (
     <ul ref={listRef} className="mi-check">
       {items.map((it) => (
-        <li key={it.id} className={`mi-check__row${it.done ? " mi-check__row--done" : ""}`} data-enter>
+        <li
+          key={it.id}
+          ref={sort.itemRef(it.id)}
+          className={`mi-check__row${it.done ? " mi-check__row--done" : ""}${sort.dragging === it.id ? " mi-check__row--drag" : ""}`}
+          data-enter
+        >
+          <span className="mi-handle mi-check__grip" role="button" aria-label={`Drag "${it.text || "item"}" to reorder`} {...sort.handleProps(it.id)}>
+            <Icon name="grip" />
+          </span>
           <input
             type="checkbox"
             className="mi-checkbox"
