@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { decimalDigits, minorToInputValue } from "../lib/formatAmount";
-import { isValidKey, todayKey } from "../lib/planner";
+import { isValidKey, toKey, todayKey } from "../lib/planner";
 import { groupByCategory, type ReceiptLine } from "../lib/receiptLines";
 import { ReceiptItems } from "./ReceiptItems";
 import { DatePicker } from "./DatePicker";
@@ -48,10 +48,14 @@ export interface EditingTxn {
   amount: string;
   currency_code: string;
   note: string | null;
+  occurred_at: string;
   tags: { id: string; name: string }[];
 }
 
-export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn | null; onDone: () => void }) {
+// A backdated transaction lands at local noon so timezone shifts can't move it to the next or previous day; today keeps "now".
+const stampDate = (k: string) => (k === todayKey() ? new Date() : new Date(`${k}T12:00:00`)).toISOString();
+
+export function AddTransactionForm({ editing, defaultDate, onDone }: { editing?: EditingTxn | null; defaultDate?: string; onDone: () => void }) {
   const isEditing = !!editing;
 
   const { data: accounts, isError: isAccountsError } = useQuery({
@@ -85,8 +89,9 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
   const [amount, setAmount] = useState(editing ? minorToInputValue(editing.amount, editing.currency_code) : "");
   const [note, setNote] = useState(editing?.note ?? "");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  // Only set by a scan: the receipt's date. Empty means "now", as before.
-  const [date, setDate] = useState("");
+  // The transaction's own day when editing; otherwise the caller's day (or today). A scan overwrites it with the receipt's date.
+  const origDate = editing ? toKey(new Date(editing.occurred_at)) : (defaultDate ?? todayKey());
+  const [date, setDate] = useState(origDate);
   const [scanCurrency, setScanCurrency] = useState("");
   // Set by a scan that found item lines: the form then logs one expense per category instead of one amount.
   const [lines, setLines] = useState<ReceiptLine[] | null>(null);
@@ -160,10 +165,10 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
           body.amount = amount;
           body.category_id = categoryId;
         }
+        if (date !== origDate) body.occurred_at = stampDate(date);
         return api.patch(`/transactions/${editing.id}`, body);
       }
-      // A backdated receipt lands at local noon so timezone shifts can't move it to the next or previous day.
-      const occurred_at = (date && date !== todayKey() ? new Date(`${date}T12:00:00`) : new Date()).toISOString();
+      const occurred_at = stampDate(date);
       if (lines) {
         // One expense per category, saved together, so category budgets and reports count each part.
         const expenses = groups.map(([category_id, g]) => ({
@@ -303,7 +308,7 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
           <ReceiptItems
             store={store}
             onStore={setStore}
-            date={date || todayKey()}
+            date={date}
             lines={lines}
             onLines={setLines}
             categories={categories ?? []}
@@ -347,12 +352,10 @@ export function AddTransactionForm({ editing, onDone }: { editing?: EditingTxn |
       {scanCurrency && selectedCurrencyCode && scanCurrency !== selectedCurrencyCode && (
         <p className="field-error">The receipt reads {scanCurrency}, but this account is in {selectedCurrencyCode}.</p>
       )}
-      {date && (
-        <label className="field">
-          <span>Date</span>
-          <DatePicker required value={date} max={todayKey()} onChange={setDate} />
-        </label>
-      )}
+      <label className="field">
+        <span>Date</span>
+        <DatePicker required value={date} max={todayKey()} onChange={setDate} />
+      </label>
       {!lines && (
         <label className="field">
           <span>Note</span>

@@ -224,6 +224,8 @@
 .mi-check__row--done .mi-check__text { color: var(--color-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .mi-check__plus { margin-inline: var(--space-2xs); color: var(--color-muted); }
 .mi-check__del, .mi-check__act { color: var(--color-muted); }
+.mi-check__grip { margin-left: calc(-1 * var(--space-xs)); margin-right: calc(-1 * var(--space-xs)); }
+.mi-check__row--drag { position: relative; z-index: var(--z-raised); background: var(--color-paper); box-shadow: var(--shadow-pop); border-radius: var(--radius-sm); }
 .mi-check__act { opacity: 0; }
 .mi-check__row:hover .mi-check__act, .mi-check__row:focus-within .mi-check__act, .mi-check__act:focus-visible { opacity: 1; }
 

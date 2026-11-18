@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { formatMoney } from "../../lib/formatAmount";
-import { AddTransactionForm } from "../../components/AddTransactionForm";
+import { AddTransactionForm, type EditingTxn } from "../../components/AddTransactionForm";
 import {
   addDays, fromKey, isValidKey, newItemId, toKey, todayKey, weekStart,
   useCreatePage, useDay, useDeletePage, useEditDay, useEvents, usePages, useUpdateEvent,
@@ -37,13 +37,7 @@ function pageSub(p: Page) {
   return p.description || "Empty page";
 }
 
-interface DayTxn {
-  id: string;
-  type: "expense" | "income" | "transfer";
-  amount: string;
-  currency_code: string;
-  occurred_at: string;
-  note: string | null;
+interface DayTxn extends EditingTxn {
   category_name: string | null;
   category_emoji: string | null;
   account_name: string;
@@ -52,6 +46,11 @@ interface DayTxn {
 // Keys start with "transactions" so AddTransactionForm's invalidation refreshes this card.
 function DaySpending({ date }: { date: string }) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<EditingTxn | null>(null);
+  const close = () => {
+    setAdding(false);
+    setEditing(null);
+  };
   const spendRef = useEnter<HTMLElement>();
   const txns = useQuery({
     queryKey: ["transactions", "day", date],
@@ -84,7 +83,7 @@ function DaySpending({ date }: { date: string }) {
       {txns.data?.length ? (
         <div className="mi-list mi-list--tight">
           {txns.data.map((t) => (
-            <div key={t.id} className="mi-pagerow mi-txn" data-enter>
+            <button key={t.id} type="button" className="mi-pagerow mi-txn" data-enter aria-label={`Edit ${t.note || t.category_name || t.type}`} onClick={() => setEditing(t)}>
               <span className="mi-tile">{t.category_emoji || <Icon name={t.type === "transfer" ? "transfer" : "receipt"} />}</span>
               <span className="mi-pagerow__text">
                 <span className="mi-pagerow__title">{t.note || t.category_name || (t.type === "transfer" ? "Transfer" : "Expense")}</span>
@@ -96,16 +95,15 @@ function DaySpending({ date }: { date: string }) {
                 {t.type === "expense" ? "−" : t.type === "income" ? "+" : ""}
                 {formatMoney(t.amount, t.currency_code)}
               </span>
-            </div>
+            </button>
           ))}
         </div>
       ) : (
         txns.isLoading ? <Skeleton rows={2} height="3rem" className="mi-list mi-list--tight" /> : <Empty art="receipt">No transactions this day.</Empty>
       )}
-      {/* ponytail: the form always stamps "now"; pass a date into AddTransactionForm if backdating from here matters. */}
-      {adding && (
-        <Drawer title="New transaction" onClose={() => setAdding(false)}>
-          <AddTransactionForm onDone={() => setAdding(false)} />
+      {(adding || editing) && (
+        <Drawer title={editing ? "Edit transaction" : "New transaction"} onClose={close}>
+          <AddTransactionForm key={editing?.id ?? "new"} editing={editing} defaultDate={date} onDone={close} />
         </Drawer>
       )}
     </section>
