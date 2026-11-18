@@ -853,3 +853,27 @@ html:has(.mi-drawer[open]) { overflow: hidden; }
 }
 .mi-fuel__pick { cursor: pointer; }
 .mi-fuel__pick[aria-disabled="true"] { opacity: 0.6; pointer-events: none; }
+
+/* ---------- calendar week focus + drag (CalendarPage.tsx) ---------- */
+/* The picked week grows so its items read in full; the rest shrink to make room. */
+.mi-month:has(.mi-month__row--focus) .mi-month__row:not(.mi-month__row--focus, .mi-month__row--head) .mi-cell { min-height: 4.5rem; }
+.mi-month__row--focus .mi-cell { min-height: 14rem; }
+.mi-month__row--focus .mi-tag__text { -webkit-line-clamp: 4; }
+.mi-cell { transition: background-color var(--dur-micro) var(--ease-snap), min-height 320ms cubic-bezier(0.2, 0, 0, 1); }
+.mi-cell--over, .mi-cell--over:hover { background: var(--color-paper-3); box-shadow: inset 0 0 0 2px var(--color-accent); }
+.mi-drag { display: block; min-width: 0; cursor: grab; touch-action: manipulation; }
+.mi-drag--ghost { opacity: 0.35; }
+.mi-drag--lift { cursor: grabbing; scale: 1.04; rotate: -1.5deg; border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
+@media (max-width: 45rem) {
+  .mi-month:has(.mi-month__row--focus) .mi-month__row:not(.mi-month__row--focus, .mi-month__row--head) .mi-cell { min-height: 2.75rem; }
+  .mi-month__row--focus .mi-cell { min-height: 7rem; align-items: stretch; padding: var(--space-2xs) var(--space-3xs); }
+  /* Phones show dots; the focused week swaps them for short labels so items can be read and grabbed. */
+  .mi-month__row--focus .mi-cell__items { flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; gap: var(--space-3xs); }
+  .mi-month__row--focus .mi-tag { width: auto; height: auto; padding: var(--space-3xs); border-radius: var(--radius-sm); background: color-mix(in oklab, var(--mi-c) 14%, var(--color-paper)); font-size: 0.625rem; }
+  .mi-month__row--focus .mi-tag__text { display: -webkit-box; -webkit-line-clamp: 3; line-height: 1.2; }
+  .mi-drag--lift .mi-tag { width: auto; height: auto; padding: var(--space-3xs) var(--space-xs); background: color-mix(in oklab, var(--mi-c) 14%, var(--color-paper)); }
+  .mi-drag--lift .mi-tag__text { display: -webkit-box; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mi-cell { transition: background-color var(--dur-micro) var(--ease-snap); }
+}

@@ -1,4 +1,9 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors,
+  type DragEndEvent, type DragOverEvent, type DragStartEvent,
+} from "@dnd-kit/core";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   addDays, eventMeta, fromKey, isValidKey, runTypeOf, toKey, todayKey, weekStart, TYPE_LABEL,
@@ -19,6 +24,37 @@ const runKm = (events: PlannerEvent[]) =>
   events.filter((e) => e.type === "run").reduce((sum, e) => sum + (parseFloat(e.details.km ?? "") || 0), 0);
 const fmtKm = (n: number) => String(Math.round(n * 10) / 10);
 
+function Tag({ e }: { e: PlannerEvent }) {
+  return (
+    <span className={`mi-tag mi-type--${e.type}${e.done ? " mi-tag--done" : ""}`}>
+      <span className="mi-tag__text">
+        {e.time && e.type === "event" ? `${e.time} ` : ""}
+        {e.title}
+        {e.type === "run" && e.details.km ? ` ${e.details.km}k` : ""}
+      </span>
+    </span>
+  );
+}
+
+function DragTag({ e }: { e: PlannerEvent }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({ id: e.id, data: e });
+  // ponytail: role/tabIndex dropped so the tag doesn't nest a focusable inside the cell button; keyboard users move via the editor's "Move to".
+  return (
+    <span ref={setNodeRef} {...listeners} aria-describedby={attributes["aria-describedby"]} className={`mi-drag${isDragging ? " mi-drag--ghost" : ""}`}>
+      <Tag e={e} />
+    </span>
+  );
+}
+
+function DayCell({ k, className, children, ...rest }: { k: string } & ComponentProps<"button">) {
+  const { setNodeRef, isOver } = useDroppable({ id: k });
+  return (
+    <button ref={setNodeRef} type="button" className={`${className}${isOver ? " mi-cell--over" : ""}`} {...rest}>
+      {children}
+    </button>
+  );
+}
+
 export function CalendarPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -38,6 +74,16 @@ export function CalendarPage() {
   const [filter, setFilter] = useState<"all" | EventType>("all");
   const [adding, setAdding] = useState(false);
   const dayRef = useEnter<HTMLElement>();
+  const qc = useQueryClient();
+  // Touch waits for a press-and-hold so swiping still scrolls the page.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+  );
+  const [dragging, setDragging] = useState<PlannerEvent | null>(null);
+  const [dragWeek, setDragWeek] = useState<string | null>(null);
+  // A week is focused once the user picks a day; while dragging, the week under the pointer takes over.
+  const focusWeek = dragWeek ?? (params.has("date") ? toKey(weekStart(fromKey(sel))) : null);
 
   const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -65,6 +111,23 @@ export function CalendarPage() {
   const closeDrawer = () => {
     setAdding(false);
     update({ edit: null });
+  };
+
+  const onDragStart = ({ active }: DragStartEvent) => setDragging(active.data.current as PlannerEvent);
+  const onDragOver = ({ over }: DragOverEvent) => {
+    if (over) setDragWeek(toKey(weekStart(fromKey(String(over.id)))));
+  };
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setDragging(null);
+    setDragWeek(null);
+    const date = over ? String(over.id) : null;
+    const ev = active.data.current as PlannerEvent;
+    if (!date || date === ev.date) return;
+    // Move it in every cached month right away so the tag lands where it was dropped; the server catches up.
+    qc.setQueriesData<PlannerEvent[]>({ queryKey: ["planner", "events"] }, (old) => old?.map((e) => (e.id === ev.id ? { ...e, date } : e)));
+    updateEvent.mutate({ id: ev.id, date }, { onError: () => qc.invalidateQueries({ queryKey: ["planner", "events"] }) });
+    // Pin the month so dropping on a spill-over day focuses it without flipping the view.
+    update({ date, month: toKey(monthStart).slice(0, 7) });
   };
 
   async function newRoutine() {
@@ -109,6 +172,7 @@ export function CalendarPage() {
 
       <div className="mi-cols">
       <section className="card mi-card mi-cal mi-cols__main" aria-busy={eventsLoading}>
+        <DndContext sensors={sensors} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => { setDragging(null); setDragWeek(null); }}>
         <div className="mi-month">
           <div className="mi-month__row mi-month__row--head">
             {DOW.map((d) => <span key={d}>{d}</span>)}
@@ -119,14 +183,15 @@ export function CalendarPage() {
             const km = runKm(weekEvents);
             const doneKm = runKm(weekEvents.filter((e) => e.done));
             return (
-              <div key={wk[0]} className="mi-month__row">
+              <div key={wk[0]} className={`mi-month__row${focusWeek === wk[0] ? " mi-month__row--focus" : ""}`}>
                 {wk.map((k) => {
                   const items = shown.filter((e) => e.date === k);
                   const d = fromKey(k);
+                  const max = focusWeek === wk[0] ? items.length : 3;
                   return (
-                    <button
+                    <DayCell
                       key={k}
-                      type="button"
+                      k={k}
                       aria-pressed={k === sel}
                       aria-label={`${d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}, ${items.length} items`}
                       className={`mi-cell${d.getMonth() !== monthStart.getMonth() ? " mi-cell--out" : ""}${k === sel ? " mi-cell--sel" : ""}${k === todayKey() ? " mi-cell--today" : ""}`}
@@ -134,18 +199,10 @@ export function CalendarPage() {
                     >
                       <span className="mi-cell__num">{d.getDate()}</span>
                       <span className="mi-cell__items">
-                        {items.slice(0, 3).map((e) => (
-                          <span key={e.id} className={`mi-tag mi-type--${e.type}${e.done ? " mi-tag--done" : ""}`}>
-                            <span className="mi-tag__text">
-                              {e.time && e.type === "event" ? `${e.time} ` : ""}
-                              {e.title}
-                              {e.type === "run" && e.details.km ? ` ${e.details.km}k` : ""}
-                            </span>
-                          </span>
-                        ))}
-                        {items.length > 3 && <span className="mi-cell__more">+{items.length - 3} more</span>}
+                        {items.slice(0, max).map((e) => <DragTag key={e.id} e={e} />)}
+                        {items.length > max && <span className="mi-cell__more">+{items.length - max} more</span>}
                       </span>
-                    </button>
+                    </DayCell>
                   );
                 })}
                 {km ? (
@@ -167,6 +224,10 @@ export function CalendarPage() {
             );
           })}
         </div>
+        <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
+          {dragging && <div className="mi-drag mi-drag--lift"><Tag e={dragging} /></div>}
+        </DragOverlay>
+        </DndContext>
       </section>
 
       <div className="mi-cols__side">
